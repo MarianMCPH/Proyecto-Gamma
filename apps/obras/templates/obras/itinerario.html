@@ -32,7 +32,7 @@
                 </div>
                 
                 <!-- Botón de cerrar sesión -->
-                <a href="login_pwa.html" id="logout-btn" class="btn btn-outline-light btn-sm rounded-pill px-3 py-1 logout-btn-custom">Cerrar sesión</a>
+                <a href="{% url 'core:login' %}" id="logout-btn" class="btn btn-outline-light btn-sm rounded-pill px-3 py-1 logout-btn-custom">Cerrar sesión</a>
             </div>
             
             <!-- Datos de bienvenida, usuario y estado dinámico de conexión (Online/Offline) -->
@@ -122,7 +122,7 @@
                                 </button>
                             </div>
                             <div class="col-6">
-                                <button id="btnIniciarFaena" class="btn btn-institutional w-100 py-2 fw-medium rounded-pill text-white shadow-sm" style="font-size: 12px;">
+                                <button data-url="{% url 'obras:detalle_obra' %}" id="btnIniciarFaena" class="btn btn-institutional w-100 py-2 fw-medium rounded-pill text-white shadow-sm" style="font-size: 12px;">
                                     Iniciar Faena
                                 </button>
                             </div>

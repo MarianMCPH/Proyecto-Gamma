@@ -33,7 +33,7 @@
             <p class="text-muted small mb-3">Ingrese sus credenciales</p>
             
             <!-- Formulario de Acceso Móvil conectado a la ruta de Django para itinerario -->
-            <form id="pwaLoginForm" action="{% url 'pwa:itinerario' %}" method="GET">
+            <form id="pwaLoginForm" action="{% url 'obras:itinerario' %}" method="GET">
                 <div class="mb-3">
                     <input type="text" id="pwaUser" name="username" class="form-control py-2 text-muted small" placeholder="Nombre de usuario o RUT" required>
                 </div>

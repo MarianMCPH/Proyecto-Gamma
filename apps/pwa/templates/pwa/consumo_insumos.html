@@ -1,0 +1,80 @@
+<!-- Esto es para que se guíen de lo que deberia llevar cada pantalla. 
+Este archivo NO SE USA ni como base, ni como nada, solo es un ejemplo -->
+
+{% extends "base_pwa.html" %} 
+{% load static %}
+
+{% block header_title %}Paso 2: Consumo de Insumos{% endblock %} <!-- Paso específico de cada pantalla -->
+
+{% block mobile_content %}
+
+    <!-- Estilos específicos para el login móvil -->
+    <link rel="stylesheet" href="{% static 'css/insumos.css' %}">
+
+<!-- Contenedor donde se agrupan todos los cuadros de insumos -->
+<div id="contenedor-insumos">
+    
+    <!-- Tarjeta individual de insumo (esta estructura se clona al presionar "+ Agregar Material") -->
+    <div class="card-insumo">
+        <div class="card-header-insumo">
+            <h3>REBAJA DE MATERIALES Y REPUESTOS</h3>
+        </div>
+        
+        <div class="grupo-input">
+            <label class="label-campo">Artículo / Repuesto</label>
+            <select name="articulo[]" class="select-tactil" required>
+                <option value="" disabled selected>Seleccionar opción</option>
+                <!-- TODO BD: Iterar inventario de bodega móvil -->
+                <option value="1">Gas Refrigerante R-404A (Kg)</option>
+                <option value="2">Filtro Secador DCL 1/2"</option>
+                <option value="3">Aceite Sintético POE 68 (L)</option>
+            </select>
+        </div>
+
+        <div class="grupo-input">
+            <label class="label-campo">Cantidad Usada</label>
+            <select name="cantidad[]" class="select-tactil" required>
+                <option value="" disabled selected>Seleccionar opción</option>
+                <!-- TODO BD: Validar stock máximo disponible según el artículo seleccionado -->
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="5">5</option>
+            </select>
+        </div>
+
+        <div class="footer-card-insumo">
+            <div class="estado-cardex">
+                <span class="label-cardex">Estado Cardex</span>
+                <span class="badge-rebajado">✔ Rebajado de Stock</span>
+            </div>
+            <!-- Botón basurero para eliminar este cuadro -->
+            <button type="button" class="btn-eliminar-insumo" title="Eliminar insumo" aria-label="Eliminar insumo">
+                🗑️
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<!-- Botones de acción centrales -->
+<div class="acciones-insumos">
+    <button type="button" id="btn-agregar-material" class="btn-accion-secundario">
+        <span>+</span> Agregar Material
+    </button>
+    
+    <!-- TODO DJANGO: Cambiar el href por  -->
+    <a href="{% url 'pwa:solicitudes' %}" class="btn-accion-secundario">
+        <span>⚠️</span> Solicitar Insumos
+    </a>
+</div>
+
+        <!-- Lógica JS  -->
+    <script src="{% static 'js/insumos.js' %}"></script>
+
+{% endblock %}
+
+{% block navigation_buttons %} <!-- Botones específicos de cada pantalla -->
+    <a class="btn btn-sm px-3" href="{% url 'pwa:formulario' %}" style="background-color: #4b4f76; color: #fff;">Atrás: Formulario</a>
+    <button class="btn btn-sm px-3 text-white" type="submit" style="background-color: #4b4f76;">Siguiente: Evidencia Fotográfica</button>
+{% endblock %}

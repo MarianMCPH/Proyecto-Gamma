@@ -1,0 +1,96 @@
+/* =================================================
+   CSS Específico - Pantalla 1: Formulario Técnico
+   ================================================= */
+
+/* Alerta superior de protocolo incompleto */
+.alerta-protocolo {
+    background-color: #FEF2F2;
+    border: 1.5px solid #EF4444;
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.alerta-protocolo .icono-alerta {
+    color: #EF4444;
+    font-size: 28px;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.alerta-protocolo p {
+    margin: 0;
+    color: #1F2937;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Divisor sutil entre secciones */
+.divisor-sutil {
+    border: 0;
+    border-top: 1px solid #C7C9D9;
+    margin: 14px 0;
+}
+
+/* Tarjetas individuales para cada ítem del checklist */
+.card-campo {
+    background-color: #FFFFFF;
+    border: 1px solid #D1D5DB;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.label-campo {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1F2937;
+    margin-bottom: 8px;
+}
+
+/* Selects optimizados para zona táctil móvil */
+.select-tactil {
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: #6B7280;
+    background-color: #F9FAFB;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236B7280'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 20px;
+}
+
+.select-tactil:focus {
+    outline: none;
+    border-color: #3b3f68;
+    color: #1F2937;
+}
+
+/* Textarea autoajustable para observaciones */
+.textarea-autoajustable {
+    width: 100%;
+    min-height: 60px;
+    padding: 12px;
+    font-size: 14px;
+    font-family: inherit;
+    color: #1F2937;
+    background-color: #F9FAFB;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    resize: none;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.textarea-autoajustable:focus {
+    outline: none;
+    border-color: #3b3f68;
+}

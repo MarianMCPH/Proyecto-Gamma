@@ -1,0 +1,112 @@
+/* =================================================
+   CSS Específico - Pantalla 2: Consumo de Insumos
+   ================================================= */
+
+.card-insumo {
+    background-color: #FFFFFF;
+    border: 1px solid #D1D5DB;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.card-header-insumo h3 {
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1F2937;
+    border-bottom: 1px solid #C7C9D9;
+    letter-spacing: 0.3px;
+}
+
+.grupo-input {
+    margin-bottom: 14px;
+}
+
+.label-campo {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1F2937;
+    margin-bottom: 8px;
+}
+
+.select-tactil {
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: #6B7280;
+    background-color: #F9FAFB;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236B7280'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 20px;
+}
+
+/* Pie de tarjeta (Estado Cardex + Botón Eliminar) */
+.footer-card-insumo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 8px;
+}
+
+.label-cardex {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1F2937;
+    margin-bottom: 4px;
+}
+
+.badge-rebajado {
+    font-size: 12px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.btn-eliminar-insumo {
+    background: transparent;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    padding: 8px;
+    min-width: 48px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Botones centrales de acción (Agregar / Solicitar) */
+.acciones-insumos {
+    display: flex;
+    gap: 10px;
+    margin: 16px 0;
+}
+
+.btn-accion-secundario {
+    flex: 1;
+    background-color: #3b3f68; /* Vinculado a tu paleta base */
+    color: #FFFFFF;
+    border: none;
+    border-radius: 6px;
+    min-height: 46px;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: underline;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    text-align: center;
+}

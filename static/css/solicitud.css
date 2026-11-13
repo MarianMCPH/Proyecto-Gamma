@@ -1,0 +1,183 @@
+/* =================================================
+   CSS Específico - Pantalla 3: Solicitud de Insumos
+   ================================================= */
+
+.card-insumo {
+    background-color: #FFFFFF;
+    border: 1px solid #D1D5DB;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.card-header-insumo h3 {
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1F2937;
+    border-bottom: 1px solid #C7C9D9;
+    letter-spacing: 0.3px;
+}
+
+.texto-centrado {
+    text-align: center;
+}
+
+.grupo-input {
+    margin-bottom: 14px;
+}
+
+.label-campo {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1F2937;
+    margin-bottom: 8px;
+}
+
+.select-tactil {
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: #6B7280;
+    background-color: #F9FAFB;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236B7280'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 20px;
+}
+
+.textarea-autoajustable {
+    width: 100%;
+    min-height: 80px;
+    padding: 12px;
+    font-size: 14px;
+    font-family: inherit;
+    color: #1F2937;
+    background-color: #F9FAFB;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    resize: none;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+/* Zona de subida de fotografía */
+.zona-subida-foto {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 110px;
+    background-color: #E5E7EB;
+    border: 2px dashed #9CA3AF;
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 12px;
+    text-align: center;
+}
+
+.icono-camara {
+    font-size: 36px;
+    color: #9CA3AF;
+}
+
+.texto-subida {
+    font-size: 12px;
+    color: #6B7280;
+    margin-top: 6px;
+}
+
+#preview-imagen {
+    max-width: 100%;
+    max-height: 160px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
+/* Botón de envío */
+.contenedor-submit {
+    margin-top: 16px;
+}
+
+.btn-enviar-solicitud {
+    width: 100%;
+    min-height: 48px;
+    background-color: #2e3252; /* Vinculado a tu paleta base */
+    color: #FFFFFF;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Modal de Confirmación */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.modal-contenido {
+    background-color: #FFFFFF;
+    border-radius: 12px;
+    padding: 24px 20px;
+    width: 100%;
+    max-width: 340px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.modal-icono-exito {
+    width: 56px;
+    height: 56px;
+    background-color: #DCFCE7;
+    color: #16A34A;
+    border-radius: 50%;
+    font-size: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 14px auto;
+}
+
+.modal-contenido h4 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    color: #1F2937;
+}
+
+.modal-contenido p {
+    margin: 0 0 20px 0;
+    font-size: 14px;
+    color: #6B7280;
+}
+
+.btn-volver-insumos {
+    display: block;
+    width: 100%;
+    min-height: 46px;
+    line-height: 46px;
+    background-color: #2e3252;
+    color: #FFFFFF;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+}

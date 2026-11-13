@@ -1,0 +1,103 @@
+<!-- Esto es para que se guíen de lo que deberia llevar cada pantalla. 
+Este archivo NO SE USA ni como base, ni como nada, solo es un ejemplo -->
+
+{% extends "base_pwa.html" %} 
+{% load static %}
+
+{% block header_title %}Solicitudes de Insumos{% endblock %} <!-- Paso específico de cada pantalla -->
+
+{% block mobile_content %}
+
+    <!-- Estilos específicos-->
+    <link rel="stylesheet" href="{% static 'css/solicitud.css' %}">
+
+<form id="form-solicitud-insumo" enctype="multipart/form-data">
+    <!-- TODO DJANGO: Agregar cuando se conecte al backend -->
+
+    <!-- Cuadro 1: Detalle del repuesto -->
+    <div class="card-insumo">
+        <div class="card-header-insumo">
+            <h3 class="texto-centrado">DETALLE DEL REPUESTO REQUERIDO</h3>
+        </div>
+
+        <div class="grupo-input">
+            <label for="repuesto_solicitado" class="label-campo">Artículo / Repuesto</label>
+            <select id="repuesto_solicitado" name="repuesto_solicitado" class="select-tactil" required>
+                <option value="" disabled selected>Seleccionar opción</option>
+                <!-- TODO BD: Cargar catálogo general de bodega central -->
+                <option value="txv_404">Válvula TXV R-404A</option>
+                <option value="compresor_2hp">Compresor Hermético 2HP</option>
+                <option value="presostato">Presostato Dual Alta/Baja</option>
+            </select>
+        </div>
+
+        <div class="grupo-input">
+            <label for="cantidad_solicitada" class="label-campo">Cantidad</label>
+            <select id="cantidad_solicitada" name="cantidad_solicitada" class="select-tactil" required>
+                <option value="" disabled selected>Seleccionar opción</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Cuadro 2: Justificación -->
+    <div class="card-insumo">
+        <div class="card-header-insumo">
+            <h3 class="texto-centrado">NOTAS TÉCNICAS</h3>
+        </div>
+        <div class="grupo-input">
+            <label for="justificacion" class="label-campo">Justificación Operativa</label>
+            <textarea 
+                id="justificacion" 
+                name="justificacion" 
+                class="textarea-autoajustable" 
+                rows="3" 
+                placeholder="Describa la falla del componente dañado" 
+                required></textarea>
+        </div>
+    </div>
+
+    <!-- Cuadro 3: Evidencia fotográfica -->
+    <div class="card-insumo">
+        <div class="card-header-insumo">
+            <h3 class="texto-centrado">EVIDENCIA FOTOGRÁFICA DE LA FALLA</h3>
+        </div>
+        
+        <label for="foto_falla" class="zona-subida-foto" id="zona-preview">
+            <span class="icono-camara" id="icono-camara">📷</span>
+            <span class="texto-subida" id="texto-subida">Tocar para subir o tomar foto</span>
+            <img id="preview-imagen" src="" alt="Vista previa" style="display: none;">
+        </label>
+        <input type="file" id="foto_falla" name="foto_falla" accept="image/*" capture="environment" style="display: none;">
+    </div>
+
+    <!-- Botón Enviar Solicitud -->
+    <div class="contenedor-submit">
+        <button type="submit" class="btn-enviar-solicitud">Enviar Solicitud</button>
+    </div>
+</form>
+
+<!-- MODAL DE CONFIRMACIÓN -->
+<div id="modal-confirmacion" class="modal-overlay" style="display: none;">
+    <div class="modal-contenido">
+        <div class="modal-icono-exito">✔</div>
+        <h4>Solicitud enviada correctamente</h4>
+        <p>El requerimiento ha sido notificado a Bodega Central.</p>
+        
+        <!-- TODO DJANGO: Cambiar el href por  -->
+        <a href="{% url 'pwa:insumos' %}" class="btn-volver-insumos">Volver a Consumo de Insumos</a>
+    </div>
+</div>
+
+        <!-- Lógica JS  -->
+    <script src="{% static 'js/solicitud.js' %}"></script>
+
+{% endblock %}
+
+{% block navigation_buttons %} <!-- Botones específicos de cada pantalla -->
+    <a class="btn btn-sm px-3" href="#" style="background-color: #4b4f76; color: #fff;">Atrás: Formulario</a>
+    <button class="btn btn-sm px-3 text-white" type="submit" style="background-color: #4b4f76;">Siguiente: Evidencia Fotográfica</button>
+{% endblock %}

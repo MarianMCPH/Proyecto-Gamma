@@ -1,0 +1,87 @@
+<!-- Esto es para que se guíen de lo que deberia llevar cada pantalla. 
+Este archivo NO SE USA ni como base, ni como nada, solo es un ejemplo -->
+
+{% extends "base_pwa.html" %} 
+{% load static %}
+
+{% block header_title %}Paso 1: Formulario Técnico{% endblock %} <!-- Paso específico de cada pantalla -->
+
+{% block mobile_content %}
+
+    <!-- Estilos específicos-->
+    <link rel="stylesheet" href="{% static 'css/formulario.css' %}">
+
+<!-- Alerta de validación (se puede controlar con clases CSS o Django messages) -->
+<div class="alerta-protocolo">
+    <span class="icono-alerta">▲</span>
+    <p>Complete todos los ítems del protocolo antes de continuar</p>
+</div>
+
+<hr class="divisor-sutil">
+
+<!-- CONTENEDOR DE ÍTEMS DEL CHECKLIST -->
+<!-- TODO BD: Reemplazar estos bloques estáticos  -->
+<div class="checklist-container">
+    
+    <!-- Ítem de prueba 1 -->
+    <div class="card-campo">
+        <label for="item_1" class="label-campo">Estado y Limpieza de Filtros de Aire</label>
+        <select id="item_1" name="item_1" class="select-tactil" required>
+            <option value="" disabled selected>Seleccionar opción</option>
+            <!-- TODO BD: Cargar opciones dinámicas del ítem -->
+            <option value="conforme">Conforme</option>
+            <option value="no_conforme">No Conforme</option>
+            <option value="no_aplica">No Aplica</option>
+        </select>
+    </div>
+
+    <hr class="divisor-sutil">
+
+    <!-- Ítem de prueba 2 -->
+    <div class="card-campo">
+        <label for="item_2" class="label-campo">Presión de Gas Refrigerante</label>
+        <select id="item_2" name="item_2" class="select-tactil" required>
+            <option value="" disabled selected>Seleccionar opción</option>
+            <option value="conforme">Conforme</option>
+            <option value="no_conforme">No Conforme</option>
+            <option value="no_aplica">No Aplica</option>
+        </select>
+    </div>
+
+    <hr class="divisor-sutil">
+
+    <!-- Ítem de prueba 3 -->
+    <div class="card-campo">
+        <label for="item_3" class="label-campo">Limpieza de Serpentín (Evaporador y Condensador)</label>
+        <select id="item_3" name="item_3" class="select-tactil" required>
+            <option value="" disabled selected>Seleccionar opción</option>
+            <option value="conforme">Conforme</option>
+            <option value="no_conforme">No Conforme</option>
+            <option value="no_aplica">No Aplica</option>
+        </select>
+    </div>
+
+    <hr class="divisor-sutil">
+
+    <!-- Cuadro de texto adaptable al final para observaciones -->
+    <div class="card-campo">
+        <label for="observaciones_tecnicas" class="label-campo">Observaciones Técnicas</label>
+        <textarea 
+            id="observaciones_tecnicas" 
+            name="observaciones_tecnicas" 
+            class="textarea-autoajustable" 
+            rows="2" 
+            placeholder="Escriba aquí alguna observación adicional..."></textarea>
+    </div>
+
+</div>
+
+        <!-- Lógica JS  -->
+    <script src="{% static 'js/formulario.js' %}"></script>
+
+{% endblock %}
+
+{% block navigation_buttons %} <!-- Botones específicos de cada pantalla -->
+    <a class="btn btn-sm px-3" href="{% url 'obras:detalle_obra' %}" style="background-color: #4b4f76; color: #fff;">Atrás: Detalles Faena</a>
+    <a class="btn btn-sm px-3 text-white" href="{% url 'pwa:insumos' %}" type="submit" style="background-color: #4b4f76;">Siguiente: Consumo de insumos</a>
+{% endblock %}

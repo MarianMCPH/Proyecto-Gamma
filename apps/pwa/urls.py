@@ -1,8 +1,10 @@
 from django.urls import path
-from .views import PWAItinerarioView
+from .views import Formulario,Insumos,Solicitudes
 
 app_name = 'pwa'
 
 urlpatterns = [
-    path('', PWAItinerarioView.as_view(), name='itinerario'),
+    path('', Formulario.as_view(), name='formulario'),
+    path('insumos/', Insumos.as_view(), name='insumos'),
+    path('solicitudes/', Solicitudes.as_view(), name='solicitudes'),
 ]

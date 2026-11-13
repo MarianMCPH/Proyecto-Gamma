@@ -21,5 +21,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     # Incluir las rutas de la aplicación PWA móvil
     path('', include('apps.core.urls')), 
-    path('pwa/', include('apps.pwa.urls')), 
+    path('obras/', include('apps.obras.urls')), 
+    path('pwa/', include('apps.pwa.urls')),
 ]
