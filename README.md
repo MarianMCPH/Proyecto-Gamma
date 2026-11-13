@@ -7,4 +7,13 @@
 ### Utilizar el archivo css para los estilos
 ### Para echar a correr el programa ejecutar: python manage.py runserver
 
+# APPS:
+### Core: Se maneja el login.
+### Inventario: Se maneja la gestión de inventario y rebajas de stock.
+### Obras: Se maneja la gestión de las obras (creacion, visualización, edición y eliminación)
+### usuarios: Se maneja la gestion de usuarios (creacion, visualización, edición y eliminación)  
+### pwa: Para mostrar la pantalla principal de la app móbil.
+### admin_web: Para mostrar el dashboard principal administrativo.
+
 # IMPORTANTE: Tener en cuenta las lineas que modifican los otros colaboradores en las otras ramas para evitar conflictos. Para cualquier duda o conflicto hablar por el grupo.
+
