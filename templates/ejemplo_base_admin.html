@@ -1,0 +1,13 @@
+<!-- Esto es para que se guíen de lo que deberia llevar cada pantalla. 
+Este archivo NO SE USA ni como base, ni como nada, solo es un ejemplo -->
+
+{% extends "base_admin.html" %}
+{% load static %}
+
+{% block titulo %}Vista de prueba{% endblock %}
+
+{% block contenido %}
+    <h1>Prueba de la base</h1>
+    <img src="{% static 'img/logo.png' %}" alt="Logo">
+    <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+{% endblock %}

@@ -1,0 +1,60 @@
+/* =================================================_
+   CSS Base Móvil - PWA Terreno FYAG
+   ================================================= */
+
+body.supplies-body {
+    background-color: #121629; /* Fondo oscuro exterior para simulación limpia */
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+/* Contenedor central que limita el ancho al tamaño de un teléfono */
+.pwa-container {
+    width: 100%;
+    max-width: 412px;
+    height: 100vh;
+    max-height: 846px;
+    background-color: #f4f6f9;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+/* Cabecera Técnica Superior */
+.technical-form-header {
+    background-color: #2e3252;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+.form-back svg {
+    width: 24px;
+    height: 24px;
+    fill: #ffffff;
+}
+
+.form-work-logo {
+    max-height: 25px;
+    width: auto;
+}
+
+.online-status {
+    font-size: 11px;
+}
+
+/* Estilos de la barra inferior de navegación */
+.supplies-footer {
+    width: 100%;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
