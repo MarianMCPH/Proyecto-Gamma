@@ -98,6 +98,5 @@ Este archivo NO SE USA ni como base, ni como nada, solo es un ejemplo -->
 {% endblock %}
 
 {% block navigation_buttons %} <!-- Botones específicos de cada pantalla -->
-    <a class="btn btn-sm px-3" href="#" style="background-color: #4b4f76; color: #fff;">Atrás: Formulario</a>
-    <button class="btn btn-sm px-3 text-white" type="submit" style="background-color: #4b4f76;">Siguiente: Evidencia Fotográfica</button>
+    <a class="btn btn-sm px-3" href="{% url 'pwa:insumos' %}" style="background-color: #4b4f76; color: #fff;">Volver atrás</a>
 {% endblock %}

@@ -1,0 +1,62 @@
+{% extends "base_pwa.html" %} 
+{% load static %}
+
+{% block header_title %}Paso 3: Evidencia Fotográfica{% endblock %}
+
+{% block mobile_content %}
+    <link rel="stylesheet" href="{% static 'css/evidencia.css' %}">
+
+    <div class="card-insumo">
+        <div class="card-header-insumo">
+            <h3 class="texto-centrado">EVIDENCIA FOTOGRÁFICA DE FAENA</h3>
+        </div>
+
+        <!-- Contenedor dinámico donde se agregan las fotos (Antes, Después y Adicionales) -->
+        <div id="contenedor-fotos">
+            
+            <!-- Foto Antes -->
+            <div class="grupo-input-foto">
+                <label for="foto_antes" class="zona-subida-foto" id="label-antes">
+                    <span class="icono-camara">📷</span>
+                    <span class="texto-subida">Subir Foto Antes</span>
+                    <img id="preview-antes" class="preview-imagen" src="" alt="Vista previa Antes" style="display: none;">
+                </label>
+                <input type="file" id="foto_antes" name="foto_antes" accept="image/*" capture="environment" style="display: none;" required>
+            </div>
+
+            <!-- Foto Después -->
+            <div class="grupo-input-foto">
+                <label for="foto_despues" class="zona-subida-foto" id="label-despues">
+                    <span class="icono-camara">📷</span>
+                    <span class="texto-subida">Subir Foto Después</span>
+                    <img id="preview-despues" class="preview-imagen" src="" alt="Vista previa Después" style="display: none;">
+                </label>
+                <input type="file" id="foto_despues" name="foto_despues" accept="image/*" capture="environment" style="display: none;" required>
+            </div>
+
+        </div>
+
+        <!-- Botón para adjuntar imágenes adicionales -->
+        <button type="button" id="btn-agregar-imagen" class="btn-accion-secundario mb-3">
+            <span>+</span> Adjuntar Imagen adicional
+        </button>
+
+        <!-- Cuadro de texto para observaciones -->
+        <div class="grupo-input">
+            <label for="observacion_evidencia" class="label-campo">Observación</label>
+            <textarea 
+                id="observacion_evidencia" 
+                name="observacion_evidencia" 
+                class="textarea-autoajustable" 
+                rows="3" 
+                placeholder="Escriba alguna descripción de las evidencias..."></textarea>
+        </div>
+    </div>
+
+    <script src="{% static 'js/evidencia.js' %}"></script>
+{% endblock %}
+
+{% block navigation_buttons %}
+    <a class="btn btn-sm px-3" href="{% url 'pwa:insumos' %}" style="background-color: #4b4f76; color: #fff;">Atrás: Consumo de Insumos</a>
+    <a class="btn btn-sm px-3 text-white" href="{% url 'pwa:firma' %}" style="background-color: #4b4f76;">Siguiente: Firma Mandante</a>
+{% endblock %}

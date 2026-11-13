@@ -1,12 +1,61 @@
-/* =================================================_
-   Lógica Interactiva - Login PWA Móvil FYAG
+/* =================================================
+   Lógica Interactiva - PWA Móvil FYAG (Unificada)
    ================================================= */
 
+// Función auxiliar para mostrar un modal móvil personalizado en lugar de alert/confirm
+function mostrarModalMovil(titulo, mensaje, esConfirmacion = false, callbackAceptar = null) {
+    // Eliminar modal previo si existiera
+    const modalExistente = document.getElementById('pwa-custom-modal');
+    if (modalExistente) modalExistente.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'pwa-custom-modal';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(0, 0, 0, 0.6); display: flex;
+        align-items: center; justify-content: center; z-index: 9999; padding: 16px;
+        box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif;
+    `;
+
+    const contenido = document.createElement('div');
+    contenido.style.cssText = `
+        background-color: #ffffff; border-radius: 16px; padding: 24px 20px;
+        width: 100%; max-width: 340px; text-align: center;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    `;
+
+    contenido.innerHTML = `
+        <h4 style="margin: 0 0 10px 0; font-size: 18px; color: #2e3252; font-weight: 700;">${titulo}</h4>
+        <p style="margin: 0 0 20px 0; font-size: 14px; color: #6b7280; line-height: 1.4;">${mensaje}</p>
+        <div style="display: flex; gap: 10px; justify-content: center;">
+            ${esConfirmacion ? `<button id="pwa-modal-cancel" style="flex: 1; min-height: 44px; background-color: #f3f4f6; color: #374151; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Cancelar</button>` : ''}
+            <button id="pwa-modal-ok" style="flex: 1; min-height: 44px; background-color: #3b3f68; color: #ffffff; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Aceptar</button>
+        </div>
+    `;
+
+    overlay.appendChild(contenido);
+    document.body.appendChild(overlay);
+
+    document.getElementById('pwa-modal-ok').onclick = function() {
+        overlay.remove();
+        if (callbackAceptar) callbackAceptar();
+    };
+
+    if (esConfirmacion) {
+        document.getElementById('pwa-modal-cancel').onclick = function() {
+            overlay.remove();
+        };
+    }
+}
+
+
 document.addEventListener("DOMContentLoaded", function () {
-    console.log("Módulo de Login PWA Móvil cargado correctamente.");
+    console.log("PWA Móvil FYAG cargada correctamente.");
 
+    // ==========================================
+    // 1. LOGIN MÓVIL
+    // ==========================================
     const pwaLoginForm = document.getElementById("pwaLoginForm");
-
     if (pwaLoginForm) {
         pwaLoginForm.addEventListener("submit", function (e) {
             const userInput = document.getElementById("pwaUser").value.trim();
@@ -14,78 +63,79 @@ document.addEventListener("DOMContentLoaded", function () {
 
             if (userInput === "" || passInput === "") {
                 e.preventDefault();
-                alert("Por favor, ingrese sus credenciales para acceder al portal de terreno.");
+                mostrarModalMovil("Acceso Denegado", "Por favor, ingrese sus credenciales para acceder al portal de terreno.");
                 return;
             }
-
             console.log("Autenticando técnico en terreno vía token JWT...");
         });
     }
-});
 
-/* =================================================_
-   Lógica Interactiva - PWA Móvil FYAG (Itinerario)
-   ================================================= */
-
-document.addEventListener("DOMContentLoaded", function () {
-    console.log("PWA Móvil - Itinerario de Faenas cargado correctamente.");
 
     // ==========================================
-    // 1. DETECTOR DE ESTADO DE RED (ONLINE / OFFLINE)
+    // 2. DETECTOR DE ESTADO DE RED (ONLINE / OFFLINE)
     // ==========================================
     function actualizarEstadoConexion() {
         const badge = document.getElementById("network-status-badge");
         const icon = document.getElementById("network-icon");
         const text = document.getElementById("network-text");
 
+        if (!badge || !icon || !text) return;
+
         if (navigator.onLine) {
-            // Con conexión a internet
             badge.className = "badge bg-success text-white px-2 py-1 online-badge";
             icon.className = "bi bi-circle-fill me-1";
             text.textContent = "En línea";
         } else {
-            // Sin conexión (Modo Offline rural para PWA)
             badge.className = "badge bg-warning text-dark px-2 py-1 online-badge";
             icon.className = "bi bi-wifi-off me-1";
             text.textContent = "Sin conexión (Offline)";
         }
     }
 
-    // Escuchar eventos de cambio de red del navegador
     window.addEventListener("online", actualizarEstadoConexion);
     window.addEventListener("offline", actualizarEstadoConexion);
-    
-    // Comprobar al cargar la página
     actualizarEstadoConexion();
 
 
-    // ==========================================
-    // 2. FUNCIONALIDAD PARA CERRAR SESIÓN
-    // ==========================================
-    const btnLogout = document.getElementById("logout-btn");
-    if (btnLogout) {
-        btnLogout.addEventListener("click", function (e) {
-            const confirmar = confirm("¿Desea cerrar sesión en la aplicación móvil?");
-            if (!confirmar) {
-                e.preventDefault();
+/* =================================================
+   FUNCIONALIDAD PARA CERRAR SESIÓN (Modal Flotante)
+   ================================================= */
+const btnLogout = document.getElementById("logout-btn");
+if (btnLogout) {
+    btnLogout.addEventListener("click", function (e) {
+        // 1. Evitamos que el navegador navegue de inmediato al login
+        e.preventDefault(); 
+        
+        // 2. Guardamos la URL de destino que tenía el botón
+        const urlDestinoLogout = btnLogout.href;
+
+        // 3. Mostramos nuestro modal flotante móvil personalizado
+        mostrarModalMovil(
+            "Cerrar Sesión", 
+            "¿Desea cerrar sesión en la aplicación móvil?", 
+            true, // Activa el botón de Cancelar
+            function() {
+                // Si el usuario hace clic en Aceptar, recién ahí lo mandamos al login
+                window.location.href = urlDestinoLogout;
             }
-        });
-    }
+        );
+    });
+}
 
 
     // ==========================================
-    // 3. ATENDER EMERGENCIA (QUIEBRE CADENA DE FRÍO)
+    // 4. ATENDER EMERGENCIA (QUIEBRE CADENA DE FRÍO)
     // ==========================================
     const btnAtenderEmergencia = document.getElementById("btnAtenderEmergencia");
     if (btnAtenderEmergencia) {
         btnAtenderEmergencia.addEventListener("click", function () {
-            alert("Atendiendo Faena Prioritaria por quiebre de cadena de frío. Abriendo protocolo de emergencia...");
+            mostrarModalMovil("Protocolo de Emergencia", "Atendiendo Faena Prioritaria por quiebre de cadena de frío. Abriendo protocolo de emergencia...");
         });
     }
 
 
     // ==========================================
-    // 4. BOTÓN ¿CÓMO LLEGAR? (GEOLOCALIZACIÓN / MAPAS)
+    // 5. BOTÓN ¿CÓMO LLEGAR? (GEOLOCALIZACIÓN / MAPAS)
     // ==========================================
     const btnComoLlegar = document.getElementById("btnComoLlegar");
     if (btnComoLlegar) {
@@ -97,78 +147,50 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
     // ==========================================
-    // 5. BOTÓN INICIAR FAENA 
+    // 6. BOTÓN INICIAR FAENA (CAPTURA GPS)
     // ==========================================
+    const btnIniciarFaena = document.getElementById("btnIniciarFaena");
+    if (btnIniciarFaena) {
+        btnIniciarFaena.addEventListener("click", function () {
+            const urlDestino = btnIniciarFaena.dataset.url || "#";
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        mostrarModalMovil("Faena Iniciada", `Faena OT #105 iniciada correctamente.<br>Ubicación GPS: ${lat.toFixed(4)}, ${lon.toFixed(4)}`, false, function() {
+                            if (urlDestino && urlDestino !== "#") window.location.href = urlDestino;
+                        });
+                    },
+                    function (error) {
+                        mostrarModalMovil("Modo Local", "Faena OT #105 iniciada correctamente en modo local (Offline).", false, function() {
+                            if (urlDestino && urlDestino !== "#") window.location.href = urlDestino;
+                        });
+                    }
+                );
+            } else {
+                mostrarModalMovil("Faena Iniciada", "Faena OT #105 iniciada correctamente.", false, function() {
+                    if (urlDestino && urlDestino !== "#") window.location.href = urlDestino;
+                });
+            }
+        });
+    }
 
 
- // 5. BOTÓN INICIAR FAENA (CAPTURA GPS)
-
-
- // 5. BOTÓN INICIAR FAENA (CAPTURA GPS)
-
-const btnIniciarFaena = document.getElementById("btnIniciarFaena");
-
-if (btnIniciarFaena) {
-    btnIniciarFaena.addEventListener("click", function () {
-
-        // Obtener dirección de la siguiente página
-        const urlDestino = btnIniciarFaena.dataset.url;
-
-        if (navigator.geolocation) {
-
-            navigator.geolocation.getCurrentPosition(
-
-                function (position) {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-
-                    alert(`Faena OT #105 iniciada correctamente.
-Ubicación GPS: ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
-
-                    // Ir a la página de detalle
-                    window.location.href = urlDestino;
-                },
-
-                function (error) {
-                    alert("Faena OT #105 iniciada correctamente en modo local (Offline).");
-
-                    // Ir a la página de detalle aunque falle el GPS
-                    window.location.href = urlDestino;
-                }
-            );
-
-        } else {
-            alert("Faena OT #105 iniciada correctamente.");
-
-            window.location.href = urlDestino;
-        }
-
-    });
-}
-
-
-
-});
-
-/* =================================================_
-   Lógica Dinámica de Parámetros y Service Worker (PWA)
-   ================================================= */
-
-document.addEventListener("DOMContentLoaded", function () {
-    
-    // 1. Registro del Service Worker para funcionamiento offline
+    // ==========================================
+    // 7. SERVICE WORKER Y PARÁMETROS DE EMERGENCIA
+    // ==========================================
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js')
+        navigator.serviceWorker.register('/static/js/sw.js')
             .then(() => console.log('Service Worker de Terreno registrado.'))
             .catch(err => console.log('Error SW:', err));
     }
 
-    // 2. Detección de parámetros en la URL (?urgencia=Emergencia)
     const params = new URLSearchParams(window.location.search);
     const urgencia = params.get('urgencia');
 
     if (urgencia === 'Emergencia Crítica' || urgencia === 'Emergencia') {
-        // Cambiar estilos y datos al modo Emergencia (Rojo)
         const header = document.getElementById('header-bar');
         if (header) header.style.backgroundColor = '#dc3545';
         
@@ -225,4 +247,3 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 });
-

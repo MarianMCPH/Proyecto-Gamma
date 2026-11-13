@@ -1,0 +1,69 @@
+{% extends "base_pwa.html" %} 
+{% load static %}
+
+{% block header_title %}Paso 4: Firma Mandante{% endblock %}
+
+{% block mobile_content %}
+    <link rel="stylesheet" href="{% static 'css/firma.css' %}">
+
+    <div class="card-insumo">
+        <div class="card-header-insumo">
+            <h3 class="texto-centrado">DATOS DEL RECEPTOR</h3>
+        </div>
+
+        <!-- TODO BD: Datos de prueba del mandante -->
+        <div class="grupo-input">
+            <label for="rut_mandante" class="label-campo">RUT Mandante</label>
+            <input type="text" id="rut_mandante" name="rut_mandante" class="input-tactil" value="76.543.210-K" required>
+        </div>
+
+        <div class="grupo-input">
+            <label for="nombre_completo" class="label-campo">Nombre Completo</label>
+            <input type="text" id="nombre_completo" name="nombre_completo" class="input-tactil" value="Carlos Mendoza" required>
+        </div>
+
+        <div class="grupo-input">
+            <label for="cargo_planta" class="label-campo">Cargo en Planta</label>
+            <input type="text" id="cargo_planta" name="cargo_planta" class="input-tactil" value="Jefe de Operaciones" required>
+        </div>
+    </div>
+
+    <!-- Lienzo de Firma Digital -->
+    <div class="card-insumo">
+        <div class="card-header-insumo">
+            <h3 class="texto-centrado">LIENZO PARA FIRMA DIGITAL DEL CLIENTE</h3>
+        </div>
+        
+        <div class="contenedor-lienzo">
+            <canvas id="lienzo-firma" width="340" height="160"></canvas>
+        </div>
+        <input type="hidden" id="firma_base64" name="firma_base64">
+
+        <div class="acciones-firma">
+            <button type="button" id="btn-limpiar-firma" class="btn-limpiar-trazo">Limpiar Trazo</button>
+        </div>
+    </div>
+
+    <script>
+        // Django procesará esta línea correctamente en el HTML
+        const urlSincronizacion = "{% url 'pwa:sincronizacion' %}";
+    </script>
+
+
+    <script src="{% static 'js/firma.js' %}"></script>
+{% endblock %}
+
+{% block navigation_buttons %}
+    <a class="btn btn-sm px-3" href="{% url 'pwa:evidencias' %}" style="background-color: #4b4f76; color: #fff;">Atrás: Evidencia Fotográfica</a>
+
+    <button
+        type="button"
+        id="btn-sincronizar"
+        data-url="{% url 'pwa:sincronizacion' %}"
+        class="btn btn-sm px-3 text-white"
+        style="background-color: #4b4f76; border: none;">
+
+        Finalizar y Sincronizar Faena ➔
+
+    </button>
+{% endblock %}

@@ -1,0 +1,16 @@
+{
+  "name": "FYAG Terreno PWA",
+  "short_name": "FYAG Móvil",
+  "start_url": "/pwa/",
+  "scope": "/pwa/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b3f68",
+  "icons": [
+    {
+      "src": "/static/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

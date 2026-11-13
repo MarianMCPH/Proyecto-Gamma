@@ -23,11 +23,8 @@
 
         <!-- 1. CABECERA SUPERIOR AZUL -->
         <header class="technical-form-header text-white p-3 d-flex align-items-center" style="background-color: #2e3252;">
-            <a id="backToTechnicalForm" class="form-back text-white text-decoration-none me-3" href="{% block back_url %}#{% endblock %}" aria-label="Volver">
-                <i class="bi bi-arrow-left fs-4"></i>
-            </a>
             <div class="technical-header-brand">
-                <h1 class="h6 mb-0 fw-bold">{% block header_title %}Paso de Faena{% endblock %}</h1>
+                <h1 class="h6 mb-0 fw-bold" style="font-size: 25px;">{% block header_title %}Paso de Faena{% endblock %}</h1>
             </div>
         </header>
 
@@ -54,8 +51,8 @@
             <!-- Contenedor con borde gris claro para los botones -->
             <div class="supplies-navigation border rounded p-2 mb-2 d-flex justify-content-between align-items-center bg-white">
                 {% block navigation_buttons %}
-                <a id="backButton" class="btn btn-outline-secondary btn-sm px-3" href="#" style="background-color: #4b4f76; color: #fff; border-color: #4b4f76;">Atrás</a>
-                <button id="nextButton" class="btn btn-primary btn-sm px-3" type="submit" style="background-color: #4b4f76; border-color: #4b4f76;">Siguiente</button>
+                <a href="{% url 'pwa:formulario' %}" id="btn-iniciar" class="btn btn-lg text-white py-3 fw-semibold shadow-sm" style="background-color: #3b429f;">Iniciar Faena</a>
+                <a href="{% url 'pwa:formulario' %}" id="btn-iniciar" class="btn btn-lg text-white py-3 fw-semibold shadow-sm" style="background-color: #3b429f;">Iniciar Faena</a>
                 {% endblock %}
             </div>
             <p class="form-save-note text-muted text-center mb-0" style="font-size: 11px;">El avance se guarda automáticamente en este dispositivo.</p>
@@ -66,6 +63,8 @@
     <!-- Bootstrap 5.3 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+    <!-- Archivo manifiesto -->
+    <link rel="manifest" href="{% static 'manifest.json' %}">
 
 </body>
 </html>

@@ -1,0 +1,42 @@
+{% extends "base_pwa.html" %} 
+{% load static %}
+
+{% block header_title %}Confirmación y Sincronización{% endblock %}
+
+{% block mobile_content %}
+    <link rel="stylesheet" href="{% static 'css/sincronizacion.css' %}">
+
+    <div class="contenedor-exito-icono">
+        <span class="icono-check">✔</span>
+    </div>
+
+    <div class="card-insumo">
+        <div class="card-header-insumo">
+            <h3 class="texto-centrado">¡Servicio Finalizado con Éxito!</h3>
+        </div>
+
+        <!-- TODO BD: Datos dinámicos de la faena sincronizada -->
+        <div class="detalle-resumen">
+            <p><strong>Cliente:</strong> Agroindustrial El Peumo de Bulnes SpA</p>
+            <p><strong>Tipo de Servicio:</strong> Climatización</p>
+            <p><strong>Técnico:</strong> Reinaldo Tapia</p>
+            <p><strong>Finalizado:</strong> 09 de Octubre, 17:20</p>
+        </div>
+
+        <div class="estado-sincronizado">
+            <span class="punto-verde">●</span> Sincronizado con la Oficina Central
+        </div>
+    </div>
+
+    <!-- Botón Volver al Inicio -->
+    <div class="contenedor-submit">
+        <!-- TODO DJANGO: Usar  -->
+        <a href="{% url 'obras:itinerario' %}" class="btn-volver-inicio">Volver al Inicio</a>
+    </div>
+
+    <script src="{% static 'js/sincronizacion.js' %}"></script>
+{% endblock %}
+
+{% block navigation_buttons %}
+    <!-- Sin botones de navegación inferiores en esta pantalla final -->
+{% endblock %}

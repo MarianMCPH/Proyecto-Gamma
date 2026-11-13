@@ -23,7 +23,7 @@
     <!-- Encabezado PWA (Cambia de color dinámicamente según la urgencia) -->
     <header id="header-bar" class="py-3 px-3 shadow-sm text-white" style="background-color: #3b429f;">
         <div class="container-fluid d-flex align-items-center justify-content-between">
-            <a href="#" class="btn btn-outline-light btn-sm rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+            <a href="{% url 'obras:itinerario' %}" class="btn btn-outline-light btn-sm rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
                 <i class="bi bi-arrow-left fs-5"></i>
             </a>
             <div class="d-flex align-items-center gap-2">
@@ -90,12 +90,7 @@
                 <i class="bi bi-geo-alt me-2 fs-5"></i> ¿Cómo llegar?
             </a>
 
-            <a href="{% url 'pwa:formulario' %}"
-            id="btn-iniciar"
-            class="btn btn-lg text-white py-3 fw-semibold shadow-sm"
-            style="background-color: #3b429f;">
-                Iniciar Faena
-            </a>
+            <a href="{% url 'pwa:formulario' %}" id="btn-iniciar" class="btn btn-lg text-white py-3 fw-semibold shadow-sm" style="background-color: #3b429f;">Iniciar Faena</a>
 
         </div>
 

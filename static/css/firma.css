@@ -1,0 +1,109 @@
+/* =================================================
+   CSS Exclusivo - Pantalla 4: Firma del Mandante
+   ================================================= */
+
+.card-insumo {
+    background-color: #FFFFFF;
+    border: 1.5px solid #D1D5DB;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.card-header-insumo h3 {
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1F2937;
+    border-bottom: 1px solid #C7C9D9;
+    letter-spacing: 0.3px;
+}
+
+.texto-centrado {
+    text-align: center;
+}
+
+.grupo-input {
+    margin-bottom: 12px;
+}
+
+.label-campo {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1F2937;
+    margin-bottom: 6px;
+}
+
+.input-tactil {
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #1F2937;
+    background-color: #F9FAFB;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+
+.input-tactil:focus {
+    outline: none;
+    border-color: #3b3f68;
+}
+
+/* Lienzo de Firma */
+.contenedor-lienzo {
+    background-color: #F9FAFB;
+    border: 1.5px solid #D1D5DB;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 4px;
+    margin-bottom: 10px;
+    touch-action: none; /* Crucial para evitar scroll en móviles al firmar */
+}
+
+#lienzo-firma {
+    width: 100%;
+    max-width: 330px;
+    height: 150px;
+    background-color: #FFFFFF;
+    cursor: crosshair;
+    border-radius: 4px;
+}
+
+.acciones-firma {
+    display: flex;
+    justify-content: center;
+}
+
+.btn-limpiar-trazo {
+    background-color: #FFFFFF;
+    color: #3b3f68;
+    border: 1.5px solid #3b3f68;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.contenedor-submit {
+    margin-top: 16px;
+}
+
+.btn-enviar-solicitud {
+    width: 100%;
+    min-height: 48px;
+    background-color: #3b3f68;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
