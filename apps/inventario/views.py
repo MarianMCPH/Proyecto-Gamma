@@ -1,3 +1,5 @@
-from django.shortcuts import render
+from django.views.generic import TemplateView
 
-# Create your views here.
+class SolicitudInsumo(TemplateView):
+
+    template_name = 'inventario/solicitudes_insumos.html'

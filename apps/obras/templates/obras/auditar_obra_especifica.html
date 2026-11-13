@@ -1,0 +1,123 @@
+{% extends "base_admin.html" %}
+{% load static %}
+
+{% block page_title %}Auditar Obra{% endblock %}
+
+{% block content %}
+    <!-- Encabezado con botón de retroceso -->
+    <div class="d-flex align-items-center mb-4">
+        <a href="{% url 'obras:auditoria' %}" class="btn btn-outline-secondary btn-sm rounded-circle p-2 d-flex align-items-center justify-content-center me-3" style="width: 38px; height: 38px;">
+            <i class="bi bi-arrow-left fs-5"></i>
+        </a>
+    </div>
+
+    <!-- Resumen Operativo (Sin presupuesto) -->
+    <div class="card-custom p-4 mb-4">
+        <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">Resumen Operativo</h6>
+        <div class="row g-3 small text-secondary">
+            <div class="col-md-6"><strong>Mandante:</strong> Agrícola y Packing San Nicolás SpA</div>
+            <div class="col-md-6"><strong>RUT:</strong> 76.432.890-K</div>
+            <div class="col-md-6"><strong>Contacto:</strong> Jorge Valenzuela</div>
+            <div class="col-md-6"><strong>Tipo de Servicio:</strong> Mantención Preventiva</div>
+            <div class="col-md-6"><strong>Estado:</strong> Pendiente de Aprobación</div>
+            <div class="col-md-6"><strong>Técnico Responsable:</strong> Andrés Troncoso Rivas</div>
+            <div class="col-md-6"><strong>Fecha/Hora de Cierre:</strong> 14/10/2026 - 11:30 hrs</div>
+            <div class="col-md-6"><strong>GPS Faena:</strong> -36.5921, -72.0834</div>
+        </div>
+    </div>
+
+    <!-- Dos columnas: Checklist técnico y Consumo de materiales limpio -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card-custom p-4 h-100">
+                <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">Checklist del Técnico (Túneles de Frío y Cámaras)</h6>
+                <ul class="list-unstyled small d-flex flex-column gap-2 mb-0">
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> Medición de presión alta/baja: 240/28 PSI</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> Prueba de estanqueidad de nitrógeno: OK</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> Detección de fugas en uniones: OK</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> Limpieza química de condensador: OK</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> Consumo eléctrico del compresor: 18.4 A</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card-custom p-4 h-100">
+                <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">Consumo de Materiales</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle mb-0 small">
+                        <thead class="table-light text-secondary">
+                            <tr>
+                                <th>Artículo / Repuesto</th>
+                                <th class="text-center">Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Cilindro Gas R-404A 10.9 Kg</td>
+                                <td class="text-center">1 un</td>
+                            </tr>
+                            <tr>
+                                <td>Filtro Danfoss DCL 1/2"</td>
+                                <td class="text-center">1 un</td>
+                            </tr>
+                            <tr>
+                                <td>Terminales Eléctricos 4mm</td>
+                                <td class="text-center">1 un</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Evidencia Multimedia y Conformidad del Mandante -->
+    <div class="row g-4 mb-4">
+        <!-- Evidencia Multimedia con zoom al hacer clic -->
+        <div class="col-lg-6">
+            <div class="card-custom p-4 h-100">
+                <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">Evidencia Multimedia</h6>
+                <div class="d-flex gap-3 justify-content-center">
+                    <!-- Aqui va el link de las imagenes -->
+                    <img src="#" alt="Evidencia 1" class="img-thumbnail img-zoomable" style="width: 120px; height: 90px; object-fit: cover; cursor: pointer;">
+                    <img src="#" alt="Evidencia 2" class="img-thumbnail img-zoomable" style="width: 120px; height: 90px; object-fit: cover; cursor: pointer;">
+                </div>
+                <p class="text-muted small text-center mt-2 mb-0">Haz clic en una imagen para ampliarla.</p>
+            </div>
+        </div>
+
+        <!-- Conformidad del Mandante (Con datos y firma al lado) -->
+        <div class="col-lg-6">
+            <div class="card-custom p-4 h-100">
+                <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">Conformidad del Mandante</h6>
+                <div class="row align-items-center">
+                    <div class="col-sm-7 small text-secondary">
+                        <p class="mb-1"><strong>Firmado por:</strong> Jorge Valenzuela</p>
+                        <p class="mb-1"><strong>RUT:</strong> 12.345.678-9</p>
+                        <p class="mb-1"><strong>Cargo:</strong> Jefe de Planta</p>
+                        <p class="mb-0"><strong>Fecha y Hora:</strong> 14/10/2026 11:28:42 hrs</p>
+                    </div>
+                    <div class="col-sm-5 text-center mt-3 mt-sm-0">
+                        <!-- Imagen de la firma con la misma propiedad de zoom -->
+                        <img src="#" alt="Firma Mandante" class="img-fluid border rounded bg-white img-zoomable p-1" style="max-height: 80px; object-fit: contain; cursor: pointer;" title="Haz clic para ampliar la firma">
+                        <span class="d-block text-muted" style="font-size: 10px; margin-top: 4px;">Firma Digital</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botón Aprobar (Sin Observar) -->
+    <div class="d-flex justify-content-end mb-4">
+        <button id="btnAprobarObra"
+                data-url-volver="{% url 'obras:auditoria' %}"
+                class="btn text-white px-5 py-2 fw-semibold shadow-sm"
+                style="background-color: #363853;">
+            Aprobar
+        </button>
+    </div>
+
+    <!-- Script para el Zoom de imágenes y el Modal de Éxito -->
+    <script src="{% static 'js/auditoria_detalle.js' %}"></script>
+{% endblock %}

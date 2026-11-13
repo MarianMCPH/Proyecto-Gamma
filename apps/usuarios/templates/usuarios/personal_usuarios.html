@@ -1,0 +1,68 @@
+{% extends "base_admin.html" %}
+{% load static %}
+
+{% block page_title %}Personal y Usuarios{% endblock %}
+
+{% block content %}
+
+    <!-- Estilos personalizados -->
+    <link rel="stylesheet" href="{% static 'css/gestion_obras.css' %}">
+
+    <!-- Barra de filtros y botones de acción -->
+    <div class="card-custom p-3 mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+            
+            <!-- Pestañas de filtro separadas (estilo Gestión de Obras) -->
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <button type="button" class="btn btn-sm text-white px-3" style="background-color: #343769;">Todos <span class="badge bg-light text-dark ms-1">0</span></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3">Técnicos <span class="badge bg-light text-dark ms-1">0</span></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3">Administradores <span class="badge bg-light text-dark ms-1">0</span></button>
+            </div>
+
+            <!-- Botón para nuevo usuario -->
+            <div>
+                <a href="{% url 'usuarios:nuevo_usuario' %}" class="btn btn-sm text-white fw-semibold shadow-sm px-3 py-1.5 text-nowrap text-decoration-none" style="background-color: #3c3f68;">
+                    <i class="bi bi-plus-lg me-1"></i> Nuevo Usuario
+                </a>
+            </div>
+        </div>
+
+        <!-- Buscador rápido -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" class="form-control" placeholder="Buscar por nombre, RUT o cargo...">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Personal y Usuarios (Estructura Vacía) -->
+    <div class="card-custom p-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light text-secondary small">
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAll" class="form-check-input"></th>
+                        <th>Nombre y Apellido</th>
+                        <th>RUT</th>
+                        <th>Rol</th>
+                        <th>Correo</th>
+                        <th>Estado</th>
+                        <th class="text-center" style="width: 80px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Estado sin datos registrados -->
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                            <span>No hay personal o usuarios registrados actualmente.</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

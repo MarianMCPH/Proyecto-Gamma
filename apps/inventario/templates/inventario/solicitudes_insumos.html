@@ -1,0 +1,236 @@
+
+{% extends "base_admin.html" %}
+{% load static %}
+
+{% block page_title %}Solicitudes de Insumos{% endblock %}
+
+{% block content %}
+
+<!-- Estilos personalizados -->
+<link rel="stylesheet" href="{% static 'css/gestion_obras.css' %}">
+
+<!-- Contenedor principal -->
+<div id="contenedorSolicitudes"
+     data-url-volver="{% url 'inventario:solicitudes' %}">
+
+    <div class="row g-4">
+
+        <!-- Columna izquierda: Tabla y filtros -->
+        <div class="col-lg-8">
+
+            <div class="card-custom p-3 mb-4">
+
+                <!-- Pestañas de estado -->
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+
+                    <div class="d-flex align-items-center flex-wrap gap-2">
+
+                        <button type="button"
+                                class="btn btn-sm text-white px-3"
+                                style="background-color: #3b429f;">
+                            Todas
+                            <span class="badge bg-light text-dark ms-1">3</span>
+                        </button>
+
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary px-3">
+                            Pendientes
+                            <span class="badge bg-light text-dark ms-1">2</span>
+                        </button>
+
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary px-3">
+                            Enviadas
+                            <span class="badge bg-light text-dark ms-1">1</span>
+                        </button>
+
+                    </div>
+                </div>
+
+                <!-- Búsqueda rápida -->
+                <div class="row">
+
+                    <div class="col-md-7">
+
+                        <div class="input-group input-group-sm">
+
+                            <span class="input-group-text bg-white">
+                                <i class="bi bi-search text-muted"></i>
+                            </span>
+
+                            <input type="text"
+                                   class="form-control"
+                                   placeholder="Búsqueda rápida por cliente o técnico...">
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Tabla de solicitudes -->
+            <div class="card-custom p-4">
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0 small">
+
+                        <thead class="table-light text-secondary">
+
+                            <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" class="form-check-input">
+                                </th>
+
+                                <th>Cliente</th>
+                                <th>Técnico solicitante</th>
+                                <th>Pieza / Cantidad</th>
+                                <th>Estado de validación</th>
+                                <th class="text-center">Acción</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            <!-- Solicitud 15 -->
+                            <tr>
+
+                                <td>
+                                    <input type="checkbox" class="form-check-input">
+                                </td>
+
+                                <td class="fw-semibold">
+                                    Viña Matorras del Valle del Itata
+                                </td>
+
+                                <td>Antonio Fernández</td>
+
+                                <td>Cilindro Gas R-134a (x1)</td>
+
+                                <td>
+                                    <span class="badge bg-success px-2 py-1">
+                                        Enviado
+                                    </span>
+                                </td>
+
+                                <td class="text-center">
+
+                                    <button type="button"
+                                            class="btn btn-sm text-white px-3 py-1 btn-ver-detalle"
+                                            style="background-color: #3b429f;"
+                                            data-solicitud="15"
+                                            data-cliente="Viña Matorras del Valle del Itata"
+                                            data-tecnico="Antonio Fernández"
+                                            data-descripcion="Rotura de diafragma en válvula termostática en túnel de frío (riesgo en fruta de exportación)"
+                                            data-disponibilidad="4 unidades en estantería (Stock suficiente)"
+                                            data-img="https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=400">
+
+                                        Ver
+
+                                    </button>
+
+                                </td>
+
+                            </tr>
+
+                            <!-- Solicitud 16 -->
+                            <tr>
+
+                                <td>
+                                    <input type="checkbox" class="form-check-input">
+                                </td>
+
+                                <td class="fw-semibold">
+                                    Frigorífico y Procesadora Frutícola Ñuble Ltda
+                                </td>
+
+                                <td>José Zapata</td>
+
+                                <td>Válvula TXV R-404A (x1)</td>
+
+                                <td>
+                                    <span class="badge bg-warning text-dark px-2 py-1">
+                                        Pendiente
+                                    </span>
+                                </td>
+
+                                <td class="text-center">
+
+                                    <button type="button"
+                                            class="btn btn-sm text-white px-3 py-1 btn-ver-detalle"
+                                            style="background-color: #3b429f;"
+                                            data-solicitud="16"
+                                            data-cliente="Frigorífico y Procesadora Frutícola Ñuble Ltda"
+                                            data-tecnico="José Zapata"
+                                            data-descripcion="Fuga detectada en línea de líquido principal durante ciclo de mantención."
+                                            data-disponibilidad="1 unidad disponible en bodega central."
+                                            data-img="https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=400">
+
+                                        Ver
+
+                                    </button>
+
+                                </td>
+
+                            </tr>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Columna derecha: Alertas y notificaciones -->
+        <div class="col-lg-4">
+
+            <div class="card-custom p-4 h-100">
+
+                <h5 class="fw-bold text-dark mb-3">
+                    Alertas y notificaciones
+                </h5>
+
+                <div class="d-flex flex-column gap-3">
+
+                    <div class="p-3 border rounded-3 bg-light text-danger small d-flex align-items-center gap-2">
+
+                        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+
+                        <div>
+                            <strong>Alerta:</strong>
+                            Bajo stock de <strong>Gas R-404A</strong>
+                        </div>
+
+                    </div>
+
+                    <div class="p-3 border rounded-3 bg-light text-danger small d-flex align-items-center gap-2">
+
+                        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+
+                        <div>
+                            <strong>Alerta:</strong>
+                            Bajo stock de <strong>Válvulas</strong>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Script para gestionar el detalle, aprobación y zoom -->
+<script src="{% static 'js/solicitudes.js' %}"></script>
+
+{% endblock %}

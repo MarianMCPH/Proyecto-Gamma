@@ -1,0 +1,61 @@
+{% extends "base_admin.html" %}
+{% load static %}
+
+{% block page_title %}Auditoría de Obras{% endblock %}
+
+{% block content %}
+
+        <!-- Estilos personalizados -->
+    <link rel="stylesheet" href="{% static 'css/gestion_obras.css' %}">
+
+    <!-- Filtros superiores (Pestañas de estado y búsqueda rápida) -->
+    <div class="card-custom p-3 mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <button type="button" class="btn btn-sm text-white px-3" style="background-color: #424571;">Todas <span class="badge bg-light text-dark ms-1">1</span></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3">En proceso <span class="badge bg-light text-dark ms-1">0</span></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3">Pendientes <span class="badge bg-light text-dark ms-1">1</span></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3">Aprobadas <span class="badge bg-light text-dark ms-1">0</span></button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" class="form-control" placeholder="Búsqueda rápida...">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Auditoría (Sin ID, sin Fecha Cierre, sin Evidencias y sin Filtro desplegable) -->
+    <div class="card-custom p-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-light text-secondary">
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" class="form-check-input"></th>
+                        <th>Cliente</th>
+                        <th>Tipo de servicio</th>
+                        <th>Técnico</th>
+                        <th>Estado de validación</th>
+                        <th class="text-center">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><input type="checkbox" class="form-check-input"></td>
+                        <td class="fw-semibold">Agrícola y Packing San Nicolás SpA</td>
+                        <td>Mantención Preventiva</td>
+                        <td>Andrés Troncoso Rivas</td>
+                        <td><span class="badge bg-warning text-dark px-2 py-1">Pendiente</span></td>
+                        <td class="text-center">
+                            <a href="{% url 'obras:auditar_obra' %}" class="btn btn-sm text-white px-3 py-1" style="background-color: #474b7e;">Auditar</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

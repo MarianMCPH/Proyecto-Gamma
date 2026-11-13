@@ -23,39 +23,77 @@
                     <div class="logo-caja mb-3 text-center">
                         <img src="{% static 'img/logo.png' %}" alt="Frío y Agroindustria SpA" class="img-fluid">
                     </div>
-                    <ul class="nav flex-column mt-3">
-                        <li class="nav-item mb-1">
-                            <a class="nav-link" href="#"><i class="bi bi-bar-chart-steps me-2"></i>Dashboard</a>
-                        </li>
-                        <li class="nav-item mb-1">
-                            <a class="nav-link" href="#"><i class="bi bi-tools me-2"></i>Gestión de Obras</a>
-                        </li>
-                        <li class="nav-item mb-1">
-                            <a class="nav-link" href="#"><i class="bi bi-people me-2"></i>Personal y Usuarios</a>
-                        </li>
-                        <li class="nav-item mb-1">
-                            <a class="nav-link activo" href="#" aria-current="page"><i class="bi bi-clipboard-check me-2"></i>Auditoría de Obras</a>
-                        </li>
-                        <li class="nav-item mb-1">
-                            <a class="nav-link" href="#"><i class="bi bi-box-seam me-2"></i>Solicitudes de Insumos</a>
-                        </li>
-                    </ul>
+                        <ul class="nav flex-column mt-3">
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="{% url 'core:dashboard' %}" data-path="dashboard"><i class="bi bi-bar-chart-steps me-2"></i>Dashboard</a>
+                            </li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="{% url 'obras:ver_obras' %}" data-path="obras"><i class="bi bi-tools me-2"></i>Gestión de Obras</a>
+                            </li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="{% url 'usuarios:ver_usuarios' %}" data-path="usuarios"><i class="bi bi-people me-2"></i>Personal y Usuarios</a>
+                            </li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="{% url 'obras:auditoria' %}" data-path="auditoria"><i class="bi bi-clipboard-check me-2"></i>Auditoría de Obras</a>
+                            </li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="{% url 'inventario:solicitudes' %}" data-path="solicitudes"><i class="bi bi-box-seam me-2"></i>Solicitudes de Insumos</a>
+                            </li>
+                        </ul>
                     <div class="perfil mt-auto pt-3">
                         <i class="bi bi-person-circle fs-1"></i>
                         <span class="d-block fw-medium small mb-2">Administrador Central</span>
-                        <a href="#" class="btn btn-sm btn-outline-light w-100 rounded-pill">Cerrar sesión</a>
+                        <a href="{% url 'core:login' %}" class="btn btn-sm btn-outline-light w-100 rounded-pill">Cerrar sesión</a>
                     </div>
                 </div>
             </nav>
 
             <!-- Contenido Principal -->
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+
                 <!-- Botón superior móvil para alternar el menú -->
                 <div class="d-md-none mb-3">
                     <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#menu" aria-expanded="false" aria-controls="menu">
                         <i class="bi bi-list"></i> Menú Principal
                     </button>
                 </div>
+
+                <!-- ENCABEZADO SUPERIOR DINÁMICO -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="fw-bold text-dark m-0">
+                        {% block page_title %}Dashboard{% endblock %}
+                    </h2>
+                    <span id="live-clock" class="text-muted small fw-medium">Cargando fecha y hora...</span>
+                </div>
+
+                <!-- Script rápido para hacer funcionar el reloj en todas las pantallas -->
+                <script>
+                    function actualizarReloj() {
+                        const ahora = new Date();
+                        const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                        const fechaStr = ahora.toLocaleDateString('es-CL', opciones);
+                        const relojElem = document.getElementById('live-clock');
+                        if (relojElem) relojElem.textContent = fechaStr;
+                    }
+                    setInterval(actualizarReloj, 1000);
+                    actualizarReloj();
+                                   
+                    document.addEventListener("DOMContentLoaded", function () {
+                        const url = window.location.pathname;
+                        const links = document.querySelectorAll("#menu .nav-link");
+
+                        links.forEach(link => {
+                            link.classList.remove("activo"); // Limpia todos
+                            const href = link.getAttribute("href");
+                            
+                            // Si la URL actual contiene la ruta del enlace, lo marca
+                            if (href !== "#" && url === href) {
+                                link.classList.add("activo");
+                            }
+                        });
+                    });
+                
+                </script>
 
                 {% block content %}
                 <!-- Aquí se inyectará el contenido dinámico de cada vista en Django -->

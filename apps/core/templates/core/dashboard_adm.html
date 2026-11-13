@@ -1,0 +1,96 @@
+{% extends "base_admin.html" %}
+{% load static %}
+
+{% block page_title %}Dashboard General{% endblock %}
+
+{% block content %}
+    <!-- Estilos personalizados -->
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+
+    <!-- Tarjetas KPI (Indicadores Superiores) -->
+    <div class="row row-cols-1 row-cols-md-4 g-3 mb-4">
+        <div class="col">
+            <div class="kpi-card">
+                <span class="text-muted small">Obras hoy</span>
+                <h2 class="fw-bold text-dark mt-2 mb-0">0</h2>
+            </div>
+        </div>
+        <div class="col">
+            <div class="kpi-card">
+                <span class="text-muted small">Servicios en ejecución</span>
+                <h2 class="fw-bold text-dark mt-2 mb-0">0</h2>
+            </div>
+        </div>
+        <div class="col">
+            <div class="kpi-card kpi-card-danger">
+                <span class="text-dark small">Emergencias activas</span>
+                <h2 class="fw-bold text-dark mt-2 mb-0">0</h2>
+            </div>
+        </div>
+        <div class="col">
+            <div class="kpi-card kpi-card-success">
+                <span class="text-dark small">Finalizados por auditar</span>
+                <h2 class="fw-bold text-dark mt-2 mb-0">0</h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección Inferior: Tabla de Órdenes y Panel de Alertas -->
+    <div class="row g-4">
+        
+        <!-- Tabla principal de órdenes activas -->
+        <div class="col-lg-8">
+            <div class="card-custom p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-dark m-0">Órdenes de trabajo activas</h5>
+                    <button id="btnNuevaObra" class="btn btn-institutional btn-sm px-3 py-2">
+                        <i class="bi bi-plus-lg me-1"></i> Nueva orden de trabajo
+                    </button>
+                </div>
+
+                <!-- Barra de búsqueda (Filtro desplegable eliminado) -->
+                <div class="d-flex gap-2 mb-3">
+                    <div class="input-group input-group-sm" style="max-width: 250px;">
+                        <span class="input-group-text bg-white text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" placeholder="Búsqueda rápida">
+                    </div>
+                </div>
+
+                <!-- Tabla sin la columna de ID -->
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle mb-0">
+                        <thead class="table-light text-secondary small">
+                            <tr>
+                                <th style="width: 40px;"><input type="checkbox" id="selectAll" class="form-check-input"></th>
+                                <th>Cliente</th>
+                                <th>Técnico</th>
+                                <th>Tipo de servicio</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><input type="checkbox" class="form-check-input"></td>
+                                <td colspan="4" class="text-center text-muted py-4 small">No hay órdenes de trabajo activas registradas en este momento.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Lateral Derecho: Alertas y notificaciones -->
+        <div class="col-lg-4">
+            <div class="card-custom p-4 h-100">
+                <h5 class="fw-bold text-dark mb-3">Alertas y notificaciones</h5>
+                <div class="d-flex flex-column gap-3">
+                    <div class="p-3 border rounded-3 bg-light text-center text-muted small">
+                        <i class="bi bi-bell-slash fs-5 d-block mb-1"></i>
+                        No hay alertas ni notificaciones nuevas en terreno.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+{% endblock %}
