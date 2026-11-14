@@ -1,4 +1,3 @@
-
 {% extends "base_admin.html" %}
 {% load static %}
 
@@ -20,6 +19,7 @@
 
         <form id="formNuevoUsuario"
               method="POST"
+              action="{% url 'usuarios:nuevo_usuario' %}"
               data-url-volver="{% url 'usuarios:ver_usuarios' %}"
               novalidate>
 
@@ -35,14 +35,14 @@
                     <label for="nombres" class="form-label small fw-semibold">
                         Nombres y Apellidos <span class="text-danger">*</span>
                     </label>
-                    <input type="text" class="form-control form-control-sm" id="nombres" required>
+                    <input type="text" class="form-control form-control-sm" id="nombres" name="nombres" required>
                 </div>
 
                 <div class="col-md-4">
                     <label for="rut" class="form-label small fw-semibold">
                         RUT Trabajador <span class="text-danger">*</span>
                     </label>
-                    <input type="text" class="form-control form-control-sm" id="rut"
+                    <input type="text" class="form-control form-control-sm" id="rut" name="rut"
                            placeholder="Ej: 12.345.678-9" required>
                 </div>
 
@@ -50,7 +50,7 @@
                     <label for="correo" class="form-label small fw-semibold">
                         Correo Corporativo <span class="text-danger">*</span>
                     </label>
-                    <input type="email" class="form-control form-control-sm" id="correo"
+                    <input type="email" class="form-control form-control-sm" id="correo" name="correo"
                            placeholder="correo@fyag.cl" required>
                 </div>
 
@@ -58,7 +58,7 @@
                     <label for="telefono" class="form-label small fw-semibold">
                         Número de Contacto <span class="text-danger">*</span>
                     </label>
-                    <input type="text" class="form-control form-control-sm" id="telefono"
+                    <input type="text" class="form-control form-control-sm" id="telefono" name="telefono"
                            placeholder="+56 9 ..." required>
                 </div>
 
@@ -66,7 +66,7 @@
                     <label for="direccion" class="form-label small fw-semibold">
                         Dirección
                     </label>
-                    <input type="text" class="form-control form-control-sm" id="direccion"
+                    <input type="text" class="form-control form-control-sm" id="direccion" name="direccion"
                            placeholder="Opcional">
                 </div>
 
@@ -83,7 +83,7 @@
                         Rol Asignado <span class="text-danger">*</span>
                     </label>
 
-                    <select class="form-select form-select-sm" id="rol" required>
+                    <select class="form-select form-select-sm" id="rol" name="rol" required>
                         <option value="" selected disabled>Seleccione un rol...</option>
                         <option value="Tecnico">Técnico de Terreno</option>
                         <option value="Administrador">Administrador Central</option>
@@ -98,7 +98,7 @@
                     <div class="mt-2">
                         <div class="form-check form-check-inline">
                             <input class="form-check-input" type="radio"
-                                   name="estadoCuenta" id="estadoActivo"
+                                   name="estado_cuenta" id="estadoActivo"
                                    value="Activo" checked>
                             <label class="form-check-label small" for="estadoActivo">
                                 Activo
@@ -107,7 +107,7 @@
 
                         <div class="form-check form-check-inline">
                             <input class="form-check-input" type="radio"
-                                   name="estadoCuenta" id="estadoInactivo"
+                                   name="estado_cuenta" id="estadoInactivo"
                                    value="Inactivo">
                             <label class="form-check-label small" for="estadoInactivo">
                                 Inactivo
@@ -123,7 +123,10 @@
                         Contraseña Temporal Inicial <span class="text-danger">*</span>
                     </label>
                     <input type="password" class="form-control form-control-sm"
-                           id="password" required>
+                           id="password" name="password" minlength="8" required>
+                    <div id="errorPasswordLongitud" class="text-danger mt-1" style="font-size: 11px; display: none;">
+                        La contraseña debe tener al menos 8 caracteres.
+                    </div>
                 </div>
 
                 <div class="col-md-4">
@@ -131,7 +134,10 @@
                         Confirmar Contraseña <span class="text-danger">*</span>
                     </label>
                     <input type="password" class="form-control form-control-sm"
-                           id="confirmPassword" required>
+                           id="confirmPassword" name="confirm_password" required>
+                    <div id="errorConfirmPassword" class="text-danger mt-1" style="font-size: 11px; display: none;">
+                        Las contraseñas no coinciden.
+                    </div>
                 </div>
 
                 <div class="col-12">
