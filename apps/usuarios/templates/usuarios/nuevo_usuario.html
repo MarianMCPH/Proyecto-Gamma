@@ -20,14 +20,32 @@
         <form id="formNuevoUsuario"
               method="POST"
               action="{% url 'usuarios:nuevo_usuario' %}"
+              enctype="multipart/form-data"
               data-url-volver="{% url 'usuarios:ver_usuarios' %}"
               novalidate>
 
             {% csrf_token %}
 
             <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">
-                Datos Personales y de Contacto
+                Foto de Perfil y Datos Personales
             </h6>
+
+            <!-- Bloque de Foto de Perfil -->
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <div id="previewFotoWrapper"
+                     class="rounded-circle border bg-light d-flex align-items-center justify-content-center overflow-hidden"
+                     style="width: 72px; height: 72px; flex-shrink: 0;">
+                    <img id="previewFotoImg" src="" alt="Vista previa" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                    <i id="previewFotoIcon" class="bi bi-person-fill text-secondary fs-2"></i>
+                </div>
+                <div>
+                    <label for="foto_perfil" class="form-label small fw-semibold mb-1">
+                        Foto de Perfil <span class="text-muted fw-normal">(Opcional)</span>
+                    </label>
+                    <input type="file" class="form-control form-control-sm" id="foto_perfil" name="foto_perfil" accept="image/*">
+                    <div class="text-muted mt-1" style="font-size: 11px;">Formatos recomendados: JPG, PNG o WEBP.</div>
+                </div>
+            </div>
 
             <div class="row g-3 mb-4">
 
