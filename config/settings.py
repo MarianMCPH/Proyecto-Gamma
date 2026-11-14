@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'apps.inventario',
     'apps.obras',
     'apps.pwa',
-    'apps.admin_web',
+
 ]
 
 MIDDLEWARE = [
