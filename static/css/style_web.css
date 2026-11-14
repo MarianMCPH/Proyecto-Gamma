@@ -1,9 +1,7 @@
-
 /* =================================================
    ESTILOS GENERALES Y CORPORATIVOS - FYAG SpA
    ================================================= */
 
-/* --- ESTILOS GENERALES --- */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f8f9fa;
@@ -11,10 +9,7 @@ body {
     overflow-x: hidden;
 }
 
-/* =================================================
-   SIDEBAR (MENÚ LATERAL)
-   ================================================= */
-
+/* --- SIDEBAR (Menú Lateral) --- */
 .lateral {
     min-height: 100vh;
     background-color: #2e3252 !important;
@@ -22,12 +17,7 @@ body {
     box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.1);
 }
 
-.lateral-int {
-    min-height: 100vh;
-}
-
-/* Enlaces del menú */
-.lateral .nav-link {
+.sidebar .nav-link {
     color: rgba(255, 255, 255, 0.8);
     border-radius: 6px;
     padding: 10px 14px;
@@ -35,55 +25,39 @@ body {
     font-size: 0.95rem;
 }
 
-/* Efecto al pasar el mouse */
-.lateral .nav-link:hover {
+.sidebar .nav-link:hover {
     color: #ffffff;
     background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Enlace de la página actual */
-.lateral .nav-link.activo {
+.sidebar .nav-link.active,
+.sidebar .nav-link.activo {
     color: #ffffff;
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: #0d6efd !important; 
     font-weight: 600;
 }
 
-/* =================================================
-   LOGO DEL MENÚ
-   ================================================= */
-
-.logo-caja img {
-    max-height: 60px;
-    width: auto;
-}
-
-/* =================================================
-   PERFIL DE USUARIO
-   ================================================= */
-
-.perfil {
+/* --- CAJA DE PERFIL DE USUARIO --- */
+.user-profile-box {
     background-color: rgba(0, 0, 0, 0.2);
     border-radius: 8px;
     padding: 12px;
     text-align: center;
     color: #ffffff;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.perfil .btn-outline-light {
+/* Asegurar visibilidad del botón de cerrar sesión dentro del menú oscuro */
+.user-profile-box .btn-outline-light {
     color: #ffffff;
     border-color: rgba(255, 255, 255, 0.6);
 }
 
-.perfil .btn-outline-light:hover {
+.user-profile-box .btn-outline-light:hover {
     background-color: #ffffff;
     color: #2e3252;
 }
 
-/* =================================================
-   BOTONES INSTITUCIONALES
-   ================================================= */
-
+/* --- BOTONES INSTITUCIONALES --- */
 .btn-institutional {
     background-color: #2e3252;
     color: #ffffff;
@@ -96,21 +70,15 @@ body {
     color: #ffffff;
 }
 
-/* =================================================
-   TARJETAS PERSONALIZADAS
-   ================================================= */
-
+/* --- TARJETAS PERSONALIZADAS --- */
 .card-custom {
-    background-color: #ffffff;
+    background: #ffffff;
     border: none;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-/* =================================================
-   TABLAS Y ELEMENTOS DE LISTADO
-   ================================================= */
-
+/* --- TABLAS Y ELEMENTOS DE LISTADO --- */
 .table th {
     font-weight: 600;
     color: #555555;
