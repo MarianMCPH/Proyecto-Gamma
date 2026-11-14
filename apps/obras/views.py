@@ -1,13 +1,17 @@
 from datetime import datetime
+import json
+
 from django.contrib.auth import get_user_model
-from django.db import DatabaseError, transaction
+from django.db import transaction
 from django.http import JsonResponse
-from django.utils.dateparse import parse_datetime
+from django.views import View
 from django.views.generic import TemplateView
 
 from .models import Cliente, OrdenTrabajo
 
 Usuario = get_user_model()
+CLAVE_SESION_AUDITORIA = "ordenes_ocultas_auditoria"
+
 
 class ObraListView(TemplateView):
     """Vista para listar y buscar todas las obras activas y finalizadas para el tecnico."""
@@ -117,27 +121,121 @@ class ObraCreateView(TemplateView):
                 status=500,
             )
 
+
 class ObraUpdateView(TemplateView):
     """Vista para editar una obra existente."""
 
     template_name = 'obras/editar_obra.html'
+
 
 class ObraDeleteView(TemplateView):
     """Vista para eliminar o dar de baja una obra."""
 
     template_name = 'obras/eliminar_obra.html'
 
+
 class ObraViewAdmin(TemplateView):
     """Vista para listar y buscar todas las obras activas y finalizadas para el administrador."""
 
     template_name = 'obras/gestion_obras_adm.html'
 
-class AuditoriaObras(TemplateView):
-    """Vista para listar y buscar todas las obras activas y finalizadas para el administrador."""
 
-    template_name = 'obras/auditoria_obras.html'
+class AuditoriaObras(TemplateView):
+    """Vista para listar, filtrar y auditar las órdenes de trabajo."""
+
+    template_name = "obras/auditoria_obras.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        ids_ocultos = set(self.request.session.get(CLAVE_SESION_AUDITORIA, []))
+
+        ordenes = (
+            OrdenTrabajo.objects.select_related("cliente", "tecnico")
+            .exclude(id__in=ids_ocultos)
+            .order_by("-id")
+        )
+
+        lista_ordenes = []
+        total_en_proceso = 0
+        total_pendientes = 0
+        total_aprobadas = 0
+
+        for orden in ordenes:
+            estado_raw = (orden.estado or "").strip().lower()
+
+            if estado_raw in {"en_proceso", "en proceso", "en_curso", "en curso"}:
+                categoria = "en_proceso"
+                badge_clase = "bg-info text-dark"
+                estado_label = "En proceso"
+                total_en_proceso += 1
+            elif estado_raw in {"aprobada", "aprobadas", "validada", "validadas", "auditada", "auditadas"}:
+                categoria = "aprobadas"
+                badge_clase = "bg-success text-white"
+                estado_label = "Aprobada"
+                total_aprobadas += 1
+            else:
+                categoria = "pendientes"
+                badge_clase = "bg-warning text-dark"
+                estado_label = "Pendiente"
+                total_pendientes += 1
+
+            tecnico_nombre = "Sin asignar"
+            if orden.tecnico:
+                tecnico_nombre = orden.tecnico.get_full_name().strip() or orden.tecnico.username
+
+            cliente_nombre = orden.cliente.razon_social if orden.cliente else "Sin cliente"
+
+            lista_ordenes.append({
+                "id": orden.id,
+                "cliente": cliente_nombre,
+                "tipo_servicio": orden.tipo_servicio or "-",
+                "tecnico": tecnico_nombre,
+                "estado_label": estado_label,
+                "estado_raw": orden.estado or "",
+                "badge_clase": badge_clase,
+                "categoria": categoria,
+            })
+
+        context["ordenes_auditoria"] = lista_ordenes
+        context["total_todas"] = len(lista_ordenes)
+        context["total_en_proceso"] = total_en_proceso
+        context["total_pendientes"] = total_pendientes
+        context["total_aprobadas"] = total_aprobadas
+        return context
+
+
+class LimpiarAuditoriaView(View):
+    """Oculta de la pantalla de auditoría las órdenes seleccionadas sin eliminarlas del historial."""
+
+    def post(self, request, *args, **kwargs):
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+            ids = payload.get("ids", [])
+        except (ValueError, UnicodeDecodeError):
+            ids = request.POST.getlist("ids[]")
+
+        ids_nuevos = []
+        for raw_id in ids:
+            try:
+                ids_nuevos.append(int(raw_id))
+            except (TypeError, ValueError):
+                continue
+
+        if not ids_nuevos:
+            return JsonResponse(
+                {"ok": False, "error": "Para quitar obras primero debe seleccionar al menos una obra."},
+                status=400,
+            )
+
+        actuales = set(request.session.get(CLAVE_SESION_AUDITORIA, []))
+        actuales.update(ids_nuevos)
+        request.session[CLAVE_SESION_AUDITORIA] = list(actuales)
+        request.session.modified = True
+
+        return JsonResponse({"ok": True, "actualizadas": len(ids_nuevos)})
+
 
 class AuditarObraEspecifica(TemplateView):
-    """Vista para listar y buscar todas las obras activas y finalizadas para el administrador."""
+    """Vista para auditar una obra específica."""
 
     template_name = 'obras/auditar_obra_especifica.html'
