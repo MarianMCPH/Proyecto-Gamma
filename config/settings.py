@@ -11,6 +11,10 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 from pathlib import Path
 from django.contrib.messages import constants as messages
@@ -46,6 +50,7 @@ INSTALLED_APPS = [
     'apps.obras',
     'apps.pwa',
     'apps.admin_web',
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -81,13 +86,47 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': os.environ.get('DB_HOST'),
+        'PORT': os.environ.get('DB_PORT', '3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            'ssl': {'ssl_mode': 'PREFERRED'},  # Cifrado en tránsito TLS hacia Clever Cloud
+        },
     }
 }
 
+# Configuración de Object Storage (Clever Cloud Cellar) para evidencias y firmas
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "access_key": os.environ.get("CELLAR_KEY_ID"),
+            "secret_key": os.environ.get("CELLAR_KEY_SECRET"),
+            "bucket_name": os.environ.get("CELLAR_BUCKET_NAME"),
+            "endpoint_url": f"https://{os.environ.get('CELLAR_HOST')}",
+            "default_acl": "private",  # Bucket privado por seguridad
+            "file_overwrite": False,
+        },
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.BCryptPasswordHasher",
+]
 
 # Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
