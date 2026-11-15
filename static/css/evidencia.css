@@ -1,124 +1,72 @@
 /* =================================================
-   CSS Exclusivo - Pantalla 3: Evidencia Fotográfica
+   CSS Exclusivo - Pantalla 3: Evidencias Fotográficas
    ================================================= */
 
+.supplies-main { background-color: #F3F4F6; }
+.technical-form-header h1 { font-size: 19px !important; line-height: 1.25; }
+.volver-header { color: #fff; text-decoration: none; font-size: 26px; vertical-align: middle; margin-right: 6px; }
+
 .card-insumo {
-    background-color: #FFFFFF;
-    border: 1.5px solid #D1D5DB;
-    border-radius: 12px;
+    background-color: #F3F4F6;
+    border: 2px solid #D1D5DB;
+    border-radius: 14px;
     padding: 16px;
     margin-bottom: 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-.card-header-insumo h3 {
-    margin: 0 0 12px 0;
-    padding-bottom: 8px;
-    font-size: 13px;
-    font-weight: 700;
-    color: #1F2937;
-    border-bottom: 1px solid #C7C9D9;
-    letter-spacing: 0.3px;
-}
-
-.texto-centrado {
-    text-align: center;
-}
-
-.grupo-input-foto {
-    margin-bottom: 14px;
     position: relative;
 }
+.card-header-insumo h3 {
+    margin: 0 0 12px 0; padding-bottom: 8px; font-size: 13px; font-weight: 600;
+    color: #1F2937; border-bottom: 1px solid #C7C9D9; letter-spacing: 0.3px;
+}
+.texto-centrado { text-align: center; }
 
+/* Papelera de los bloques adicionales */
+.btn-eliminar-bloque {
+    position: absolute; top: 44px; right: 10px; width: 44px; height: 44px;
+    background: none; border: 0; font-size: 24px; color: #111827;
+}
+
+/* Zonas de subida (Antes / Después) */
 .zona-subida-foto {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 90px;
-    background-color: #F9FAFB;
-    border: 2px dashed #9CA3AF;
-    border-radius: 8px;
-    cursor: pointer;
-    padding: 10px;
-    text-align: center;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 66%; min-height: 84px; margin: 0 auto 12px auto; padding: 8px;
+    background-color: #E5E7EB; border: 2px dashed #9CA3AF; border-radius: 10px;
+    cursor: pointer; text-align: center;
 }
+.zona-subida-foto:focus-within { outline: 2px solid #3b3f68; outline-offset: 2px; }
+.zona-subida-foto.falta { border-color: #DC3545; background-color: #FDECEE; }
+.zona-subida-foto.lista { border-style: solid; border-color: #62B467; }
+.icono-camara { font-size: 30px; color: #9CA3AF; line-height: 1; }
+.texto-subida { font-size: 12px; font-weight: 600; color: #111827; margin-top: 4px; }
 
-.icono-camara {
-    font-size: 28px;
-    color: #6B7280;
+/* Miniaturas: se llenan con la vista previa */
+.miniaturas { display: flex; justify-content: center; gap: 28px; margin: 14px 0 8px 0; }
+.miniatura {
+    width: 100px; height: 80px; overflow: hidden; border-radius: 10px;
+    font-size: 54px; color: #111827; display: flex; align-items: center; justify-content: center;
 }
+.miniatura img { width: 100%; height: 100%; object-fit: cover; }
 
-.texto-subida {
-    font-size: 12px;
-    color: #4B5563;
-    font-weight: 600;
-    margin-top: 4px;
+.grupo-input { margin-top: 10px; }
+.label-campo { display: block; font-size: 13px; font-weight: 600; color: #1F2937; margin-bottom: 6px; }
+.textarea-autoajustable {
+    width: 100%; min-height: 80px; padding: 10px; font-size: 13px; font-family: inherit;
+    color: #1F2937; background-color: #FFFFFF; border: 1px solid #D1D5DB; border-radius: 6px;
+    resize: none; overflow: hidden; box-sizing: border-box;
 }
-
-.preview-imagen {
-    max-width: 100%;
-    max-height: 120px;
-    border-radius: 6px;
-    object-fit: cover;
-}
-
-.btn-eliminar-foto {
-    background: #EF4444;
-    color: #FFFFFF;
-    border: none;
-    border-radius: 4px;
-    font-size: 11px;
-    padding: 4px 8px;
-    cursor: pointer;
-    margin-top: 6px;
-}
+.textarea-autoajustable:focus { outline: 2px solid #3b3f68; outline-offset: 1px; }
 
 .btn-accion-secundario {
-    width: 100%;
-    background-color: #3b3f68;
-    color: #FFFFFF;
-    border: none;
-    border-radius: 6px;
-    min-height: 44px;
-    padding: 8px 10px;
-    font-size: 13px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    cursor: pointer;
+    background-color: #3b3f68; color: #FFFFFF; border: none; border-radius: 8px;
+    min-height: 44px; padding: 8px 18px; font-size: 13px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+}
+.btn-accion-secundario:disabled { opacity: .5; }
+
+.alert-rojo {
+    background: #fde8e8; border: 1px solid #f5b5b5; color: #b02a37;
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px;
 }
 
-.grupo-input {
-    margin-top: 14px;
-}
-
-.label-campo {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    color: #1F2937;
-    margin-bottom: 6px;
-}
-
-.textarea-autoajustable {
-    width: 100%;
-    min-height: 60px;
-    padding: 10px;
-    font-size: 13px;
-    font-family: inherit;
-    color: #1F2937;
-    background-color: #F9FAFB;
-    border: 1px solid #D1D5DB;
-    border-radius: 6px;
-    resize: none;
-    overflow: hidden;
-    box-sizing: border-box;
-}
-
-.textarea-autoajustable:focus {
-    outline: none;
-    border-color: #3b3f68;
-}
+/* Separación entre botones del pie (base_pwa los deja pegados) */
+.supplies-navigation { gap: 8px; }

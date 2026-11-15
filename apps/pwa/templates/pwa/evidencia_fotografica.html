@@ -1,62 +1,60 @@
-{% extends "base_pwa.html" %} 
+{% extends "base_pwa.html" %}
 {% load static %}
 
-{% block header_title %}Paso 3: Evidencia Fotográfica{% endblock %}
+{% block header_title %}<a href="{% url 'pwa:insumos' %}" class="volver-header" aria-label="Volver a Consumo de Insumos"><i class="bi bi-arrow-left"></i></a> Paso 3: Evidencias Fotográficas{% endblock %}
 
 {% block mobile_content %}
     <link rel="stylesheet" href="{% static 'css/evidencia.css' %}">
 
-    <div class="card-insumo">
-        <div class="card-header-insumo">
-            <h3 class="texto-centrado">EVIDENCIA FOTOGRÁFICA DE FAENA</h3>
-        </div>
+    <!-- Aquí se dibujan los bloques de evidencia (el primero es obligatorio: Antes y Después) -->
+    <div id="contenedor-bloques"></div>
 
-        <!-- Contenedor dinámico donde se agregan las fotos (Antes, Después y Adicionales) -->
-        <div id="contenedor-fotos">
-            
-            <!-- Foto Antes -->
-            <div class="grupo-input-foto">
-                <label for="foto_antes" class="zona-subida-foto" id="label-antes">
-                    <span class="icono-camara">📷</span>
-                    <span class="texto-subida">Subir Foto Antes</span>
-                    <img id="preview-antes" class="preview-imagen" src="" alt="Vista previa Antes" style="display: none;">
-                </label>
-                <input type="file" id="foto_antes" name="foto_antes" accept="image/*" capture="environment" style="display: none;" required>
-            </div>
+    <div id="aviso-evidencia" class="alert-rojo d-none" role="alert"></div>
 
-            <!-- Foto Después -->
-            <div class="grupo-input-foto">
-                <label for="foto_despues" class="zona-subida-foto" id="label-despues">
-                    <span class="icono-camara">📷</span>
-                    <span class="texto-subida">Subir Foto Después</span>
-                    <img id="preview-despues" class="preview-imagen" src="" alt="Vista previa Después" style="display: none;">
-                </label>
-                <input type="file" id="foto_despues" name="foto_despues" accept="image/*" capture="environment" style="display: none;" required>
-            </div>
-
-        </div>
-
-        <!-- Botón para adjuntar imágenes adicionales -->
-        <button type="button" id="btn-agregar-imagen" class="btn-accion-secundario mb-3">
-            <span>+</span> Adjuntar Imagen adicional
+    <!-- Botón para adjuntar otro bloque de evidencia -->
+    <div class="d-flex justify-content-center mb-2">
+        <button type="button" id="btn-agregar-imagen" class="btn-accion-secundario">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i> Adjuntar Imagen Adicional
         </button>
-
-        <!-- Cuadro de texto para observaciones -->
-        <div class="grupo-input">
-            <label for="observacion_evidencia" class="label-campo">Observación</label>
-            <textarea 
-                id="observacion_evidencia" 
-                name="observacion_evidencia" 
-                class="textarea-autoajustable" 
-                rows="3" 
-                placeholder="Escriba alguna descripción de las evidencias..."></textarea>
-        </div>
     </div>
 
+    <!-- Plantilla de un bloque (se clona desde evidencia.js) -->
+    <template id="tpl-bloque">
+        <section class="card-insumo bloque-evidencia">
+            <div class="card-header-insumo">
+                <h3 class="texto-centrado">EVIDENCIA FOTOGRÁFICA DE FAENA</h3>
+                <button type="button" class="btn-eliminar-bloque d-none" aria-label="Eliminar este bloque"><i class="bi bi-trash3-fill"></i></button>
+            </div>
+
+            <label class="zona-subida-foto" data-zona="antes">
+                <input type="file" data-tipo="antes" accept="image/*" capture="environment" class="visually-hidden">
+                <i class="bi bi-camera-fill icono-camara" aria-hidden="true"></i>
+                <span class="texto-subida"><i class="bi bi-camera-fill" aria-hidden="true"></i> Subir Foto Antes</span>
+            </label>
+            <label class="zona-subida-foto" data-zona="despues">
+                <input type="file" data-tipo="despues" accept="image/*" capture="environment" class="visually-hidden">
+                <i class="bi bi-camera-fill icono-camara" aria-hidden="true"></i>
+                <span class="texto-subida"><i class="bi bi-camera-fill" aria-hidden="true"></i> Subir Foto Después</span>
+            </label>
+
+            <div class="miniaturas">
+                <div class="miniatura" data-mini="antes" title="Antes"><i class="bi bi-image"></i></div>
+                <div class="miniatura" data-mini="despues" title="Después"><i class="bi bi-image"></i></div>
+            </div>
+
+            <div class="grupo-input">
+                <label class="label-campo">Observación</label>
+                <textarea class="textarea-autoajustable" rows="3" data-campo="observacion"
+                          placeholder="Escriba alguna descripción de las evidencias..."></textarea>
+            </div>
+        </section>
+    </template>
+
+    <script src="{% static 'js/faena_store.js' %}"></script>
     <script src="{% static 'js/evidencia.js' %}"></script>
 {% endblock %}
 
 {% block navigation_buttons %}
     <a class="btn btn-sm px-3" href="{% url 'pwa:insumos' %}" style="background-color: #4b4f76; color: #fff;">Atrás: Consumo de Insumos</a>
-    <a class="btn btn-sm px-3 text-white" href="{% url 'pwa:firma' %}" style="background-color: #4b4f76;">Siguiente: Firma Mandante</a>
+    <a class="btn btn-sm px-3 text-white" id="btn-siguiente" href="{% url 'pwa:firma' %}" style="background-color: #4b4f76;">Siguiente: Firma Mandante</a>
 {% endblock %}
