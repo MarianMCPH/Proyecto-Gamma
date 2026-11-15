@@ -1,18 +1,14 @@
-<!-- Esto es para que se guíen de lo que deberia llevar cada pantalla. 
-Este archivo NO SE USA ni como base, ni como nada, solo es un ejemplo -->
-
-{% extends "base_pwa.html" %} 
+{% extends "base_pwa.html" %}
 {% load static %}
 
-{% block header_title %}Solicitudes de Insumos{% endblock %} <!-- Paso específico de cada pantalla -->
+{% block header_title %}<a href="{% url 'pwa:insumos' %}" class="volver-header" aria-label="Volver a Consumo de Insumos"><i class="bi bi-arrow-left"></i></a> Solicitud de Presupuesto / Piezas{% endblock %}
 
 {% block mobile_content %}
-
-    <!-- Estilos específicos-->
+    <!-- Estilos específicos -->
     <link rel="stylesheet" href="{% static 'css/solicitud.css' %}">
 
-<form id="form-solicitud-insumo" enctype="multipart/form-data">
-    <!-- TODO DJANGO: Agregar cuando se conecte al backend -->
+<form id="form-solicitud-insumo" novalidate>
+    <!-- TODO DJANGO: agregar {% csrf_token %} cuando se conecte al backend -->
 
     <!-- Cuadro 1: Detalle del repuesto -->
     <div class="card-insumo">
@@ -28,18 +24,21 @@ Este archivo NO SE USA ni como base, ni como nada, solo es un ejemplo -->
                 <option value="txv_404">Válvula TXV R-404A</option>
                 <option value="compresor_2hp">Compresor Hermético 2HP</option>
                 <option value="presostato">Presostato Dual Alta/Baja</option>
+                <option value="contactor_25a">Contactor 25A</option>
+                <option value="motor_ventilador">Motor de ventilador evaporador</option>
             </select>
+            <div class="error-campo" data-error-de="repuesto_solicitado">Seleccione el artículo requerido.</div>
         </div>
 
         <div class="grupo-input">
             <label for="cantidad_solicitada" class="label-campo">Cantidad</label>
             <select id="cantidad_solicitada" name="cantidad_solicitada" class="select-tactil" required>
                 <option value="" disabled selected>Seleccionar opción</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                <option value="8">8</option><option value="10">10</option>
             </select>
+            <div class="error-campo" data-error-de="cantidad_solicitada">Seleccione la cantidad.</div>
         </div>
     </div>
 
@@ -50,28 +49,33 @@ Este archivo NO SE USA ni como base, ni como nada, solo es un ejemplo -->
         </div>
         <div class="grupo-input">
             <label for="justificacion" class="label-campo">Justificación Operativa</label>
-            <textarea 
-                id="justificacion" 
-                name="justificacion" 
-                class="textarea-autoajustable" 
-                rows="3" 
-                placeholder="Describa la falla del componente dañado" 
-                required></textarea>
+            <textarea id="justificacion" name="justificacion" class="textarea-autoajustable" rows="3"
+                      placeholder="Describa la falla del componente dañado" required></textarea>
+            <div class="error-campo" data-error-de="justificacion">Describa la falla del componente.</div>
         </div>
     </div>
 
-    <!-- Cuadro 3: Evidencia fotográfica -->
+    <!-- Cuadro 3: Evidencia fotográfica (hasta 2 fotos) -->
     <div class="card-insumo">
         <div class="card-header-insumo">
             <h3 class="texto-centrado">EVIDENCIA FOTOGRÁFICA DE LA FALLA</h3>
         </div>
-        
-        <label for="foto_falla" class="zona-subida-foto" id="zona-preview">
-            <span class="icono-camara" id="icono-camara">📷</span>
-            <span class="texto-subida" id="texto-subida">Tocar para subir o tomar foto</span>
-            <img id="preview-imagen" src="" alt="Vista previa" style="display: none;">
+
+        <label class="zona-subida-foto" id="zona-subida">
+            <input type="file" id="foto_falla" accept="image/*" capture="environment" class="visually-hidden">
+            <i class="bi bi-camera-fill icono-camara" aria-hidden="true"></i>
+            <span class="texto-subida"><i class="bi bi-camera-fill" aria-hidden="true"></i> Subir Foto</span>
         </label>
-        <input type="file" id="foto_falla" name="foto_falla" accept="image/*" capture="environment" style="display: none;">
+
+        <div class="miniaturas" id="miniaturas">
+            <button type="button" class="miniatura" data-slot="0" aria-label="Foto 1 (vacía)"><i class="bi bi-image"></i></button>
+            <button type="button" class="miniatura" data-slot="1" aria-label="Foto 2 (vacía)"><i class="bi bi-image"></i></button>
+        </div>
+        <p class="nota-fotos" id="nota-fotos">Hasta 2 fotos. Toque una foto para quitarla.</p>
+    </div>
+
+    <div id="aviso-almacenamiento" class="alert alert-warning py-2 small d-none" role="alert">
+        No hay espacio en el dispositivo para guardar la solicitud. Intente con fotos más pequeñas.
     </div>
 
     <!-- Botón Enviar Solicitud -->
@@ -81,22 +85,19 @@ Este archivo NO SE USA ni como base, ni como nada, solo es un ejemplo -->
 </form>
 
 <!-- MODAL DE CONFIRMACIÓN -->
-<div id="modal-confirmacion" class="modal-overlay" style="display: none;">
+<div id="modal-confirmacion" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
     <div class="modal-contenido">
-        <div class="modal-icono-exito">✔</div>
-        <h4>Solicitud enviada correctamente</h4>
-        <p>El requerimiento ha sido notificado a Bodega Central.</p>
-        
-        <!-- TODO DJANGO: Cambiar el href por  -->
-        <a href="{% url 'pwa:insumos' %}" class="btn-volver-insumos">Volver a Consumo de Insumos</a>
+        <i class="bi bi-check-lg modal-check" aria-hidden="true"></i>
+        <h4 id="modal-titulo">¡Solicitud Enviada!</h4>
+        <p id="modal-detalle">El requerimiento fue notificado a Bodega Central.</p>
+        <a href="{% url 'pwa:insumos' %}" class="btn-volver-insumos" id="btn-modal-volver">Volver</a>
     </div>
 </div>
 
-        <!-- Lógica JS  -->
+    <script src="{% static 'js/faena_store.js' %}"></script>
     <script src="{% static 'js/solicitud.js' %}"></script>
-
 {% endblock %}
 
-{% block navigation_buttons %} <!-- Botones específicos de cada pantalla -->
+{% block navigation_buttons %}
     <a class="btn btn-sm px-3" href="{% url 'pwa:insumos' %}" style="background-color: #4b4f76; color: #fff;">Volver atrás</a>
 {% endblock %}
