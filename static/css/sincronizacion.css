@@ -1,93 +1,43 @@
 /* =================================================
-   CSS Exclusivo - Pantalla 5: Resumen y Sincronización
+   CSS Exclusivo - Pantalla 5: Confirmación y Sincronización
    ================================================= */
 
-.contenedor-exito-icono {
-    display: flex;
-    justify-content: center;
-    margin: 10px 0;
-}
+.supplies-main { background-color: #F3F4F6; }
+.technical-form-header h1 { font-size: 19px !important; line-height: 1.25; }
+.volver-header { color: #fff; text-decoration: none; font-size: 26px; vertical-align: middle; margin-right: 6px; }
 
-.icono-check {
-    width: 60px;
-    height: 60px;
-    background-color: #DCFCE7;
-    color: #16A34A;
-    border-radius: 50%;
-    font-size: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 10px rgba(22, 163, 74, 0.2);
-}
+.tarjeta-final { text-align: center; padding-top: 8px; }
+.icono-check { display: block; font-size: 84px; line-height: 1; color: #62B467; margin-bottom: -26px; position: relative; z-index: 1; }
+.icono-check.pendiente { color: #E0A800; }
 
 .card-insumo {
-    background-color: #FFFFFF;
-    border: 1.5px solid #D1D5DB;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    background-color: #F3F4F6; border: 2px solid #D1D5DB; border-radius: 14px;
+    padding: 36px 16px 20px 16px; text-align: center;
 }
-
 .card-header-insumo h3 {
-    margin: 0 0 12px 0;
-    padding-bottom: 8px;
-    font-size: 16px;
-    font-weight: 700;
-    color: #1F2937;
-    border-bottom: 1px solid #C7C9D9;
-    letter-spacing: 0.3px;
+    margin: 0 0 12px 0; padding-bottom: 12px; font-size: 22px; font-weight: 800;
+    color: #111827; border-bottom: 1px solid #C7C9D9; line-height: 1.25;
 }
-
-.texto-centrado {
-    text-align: center;
-}
-
-.detalle-resumen p {
-    font-size: 13px;
-    color: #4B5563;
-    margin: 8px 0;
-}
-
-.detalle-resumen strong {
-    color: #1F2937;
-}
+.detalle-resumen { font-size: 14px; color: #1F2937; margin: 14px 0; }
 
 .estado-sincronizado {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    background-color: #F3F4F6;
-    border: 1px solid #D1D5DB;
-    border-radius: 6px;
-    padding: 10px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #374151;
-    margin-top: 14px;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    background-color: #F3F4F6; border: 2px solid #D1D5DB; border-radius: 10px;
+    padding: 12px; font-size: 14px; color: #111827; margin-top: 10px; text-align: left;
 }
+.punto { font-size: 20px; line-height: 1; }
+.punto-verde { color: #62B467; }
+.punto-ambar { color: #E0A800; }
 
-.punto-verde {
-    color: #16A34A;
-    font-size: 16px;
-}
-
-.contenedor-submit {
-    margin-top: 16px;
-}
-
+.contenedor-submit { display: flex; justify-content: center; margin-top: 22px; }
 .btn-volver-inicio {
-    display: block;
-    width: 100%;
-    min-height: 48px;
-    line-height: 48px;
-    background-color: #3b3f68;
-    color: #FFFFFF;
-    text-decoration: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
-    text-align: center;
+    display: inline-block; min-width: 220px; min-height: 48px; line-height: 48px; padding: 0 28px;
+    background-color: #4b4f76; color: #FFFFFF; text-decoration: none; border-radius: 8px;
+    font-size: 15px; font-weight: 600; text-align: center;
 }
+
+/* Separación entre botones del pie (base_pwa los deja pegados) */
+.supplies-navigation { gap: 8px; }
+
+/* Pantalla final: sin botones inferiores */
+.supplies-navigation { display: none !important; }

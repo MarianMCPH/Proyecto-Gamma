@@ -1,39 +1,33 @@
-{% extends "base_pwa.html" %} 
+{% extends "base_pwa.html" %}
 {% load static %}
 
-{% block header_title %}Confirmación y Sincronización{% endblock %}
+{% block header_title %}<a href="{% url 'obras:itinerario' %}" class="volver-header" aria-label="Ir al inicio"><i class="bi bi-arrow-left"></i></a> Confirmación y Sincronización{% endblock %}
 
 {% block mobile_content %}
     <link rel="stylesheet" href="{% static 'css/sincronizacion.css' %}">
 
-    <div class="contenedor-exito-icono">
-        <span class="icono-check">✔</span>
-    </div>
+    <div class="tarjeta-final">
+        <i class="bi bi-check-lg icono-check" id="icono-estado" aria-hidden="true"></i>
+        <div class="card-insumo">
+            <div class="card-header-insumo">
+                <h3 class="texto-centrado titulo-final">¡Servicio Finalizado con Éxito!</h3>
+            </div>
 
-    <div class="card-insumo">
-        <div class="card-header-insumo">
-            <h3 class="texto-centrado">¡Servicio Finalizado con Éxito!</h3>
-        </div>
+            <p class="detalle-resumen"><strong>Finalizado:</strong> <span id="fecha-cierre">—</span></p>
 
-        <!-- TODO BD: Datos dinámicos de la faena sincronizada -->
-        <div class="detalle-resumen">
-            <p><strong>Cliente:</strong> Agroindustrial El Peumo de Bulnes SpA</p>
-            <p><strong>Tipo de Servicio:</strong> Climatización</p>
-            <p><strong>Técnico:</strong> Reinaldo Tapia</p>
-            <p><strong>Finalizado:</strong> 09 de Octubre, 17:20</p>
-        </div>
-
-        <div class="estado-sincronizado">
-            <span class="punto-verde">●</span> Sincronizado con la Oficina Central
+            <div class="estado-sincronizado" id="estado-sync" role="status" aria-live="polite">
+                <span class="punto punto-verde" id="punto-sync">●</span>
+                <span id="texto-sync">Sincronizado con la Oficina Central</span>
+            </div>
         </div>
     </div>
 
     <!-- Botón Volver al Inicio -->
     <div class="contenedor-submit">
-        <!-- TODO DJANGO: Usar  -->
         <a href="{% url 'obras:itinerario' %}" class="btn-volver-inicio">Volver al Inicio</a>
     </div>
 
+    <script src="{% static 'js/faena_store.js' %}"></script>
     <script src="{% static 'js/sincronizacion.js' %}"></script>
 {% endblock %}
 
