@@ -1,11 +1,16 @@
 from django.urls import path
-from .views import ObraListView, ObraDetailView, ObraCreateView, ObraUpdateView, ObraDeleteView, ObraViewAdmin, AuditoriaObras, AuditarObraEspecifica, LimpiarAuditoriaView
+from .views import (
+    ObraListView, ObraDetailView, ObraCreateView, ObraUpdateView, 
+    ObraDeleteView, ObraViewAdmin, AuditoriaObras, AuditarObraEspecifica, 
+    LimpiarAuditoriaView, OcultarGestionObraView
+)
 
 app_name = 'obras'
 
 urlpatterns = [
     path('', ObraListView.as_view(), name='itinerario'),
     path('gestion/', ObraViewAdmin.as_view(), name='ver_obras'),
+    path('gestion/ocultar/', OcultarGestionObraView.as_view(), name='ocultar_gestion_obra'),
     path('detalle/', ObraDetailView.as_view(), name='detalle_obra'),
     path('crear/', ObraCreateView.as_view(), name='nueva_obra'),
     path('editar/', ObraUpdateView.as_view(), name='editar_obra'),

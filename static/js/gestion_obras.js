@@ -76,3 +76,60 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
+document.addEventListener('DOMContentLoaded', function () {
+    // 1. Seleccionar todos los checkboxes de la tabla
+    const selectAll = document.getElementById('selectAll');
+    if (selectAll) {
+        selectAll.addEventListener('change', function () {
+            document.querySelectorAll('.check-fila').forEach(cb => {
+                if (cb.closest('tr').style.display !== 'none') {
+                    cb.checked = selectAll.checked;
+                }
+            });
+        });
+    }
+
+    // 2. Lógica del botón Desactivar con mensaje de confirmación
+    const btnDesactivar = document.getElementById('btnDesactivarObras');
+    if (btnDesactivar) {
+        btnDesactivar.addEventListener('click', function () {
+            const seleccionadas = Array.from(document.querySelectorAll('.check-fila:checked')).map(cb => cb.value);
+            
+            if (seleccionadas.length === 0) {
+                alert('Por favor, seleccione al menos una orden para desactivar.');
+                return;
+            }
+
+            // Mensaje de confirmación personalizado
+            const mensaje = seleccionadas.length === 1 
+                ? '¿Estás segura o seguro de desactivar esta orden?' 
+                : `¿Estás segura o seguro de desactivar las ${seleccionadas.length} órdenes seleccionadas?`;
+
+            if (!confirm(mensaje)) {
+                return; // Si cancela, no hace nada
+            }
+
+            // Petición al backend para ocultarlas de la pantalla
+            fetch("/obras/gestion/ocultar/", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({ ids: seleccionadas })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.ok) {
+                    location.reload();
+                } else {
+                    alert(data.error || 'Ocurrió un problema al desactivar.');
+                }
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error de conexión al intentar desactivar.');
+            });
+        });
+    }
+});
