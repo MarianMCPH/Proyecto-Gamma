@@ -1,0 +1,20 @@
+{% load static %}
+{% comment %}
+  Parte común de las pantallas solicitudes, evidencias, firma, sincronización:
+  - entrega al JS los datos de la orden actual (id, cliente, técnico, tipo)
+  - deja la cookie CSRF lista para los envíos por fetch
+  - avisa si no hay orden activa o si ya fue aprobada
+{% endcomment %}
+<div hidden>{% csrf_token %}</div>
+{{ faena|json_script:"datos-faena" }}
+{% if not orden %}
+    <div class="alert alert-warning small" role="alert">
+        No hay una orden de trabajo activa. Abra esta pantalla desde la obra asignada
+        (por ejemplo, agregando <code>?orden=ID</code> a la dirección).
+    </div>
+{% elif faena.bloqueada %}
+    <div class="alert alert-info small" role="alert">
+        La orden #{{ orden.pk }} ya fue aprobada por administración y no admite cambios.
+    </div>
+{% endif %}
+<script src="{% static 'js/faena_store.js' %}"></script>
