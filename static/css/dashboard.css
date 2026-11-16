@@ -1,7 +1,9 @@
-/* =================================================_
-   Estilos Dashboard Operativo - FYAG SpA
+
+/* =================================================
+   ESTILOS DASHBOARD OPERATIVO - FYAG SpA
    ================================================= */
 
+/* --- FONDO GENERAL DEL DASHBOARD --- */
 body {
     background-color: #f4f6f9;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -9,36 +11,23 @@ body {
     padding: 0;
 }
 
-/* Sidebar lateral fijo oscuro */
-.sidebar {
-    background-color: #2e3252 !important;
-    min-height: 100vh;
-}
+/* =================================================
+   TARJETAS Y CONTENEDORES BLANCOS
+   ================================================= */
 
-.sidebar .nav-link {
-    color: rgba(255, 255, 255, 0.7);
-    padding: 10px 15px;
-    border-radius: 6px;
-    margin-bottom: 4px;
-}
-
-.sidebar .nav-link:hover, 
-.sidebar .nav-link.active {
-    color: #ffffff;
-    background-color: rgba(255, 255, 255, 0.15);
-}
-
-/* Tarjetas y Contenedores Blancos */
 .card-custom {
-    background: #ffffff;
+    background-color: #ffffff;
     border-radius: 12px;
     border: 1px solid #e0e0e0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
-/* Tarjetas KPI Superiores */
+/* =================================================
+   TARJETAS KPI SUPERIORES
+   ================================================= */
+
 .kpi-card {
-    background: #ffffff;
+    background-color: #ffffff;
     border-radius: 12px;
     border: 1px solid #e0e0e0;
     padding: 20px;
@@ -54,7 +43,10 @@ body {
     border-color: #badbcc !important;
 }
 
-/* Botón institucional */
+/* =================================================
+   BOTÓN INSTITUCIONAL DEL DASHBOARD
+   ================================================= */
+
 .btn-institutional {
     background-color: #2e3252;
     color: #ffffff;
@@ -65,21 +57,4 @@ body {
 .btn-institutional:hover {
     background-color: #1f2238;
     color: #ffffff;
-}
-
-/* Perfil de usuario en el sidebar */
-.user-profile-box {
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    padding: 15px;
-    text-align: center;
-}
-
-.logo-text {
-    font-size: 16px;
-}
-
-.logo-subtext {
-    font-size: 8px;
-    letter-spacing: 1px;
 }

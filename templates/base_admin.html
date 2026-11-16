@@ -12,6 +12,8 @@
     
     <!-- Estilos personalizados -->
     <link rel="stylesheet" href="{% static 'css/style_web.css' %}">
+    <link rel="stylesheet" href="{% static 'css/gestion_obras.css' %}">
+
 </head>
 <body>
 
@@ -21,35 +23,29 @@
             <nav id="menu" class="col-md-3 col-lg-2 d-md-block lateral px-0 collapse">
                 <div class="lateral-int d-flex flex-column h-100 p-3">
                     <div class="logo-caja mb-3 text-center">
-
-                        <!-- codigo agregado por Luciano -->
-                        <a href="{% url 'core:dashboard' %}" title="Ir al Dashboard Principal">
-                            <img src="{% static 'img/logo.png' %}" alt="Frío y Agroindustria SpA" class="img-fluid">
-                        </a>
-                        <!-- fin codigo agregado por Luciano -->
-                         
+                        <img src="{% static 'img/logo.png' %}" alt="Frío y Agroindustria SpA" class="img-fluid">
                     </div>
-                    <ul class="nav flex-column mt-3">
-                        <li class="nav-item mb-1">
-                            <a class="nav-link" href="{% url 'core:dashboard' %}" data-path="dashboard"><i class="bi bi-bar-chart-steps me-2"></i>Dashboard</a>
-                        </li>
-                        <li class="nav-item mb-1">
-                            <a class="nav-link" href="{% url 'obras:ver_obras' %}" data-path="obras"><i class="bi bi-tools me-2"></i>Gestión de Obras</a>
-                        </li>
-                        <li class="nav-item mb-1">
-                            <a class="nav-link" href="{% url 'usuarios:ver_usuarios' %}" data-path="usuarios"><i class="bi bi-people me-2"></i>Personal y Usuarios</a>
-                        </li>
-                        <li class="nav-item mb-1">
-                            <a class="nav-link" href="{% url 'obras:auditoria' %}" data-path="auditoria"><i class="bi bi-clipboard-check me-2"></i>Auditoría de Obras</a>
-                        </li>
-                        <li class="nav-item mb-1">
-                            <a class="nav-link" href="{% url 'inventario:solicitudes' %}" data-path="solicitudes"><i class="bi bi-box-seam me-2"></i>Solicitudes de Insumos</a>
-                        </li>
-                    </ul>
+                        <ul class="nav flex-column mt-3">
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="{% url 'core:dashboard' %}" data-path="dashboard"><i class="bi bi-bar-chart-steps me-2"></i>Dashboard</a>
+                            </li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="{% url 'obras:ver_obras' %}" data-path="obras"><i class="bi bi-tools me-2"></i>Gestión de Obras</a>
+                            </li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="{% url 'usuarios:ver_usuarios' %}" data-path="usuarios"><i class="bi bi-people me-2"></i>Personal y Usuarios</a>
+                            </li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="{% url 'obras:auditoria' %}" data-path="auditoria"><i class="bi bi-clipboard-check me-2"></i>Auditoría de Obras</a>
+                            </li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="{% url 'inventario:solicitudes' %}" data-path="solicitudes"><i class="bi bi-box-seam me-2"></i>Solicitudes de Insumos</a>
+                            </li>
+                        </ul>
                     <div class="perfil mt-auto pt-3">
                         <i class="bi bi-person-circle fs-1"></i>
                         <span class="d-block fw-medium small mb-2">Administrador Central</span>
-                        <a href="{% url 'core:login' %}" class="btn btn-sm btn-outline-light w-100 rounded-pill">Cerrar sesión</a>
+                        <a href="#" class="btn btn-sm btn-outline-light w-100 rounded-pill">Cerrar sesión</a>
                     </div>
                 </div>
             </nav>
@@ -89,16 +85,20 @@
                         const links = document.querySelectorAll("#menu .nav-link");
 
                         links.forEach(link => {
-                            link.classList.remove("activo");
+                            link.classList.remove("activo"); // Limpia todos
                             const href = link.getAttribute("href");
+                            
+                            // Si la URL actual contiene la ruta del enlace, lo marca
                             if (href !== "#" && url === href) {
                                 link.classList.add("activo");
                             }
                         });
                     });
+                
                 </script>
 
                 {% block content %}
+                <!-- Aquí se inyectará el contenido dinámico de cada vista en Django -->
                 {% endblock %}
             </main>
         </div>

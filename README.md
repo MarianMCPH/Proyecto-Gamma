@@ -7,13 +7,14 @@
 ### Utilizar la 'base' para cada plantilla html (según corresponda)
 ### Utilizar el archivo css para los estilos
 ### Ejecutar en la terminal pip install pymysql
+### Ejecutar en la terminal pip install bcrypt
 ### Ejecutar CREATE DATABASE y USE DATABASE en sus bases de datos
 ### Crear archivo .env y pegar ahi la conexion establecida en el archivo .env.example
 ### Ejecutar python manage.py check --database default para verificar la conexion
 ### Ejecutar python manage.py migrate para realizar las migraciones
 ### Para echar a correr el programa ejecutar: python manage.py runserver
 
-# Agregar a sus ramas (porque se me olvido agregarlo al main): Instalar bcrypt: pip install bcrypt
+# Agregar a sus ramas (porque se me olvido agregarlo al main)
 ### Revisar config/settings.py y agregar en sus propias ramas: 
 ### DATABASES = {
 ###    'default': {
