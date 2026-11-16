@@ -11,14 +11,24 @@
     <!-- Bloque de Filtros y Acciones -->
     <div class="card-custom p-3 mb-4">
         
-        <!-- Fila 1: Pestañas de Estado y Enlace de Nueva Orden de Trabajo al mismo nivel -->
+        <!-- Fila 1: Pestañas de Estado con conteos reales y Botón Nueva Orden -->
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-            <div class="d-flex align-items-center flex-wrap gap-2">
-                <button class="btn btn-sm text-white px-3" style="background-color: #3f4268;">Todas <span class="badge bg-light text-dark ms-1">0</span></button>
-                <button class="btn btn-sm btn-outline-secondary px-3">En proceso <span class="badge bg-light text-dark ms-1">0</span></button>
-                <button class="btn btn-sm btn-outline-secondary px-3">Pendientes <span class="badge bg-light text-dark ms-1">0</span></button>
-                <button class="btn btn-sm btn-outline-danger px-3">Emergencias <span class="badge bg-danger ms-1">0</span></button>
-                <button class="btn btn-sm btn-outline-secondary px-3">Finalizadas <span class="badge bg-light text-dark ms-1">0</span></button>
+            <div class="d-flex align-items-center flex-wrap gap-2" id="filtrosEstado">
+                <button class="btn btn-sm text-white px-3 filtro-btn active" data-filter="todas" style="background-color: #3f4268;">
+                    Todas <span class="badge bg-light text-dark ms-1">{{ total_todas }}</span>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary px-3 filtro-btn" data-filter="en_proceso">
+                    En proceso <span class="badge bg-light text-dark ms-1">{{ total_en_proceso }}</span>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary px-3 filtro-btn" data-filter="pendientes">
+                    Pendientes <span class="badge bg-light text-dark ms-1">{{ total_pendientes }}</span>
+                </button>
+                <button class="btn btn-sm btn-outline-danger px-3 filtro-btn" data-filter="emergencias">
+                    Emergencias <span class="badge bg-danger text-white ms-1">{{ total_emergencias }}</span>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary px-3 filtro-btn" data-filter="finalizadas">
+                    Finalizadas <span class="badge bg-light text-dark ms-1">{{ total_finalizadas }}</span>
+                </button>
             </div>
             
             <!-- Redirige a la página de nueva orden -->
@@ -27,23 +37,23 @@
             </a>
         </div>
 
-        <!-- Fila 2: Búsqueda rápida (Botón "Filtrar por..." eliminado) -->
+        <!-- Fila 2: Búsqueda rápida -->
         <div class="d-flex align-items-center gap-2">
             <div class="input-group input-group-sm" style="max-width: 280px;">
                 <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" class="form-control" placeholder="Búsqueda rápida">
+                <input type="text" id="buscadorObras" class="form-control" placeholder="Búsqueda rápida...">
             </div>
         </div>
 
     </div>
 
-    <!-- Tabla de Obras / Servicios Modificada -->
+    <!-- Tabla de Obras / Servicios -->
     <div class="card-custom p-3">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0 small">
                 <thead class="table-light text-muted">
                     <tr>
-                        <th style="width: 40px;"><input type="checkbox" class="form-check-input"></th>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAll" class="form-check-input"></th>
                         <th>Cliente</th>
                         <th>Tipo de servicio</th>
                         <th>Técnico</th>
@@ -51,16 +61,33 @@
                         <th class="text-end">Acciones</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <!-- Fila de estado vacío (colspan ajustado a 6) -->
-                    <tr>
+                <tbody id="tablaGestiónObras">
+                    {% for o in ordenes %}
+                    <tr class="fila-obra" data-categoria="{{ o.categoria }}" data-emergencia="{{ o.es_emergencia|lower }}">
+                        <td><input type="checkbox" class="form-check-input check-fila" value="{{ o.id }}"></td>
+                        <td class="fw-medium text-dark">{{ o.cliente }}</td>
+                        <td>{{ o.tipo_servicio }}</td>
+                        <td>{{ o.tecnico }}</td>
+                        <td><span class="badge {{ o.badge_clase }}">{{ o.estado_label }}</span></td>
+                        <td class="text-end">
+                            <a href="{% url 'obras:detalle_obra' %}?id={{ o.id }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="Ver detalles">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="filaVacia">
                         <td colspan="6" class="text-center py-5 text-muted">
                             <i class="bi bi-folder2-open display-6 d-block mb-2 text-secondary opacity-50"></i>
                             No hay órdenes de trabajo ni obras registradas actualmente.
                         </td>
                     </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
+
+    <!-- Enlace al archivo JavaScript externo -->
+    <script src="{% static 'js/gestion_obras.js' %}"></script>
 {% endblock %}

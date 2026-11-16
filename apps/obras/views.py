@@ -139,6 +139,71 @@ class ObraViewAdmin(TemplateView):
 
     template_name = 'obras/gestion_obras_adm.html'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        ordenes = OrdenTrabajo.objects.select_related("cliente", "tecnico").order_by("-id")
+        
+        lista_ordenes = []
+        total_todas = 0
+        total_en_proceso = 0
+        total_pendientes = 0
+        total_emergencias = 0
+        total_finalizadas = 0
+
+        for orden in ordenes:
+            total_todas += 1
+            estado_raw = (orden.estado or "").strip().lower()
+            
+            # Detectar si es emergencia
+            es_emergencia = (
+                "emergencia" in (orden.tipo_servicio or "").lower() or
+                "urgente" in (orden.tipo_servicio or "").lower() or
+                "emergencia" in (orden.observacion_auditoria or "").lower() or
+                "urgente" in (orden.observacion_auditoria or "").lower()
+            )
+            if es_emergencia:
+                total_emergencias += 1
+
+            # Categorizar según el estado
+            if estado_raw == "en_proceso":
+                total_en_proceso += 1
+                categoria = "en_proceso"
+                badge_clase = "bg-info text-dark"
+            elif estado_raw in ["aprobada", "facturada"]:
+                total_finalizadas += 1
+                categoria = "finalizadas"
+                badge_clase = "bg-success text-white"
+            else:
+                total_pendientes += 1
+                categoria = "pendientes"
+                badge_clase = "bg-warning text-dark"
+
+            tecnico_nombre = "Sin asignar"
+            if orden.tecnico:
+                tecnico_nombre = orden.tecnico.get_full_name().strip() or orden.tecnico.username
+
+            cliente_nombre = orden.cliente.razon_social if orden.cliente else "Sin cliente"
+
+            lista_ordenes.append({
+                "id": orden.id,
+                "cliente": cliente_nombre,
+                "tipo_servicio": orden.tipo_servicio or "-",
+                "tecnico": tecnico_nombre,
+                "estado_label": orden.get_estado_display(),
+                "badge_clase": badge_clase,
+                "categoria": categoria,
+                "es_emergencia": es_emergencia,
+            })
+
+        context["ordenes"] = lista_ordenes
+        context["total_todas"] = total_todas
+        context["total_en_proceso"] = total_en_proceso
+        context["total_pendientes"] = total_pendientes
+        context["total_emergencias"] = total_emergencias
+        context["total_finalizadas"] = total_finalizadas
+        return context
+
 
 class AuditoriaObras(TemplateView):
     """Vista para listar, filtrar y auditar las órdenes de trabajo."""
