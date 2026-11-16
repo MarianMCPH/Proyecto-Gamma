@@ -3,6 +3,7 @@ import json
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Q
 from django.http import JsonResponse
 from django.views import View
 from django.views.generic import TemplateView
@@ -13,16 +14,28 @@ Usuario = get_user_model()
 CLAVE_SESION_AUDITORIA = "ordenes_ocultas_auditoria"
 
 
+def obtener_tecnicos_activos():
+    """Retorna únicamente usuarios activos con rol Técnico asignado en su perfil."""
+    return (
+        Usuario.objects.select_related("perfil", "perfil__rol")
+        .filter(
+            Q(perfil__rol__nombre__iexact="Tecnico") | Q(perfil__rol__nombre__iexact="Técnico"),
+            is_active=True,
+        )
+        .order_by("first_name", "last_name", "username")
+    )
+
+
 class ObraListView(TemplateView):
     """Vista para listar y buscar todas las obras activas y finalizadas para el tecnico."""
 
-    template_name = 'obras/itinerario.html'
+    template_name = "obras/itinerario.html"
 
 
 class ObraDetailView(TemplateView):
     """Vista para ver el detalle completo de una obra específica."""
 
-    template_name = 'obras/detalles.obras.html'
+    template_name = "obras/detalles.obras.html"
 
 
 class ObraCreateView(TemplateView):
@@ -32,12 +45,10 @@ class ObraCreateView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["tecnicos"] = Usuario.objects.filter(is_active=True).order_by("first_name", "username")
+        context["tecnicos"] = obtener_tecnicos_activos()
         return context
 
     def post(self, request, *args, **kwargs):
-        print("POST recibido:", request.POST.dict())
-
         cliente_nombre = request.POST.get("cliente_nombre", "").strip()
         contacto_planta = request.POST.get("contacto_planta", "").strip()
         telefono_contacto = request.POST.get("telefono_contacto", "").strip()
@@ -73,7 +84,7 @@ class ObraCreateView(TemplateView):
 
         try:
             with transaction.atomic():
-                tecnico = Usuario.objects.get(pk=tecnico_id)
+                tecnico = obtener_tecnicos_activos().get(pk=tecnico_id)
                 contacto_formateado = f"{contacto_planta} ({telefono_contacto})"
 
                 cliente = Cliente.objects.filter(razon_social__iexact=cliente_nombre).first()
@@ -109,13 +120,11 @@ class ObraCreateView(TemplateView):
             return JsonResponse({"ok": True})
 
         except Usuario.DoesNotExist:
-            print("ERROR: No existe usuario con pk =", tecnico_id)
             return JsonResponse(
-                {"ok": False, "error": "El técnico seleccionado no existe en la base de datos."},
+                {"ok": False, "error": "El técnico seleccionado no es válido o no tiene rol de Técnico activo."},
                 status=400,
             )
-        except Exception as e:
-            print("ERROR AL GUARDAR ORDEN:", repr(e))
+        except Exception:
             return JsonResponse(
                 {"ok": False, "error": "Ocurrió un problema al guardar en la base de datos. Vuelva a intentarlo."},
                 status=500,
@@ -125,19 +134,19 @@ class ObraCreateView(TemplateView):
 class ObraUpdateView(TemplateView):
     """Vista para editar una obra existente."""
 
-    template_name = 'obras/editar_obra.html'
+    template_name = "obras/editar_obra.html"
 
 
 class ObraDeleteView(TemplateView):
     """Vista para eliminar o dar de baja una obra."""
 
-    template_name = 'obras/eliminar_obra.html'
+    template_name = "obras/eliminar_obra.html"
 
 
 class ObraViewAdmin(TemplateView):
     """Vista para listar y buscar todas las obras activas y finalizadas para el administrador."""
 
-    template_name = 'obras/gestion_obras_adm.html'
+    template_name = "obras/gestion_obras_adm.html"
 
 
 class AuditoriaObras(TemplateView):
@@ -238,4 +247,4 @@ class LimpiarAuditoriaView(View):
 class AuditarObraEspecifica(TemplateView):
     """Vista para auditar una obra específica."""
 
-    template_name = 'obras/auditar_obra_especifica.html'
+    template_name = "obras/auditar_obra_especifica.html"
