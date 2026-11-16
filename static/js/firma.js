@@ -15,12 +15,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnFin = document.getElementById('btn-sincronizar');
     const borrador = FaenaStore.borrador();
 
-    // Resumen (TODO BD: datos reales de la orden)
-    const F = FaenaStore.FAENA;
-    document.getElementById('res-cliente').textContent = F.cliente;
-    document.getElementById('res-tipo').textContent = F.tipo;
-    document.getElementById('res-tecnico').textContent = F.tecnico;
-    const horaCierre = FaenaStore.hoy();
+    // Cliente, tipo y técnico ya vienen desde Django (orden actual); aquí solo la hora
+    const horaCierre = new Date();
     document.getElementById('res-hora').textContent =
         String(horaCierre.getHours()).padStart(2, '0') + ':' + String(horaCierre.getMinutes()).padStart(2, '0');
 
@@ -98,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     campos.forEach(el => el.addEventListener('change', guardarReceptor));
 
-    btnFin.addEventListener('click', () => {
+    btnFin.addEventListener('click', async () => {
         inRut.value = formatearRut(inRut.value);
         const malos = [[inRut, !rutValido(inRut.value)], [inNombre, !inNombre.value.trim()], [inCargo, !inCargo.value.trim()]];
         malos.forEach(([el, m]) => marcar(el, m));
@@ -119,26 +115,55 @@ document.addEventListener('DOMContentLoaded', () => {
         guardarReceptor();
         const firmaImg = canvas.toDataURL('image/png');
         document.getElementById('firma_base64').value = firmaImg;
-        const cierre = new Date().toISOString();
-        // TODO BD: aquí también irán el checklist y el consumo de insumos de los pasos 1 y 2
-        const item = FaenaStore.encolar('faena', {
-            orden: borrador.orden,
-            evidencias: borrador.evidencias,
-            firma: { ...borrador.receptor, imagen_base64: firmaImg, fecha: cierre },
-            cerrada_en: cierre
-        }, borrador.uuid_sync);
-        if (!item) {
+        const orden = FaenaStore.FAENA.id;
+
+        // 1) Una entrada por foto (antes/después de cada bloque) y 2) el cierre con la firma.
+        //    La cola respeta el orden, así el servidor ya tiene las fotos cuando llega el cierre.
+        const items = [];
+        borrador.evidencias.forEach((bloque, i) => {
+            ['antes', 'despues'].forEach(tipo => {
+                if (!bloque[tipo]) return;
+                items.push({
+                    tipo: 'evidencia', url: btnFin.dataset.urlEvidencia, uuid_sync: `${bloque.uuid_sync}-${tipo}`,
+                    payload: { orden, tipo, bloque: i + 1, dataUrl: bloque[tipo].dataUrl }
+                });
+            });
+        });
+        items.push({
+            tipo: 'cierre', url: btnFin.dataset.urlCierre, uuid_sync: borrador.uuid_sync,
+            payload: { orden, firma: { ...borrador.receptor, imagen_base64: firmaImg } }
+        });
+
+        FaenaStore.limpiarErrores(items.map(i => i.uuid_sync));   // reintento tras corregir
+        if (!FaenaStore.encolarVarios(items)) {
             aviso.textContent = 'No hay espacio en el dispositivo para guardar la faena. Libere espacio e intente de nuevo.';
             aviso.classList.remove('d-none'); return;
         }
-        FaenaStore.guardarUltima({ uuid_sync: item.uuid_sync, cerrada_en: cierre, ...FaenaStore.FAENA });
-        FaenaStore.limpiarBorrador();
+        FaenaStore.guardarUltima({ uuid_sync: borrador.uuid_sync, orden, cerrada_en: new Date().toISOString() });
         btnFin.disabled = true;
-        if (navigator.onLine) { window.location.href = btnFin.dataset.url; return; }
 
-        // Sin red: el servidor no puede entregar la pantalla final, así que se avisa aquí mismo
-        // y se avanza solo cuando vuelva la conexión (la faena ya quedó guardada en la cola).
-        document.getElementById('modal-offline').style.display = 'flex';
-        window.addEventListener('online', () => { window.location.href = btnFin.dataset.url; }, { once: true });
+        if (!navigator.onLine) {
+            // Sin red: el servidor no puede entregar la pantalla final, así que se avisa aquí mismo
+            // y se avanza solo cuando vuelva la conexión (la faena ya quedó guardada en la cola).
+            FaenaStore.limpiarBorrador();
+            document.getElementById('modal-offline').style.display = 'flex';
+            window.addEventListener('online', () => { window.location.href = btnFin.dataset.url; }, { once: true });
+            return;
+        }
+
+        const textoBtn = btnFin.innerHTML;
+        btnFin.textContent = 'Enviando…';
+        await FaenaStore.sincronizar();
+
+        const rechazos = items.map(i => FaenaStore.errorDe(i.uuid_sync)).filter(Boolean);
+        if (rechazos.length) {
+            // La oficina rechazó algo (ej. orden ya aprobada): se mantiene el borrador para corregir
+            aviso.textContent = 'No se pudo cerrar la faena: ' + rechazos[rechazos.length - 1].mensaje;
+            aviso.classList.remove('d-none');
+            btnFin.innerHTML = textoBtn; btnFin.disabled = false;
+            return;
+        }
+        FaenaStore.limpiarBorrador();
+        window.location.href = btnFin.dataset.url;
     });
 });

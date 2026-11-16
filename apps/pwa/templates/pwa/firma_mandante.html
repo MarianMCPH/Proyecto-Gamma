@@ -3,18 +3,21 @@
 
 {% block header_title %}<a href="{% url 'pwa:evidencias' %}" class="volver-header" aria-label="Volver a Evidencias Fotográficas"><i class="bi bi-arrow-left"></i></a> Paso 4: Firma Mandante{% endblock %}
 
+{% block work_id %}{% if orden %}ID: #{{ orden.pk }} - {{ orden.tipo_servicio }}{% else %}Sin orden asignada{% endif %}{% endblock %}
+
 {% block mobile_content %}
     <link rel="stylesheet" href="{% static 'css/firma.css' %}">
+
+    {% include "pwa/_faena_comun.html" %}
 
     <div class="card-insumo">
         <div class="card-header-insumo">
             <h3 class="texto-centrado">RESUMEN DE FAENA</h3>
         </div>
-        <!-- TODO BD: datos reales de la orden de trabajo -->
         <div class="detalle-resumen">
-            <p><strong>Cliente:</strong> <span id="res-cliente">Agroindustrial El Peumo de Bulnes SpA</span></p>
-            <p><strong>Tipo de Servicio:</strong> <span id="res-tipo">Climatización</span></p>
-            <p><strong>Técnico:</strong> <span id="res-tecnico">Reinaldo Tapia</span></p>
+            <p><strong>Cliente:</strong> <span id="res-cliente">{{ faena.cliente|default:"—" }}</span></p>
+            <p><strong>Tipo de Servicio:</strong> <span id="res-tipo">{{ faena.tipo|default:"—" }}</span></p>
+            <p><strong>Técnico:</strong> <span id="res-tecnico">{{ faena.tecnico|default:"—" }}</span></p>
             <p><strong>Hora de Cierre:</strong> <span id="res-hora">--:--</span></p>
         </div>
 
@@ -49,7 +52,10 @@
     <div class="acciones-firma">
         <button type="button" id="btn-limpiar-firma" class="btn-limpiar-trazo">Limpiar Trazo</button>
         <button type="button" id="btn-sincronizar" class="btn-finalizar"
-                data-url="{% url 'pwa:sincronizacion' %}">
+                data-url="{% url 'pwa:sincronizacion' %}"
+                data-url-evidencia="{% url 'pwa:api_evidencia' %}"
+                data-url-cierre="{% url 'pwa:api_cerrar_faena' %}"
+                {% if not orden or faena.bloqueada %}disabled{% endif %}>
             Finalizar y Sincronizar Faena <i class="bi bi-arrow-right" aria-hidden="true"></i>
         </button>
         <div id="aviso-firma" class="alert alert-warning py-2 small d-none" role="alert"></div>
@@ -64,7 +70,6 @@
         </div>
     </div>
 
-    <script src="{% static 'js/faena_store.js' %}"></script>
     <script src="{% static 'js/firma.js' %}"></script>
 {% endblock %}
 
