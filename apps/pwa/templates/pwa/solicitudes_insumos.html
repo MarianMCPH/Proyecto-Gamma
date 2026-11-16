@@ -3,12 +3,15 @@
 
 {% block header_title %}<a href="{% url 'pwa:insumos' %}" class="volver-header" aria-label="Volver a Consumo de Insumos"><i class="bi bi-arrow-left"></i></a> Solicitud de Presupuesto / Piezas{% endblock %}
 
+{% block work_id %}{% if orden %}ID: #{{ orden.pk }} - {{ orden.tipo_servicio }}{% else %}Sin orden asignada{% endif %}{% endblock %}
+
 {% block mobile_content %}
     <!-- Estilos específicos -->
     <link rel="stylesheet" href="{% static 'css/solicitud.css' %}">
 
-<form id="form-solicitud-insumo" novalidate>
-    <!-- TODO DJANGO: agregar {% csrf_token %} cuando se conecte al backend -->
+    {% include "pwa/_faena_comun.html" %}
+
+<form id="form-solicitud-insumo" novalidate data-url-api="{% url 'pwa:api_solicitud' %}">
 
     <!-- Cuadro 1: Detalle del repuesto -->
     <div class="card-insumo">
@@ -20,25 +23,20 @@
             <label for="repuesto_solicitado" class="label-campo">Artículo / Repuesto</label>
             <select id="repuesto_solicitado" name="repuesto_solicitado" class="select-tactil" required>
                 <option value="" disabled selected>Seleccionar opción</option>
-                <!-- TODO BD: Cargar catálogo general de bodega central -->
-                <option value="txv_404">Válvula TXV R-404A</option>
-                <option value="compresor_2hp">Compresor Hermético 2HP</option>
-                <option value="presostato">Presostato Dual Alta/Baja</option>
-                <option value="contactor_25a">Contactor 25A</option>
-                <option value="motor_ventilador">Motor de ventilador evaporador</option>
+                {% for m in materiales %}
+                    <option value="{{ m.pk }}" data-unidad="{{ m.unidad_medida }}">{{ m.codigo }} · {{ m.nombre }} (stock {{ m.stock_actual|floatformat:"-2" }} {{ m.unidad_medida }})</option>
+                {% empty %}
+                    <option value="" disabled>No hay materiales registrados en bodega</option>
+                {% endfor %}
             </select>
             <div class="error-campo" data-error-de="repuesto_solicitado">Seleccione el artículo requerido.</div>
         </div>
 
         <div class="grupo-input">
-            <label for="cantidad_solicitada" class="label-campo">Cantidad</label>
-            <select id="cantidad_solicitada" name="cantidad_solicitada" class="select-tactil" required>
-                <option value="" disabled selected>Seleccionar opción</option>
-                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-                <option value="4">4</option><option value="5">5</option><option value="6">6</option>
-                <option value="8">8</option><option value="10">10</option>
-            </select>
-            <div class="error-campo" data-error-de="cantidad_solicitada">Seleccione la cantidad.</div>
+            <label for="cantidad_solicitada" class="label-campo">Cantidad <span id="unidad-cantidad"></span></label>
+            <input type="number" id="cantidad_solicitada" name="cantidad_solicitada" class="select-tactil input-numero"
+                   min="0.5" step="0.5" inputmode="decimal" placeholder="Ingrese cantidad" required>
+            <div class="error-campo" data-error-de="cantidad_solicitada">Ingrese una cantidad mayor a 0.</div>
         </div>
     </div>
 
@@ -49,7 +47,7 @@
         </div>
         <div class="grupo-input">
             <label for="justificacion" class="label-campo">Justificación Operativa</label>
-            <textarea id="justificacion" name="justificacion" class="textarea-autoajustable" rows="3"
+            <textarea id="justificacion" name="justificacion" class="textarea-autoajustable" rows="3" maxlength="220"
                       placeholder="Describa la falla del componente dañado" required></textarea>
             <div class="error-campo" data-error-de="justificacion">Describa la falla del componente.</div>
         </div>
@@ -80,21 +78,20 @@
 
     <!-- Botón Enviar Solicitud -->
     <div class="contenedor-submit">
-        <button type="submit" class="btn-enviar-solicitud">Enviar Solicitud</button>
+        <button type="submit" class="btn-enviar-solicitud" {% if not orden or faena.bloqueada %}disabled{% endif %}>Enviar Solicitud</button>
     </div>
 </form>
 
 <!-- MODAL DE CONFIRMACIÓN -->
 <div id="modal-confirmacion" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
     <div class="modal-contenido">
-        <i class="bi bi-check-lg modal-check" aria-hidden="true"></i>
+        <i class="bi bi-check-lg modal-check" id="modal-icono" aria-hidden="true"></i>
         <h4 id="modal-titulo">¡Solicitud Enviada!</h4>
         <p id="modal-detalle">El requerimiento fue notificado a Bodega Central.</p>
         <a href="{% url 'pwa:insumos' %}" class="btn-volver-insumos" id="btn-modal-volver">Volver</a>
     </div>
 </div>
 
-    <script src="{% static 'js/faena_store.js' %}"></script>
     <script src="{% static 'js/solicitud.js' %}"></script>
 {% endblock %}
 

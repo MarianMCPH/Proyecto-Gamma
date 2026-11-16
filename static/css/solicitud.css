@@ -120,3 +120,7 @@
 
 /* Separación entre botones del pie (base_pwa los deja pegados) */
 .supplies-navigation { gap: 8px; }
+
+/* Campo numérico de cantidad (sin la flecha del select) */
+.select-tactil.input-numero { background-image: none; appearance: auto; }
+.modal-check.error { color: #DC3545; }
