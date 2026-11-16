@@ -3,17 +3,27 @@
 
 {% block header_title %}<a href="{% url 'obras:itinerario' %}" class="volver-header" aria-label="Ir al inicio"><i class="bi bi-arrow-left"></i></a> Confirmación y Sincronización{% endblock %}
 
+{% block work_id %}{% if orden %}ID: #{{ orden.pk }} - {{ orden.tipo_servicio }}{% else %}Sin orden asignada{% endif %}{% endblock %}
+
 {% block mobile_content %}
     <link rel="stylesheet" href="{% static 'css/sincronizacion.css' %}">
 
-    <div class="tarjeta-final">
+    {% include "pwa/_faena_comun.html" %}
+
+    <!-- Estado según la base de datos: el JS lo completa con lo que quede en la cola del dispositivo -->
+    <div class="tarjeta-final" id="tarjeta-final"
+         data-cierre-registrado="{{ cierre_registrado|yesno:'1,' }}"
+         data-fecha-cierre="{% if orden.fecha_cierre %}{{ orden.fecha_cierre|date:'c' }}{% endif %}">
         <i class="bi bi-check-lg icono-check" id="icono-estado" aria-hidden="true"></i>
         <div class="card-insumo">
             <div class="card-header-insumo">
-                <h3 class="texto-centrado titulo-final">¡Servicio Finalizado con Éxito!</h3>
+                <h3 class="texto-centrado titulo-final" id="titulo-final">¡Servicio Finalizado con Éxito!</h3>
             </div>
 
             <p class="detalle-resumen"><strong>Finalizado:</strong> <span id="fecha-cierre">—</span></p>
+            {% if firma %}
+                <p class="detalle-resumen detalle-firma">Recibido por {{ firma.nombre_firmante }} ({{ firma.rut_firmante }}), {{ firma.cargo_firmante }}</p>
+            {% endif %}
 
             <div class="estado-sincronizado" id="estado-sync" role="status" aria-live="polite">
                 <span class="punto punto-verde" id="punto-sync">●</span>
@@ -27,7 +37,6 @@
         <a href="{% url 'obras:itinerario' %}" class="btn-volver-inicio">Volver al Inicio</a>
     </div>
 
-    <script src="{% static 'js/faena_store.js' %}"></script>
     <script src="{% static 'js/sincronizacion.js' %}"></script>
 {% endblock %}
 
