@@ -3,8 +3,12 @@
 
 {% block header_title %}<a href="{% url 'pwa:insumos' %}" class="volver-header" aria-label="Volver a Consumo de Insumos"><i class="bi bi-arrow-left"></i></a> Paso 3: Evidencias Fotográficas{% endblock %}
 
+{% block work_id %}{% if orden %}ID: #{{ orden.pk }} - {{ orden.tipo_servicio }}{% else %}Sin orden asignada{% endif %}{% endblock %}
+
 {% block mobile_content %}
     <link rel="stylesheet" href="{% static 'css/evidencia.css' %}">
+
+    {% include "pwa/_faena_comun.html" %}
 
     <!-- Aquí se dibujan los bloques de evidencia (el primero es obligatorio: Antes y Después) -->
     <div id="contenedor-bloques"></div>
@@ -50,7 +54,6 @@
         </section>
     </template>
 
-    <script src="{% static 'js/faena_store.js' %}"></script>
     <script src="{% static 'js/evidencia.js' %}"></script>
 {% endblock %}
 

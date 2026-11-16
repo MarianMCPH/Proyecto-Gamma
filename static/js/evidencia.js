@@ -2,7 +2,8 @@
    JS Exclusivo - Pantalla 3: Evidencias Fotográficas
    - Cada bloque tiene foto Antes, foto Después y observación.
    - El primer bloque es obligatorio; se pueden adjuntar más bloques.
-   - El avance se guarda solo en el dispositivo (ver faena_store.js).
+   - El avance se guarda en el dispositivo y se envía al servidor al cerrar la faena
+     en la pantalla de firma (ver faena_store.js y firma.js).
    ================================================= */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -11,6 +12,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnAgregar = document.getElementById('btn-agregar-imagen');
     const aviso = document.getElementById('aviso-evidencia');
     const MAX_BLOQUES = 6;
+
+    if (!FaenaStore.FAENA || FaenaStore.FAENA.bloqueada) {   // sin orden activa (o ya aprobada) no se capturan fotos
+        btnAgregar.disabled = true;
+        document.getElementById('btn-siguiente').classList.add('disabled');
+        return;
+    }
 
     const borrador = FaenaStore.borrador();
     if (!borrador.evidencias.length) borrador.evidencias.push(nuevoBloque());
