@@ -1,0 +1,159 @@
+<!-- codigo agregado por Luciano -->
+
+
+{% extends 'base_admin.html' %}
+{% load static %}
+
+{% block title %}Detalle de Solicitud - Frío y Agroindustria SpA{% endblock %}
+
+{% block page_title %}
+<div class="d-flex align-items-center gap-3">
+    <a href="{% url 'inventario:solicitudes' %}" class="text-dark text-decoration-none fs-3" title="Volver a Solicitudes">
+        <i class="bi bi-arrow-left-circle-fill"></i>
+    </a>
+    <span>Detalle de Solicitud #SOL-204</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+    .fyag-card {
+        background: #fff;
+        border: 1.5px solid #cfd5e6;
+        border-radius: 12px;
+        padding: 1.25rem;
+    }
+    .fyag-section-title {
+        color: #2E358F;
+        font-weight: 700;
+        font-size: 0.95rem;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        margin-bottom: 0.6rem;
+    }
+    .fyag-table thead th {
+        background-color: #e9ecf5;
+        color: #1e235c;
+        font-weight: 700;
+        font-size: 0.85rem;
+        border-bottom: 1.5px solid #cfd5e6;
+    }
+    .pill-pendiente { background: #fff3b0; color: #7a5c00; padding: 0.35em 0.9em; border-radius: 50rem; font-weight: 600; font-size: 0.8rem; }
+    .btn-fyag { background-color: #2E358F; color: #fff; border: none; }
+    .btn-fyag:hover { background-color: #20266b; color: #fff; }
+</style>
+
+<!-- RESUMEN DE LA SOLICITUD -->
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="fyag-section-title m-0">Datos de la Solicitud</div>
+        <span id="badgeEstadoSolicitud" class="pill-pendiente">Pendiente de Aprobación</span>
+    </div>
+    <div class="fyag-card">
+        <div class="row g-2 small">
+            <div class="col-md-4"><strong>Obra Asociada:</strong> <a href="{% url 'obras:detalle_obra' %}" class="fw-bold text-decoration-none" style="color:#2E358F;">#OT-101 · Agrícola San Nicolás SpA</a></div>
+            <div class="col-md-4"><strong>Técnico Solicitante:</strong>xxxx</div>
+            <div class="col-md-4"><strong>Fecha / Hora:</strong> xxxx - xxxx hrs</div>
+            <div class="col-md-4"><strong>Prioridad:</strong> <span class="text-danger fw-bold">Alta (Urgente en faena)</span></div>
+            <div class="col-md-8"><strong>Motivo indicado por terreno:</strong> Fuga detectada en válvula de expansión; se requiere reposición inmediata para cerrar cámara N°2.</div>
+        </div>
+    </div>
+</div>
+
+<!-- TABLA DE INSUMOS SOLICITADOS VS STOCK BODEGA -->
+<div class="mb-4">
+    <div class="fyag-section-title">Insumos y Repuestos Solicitados</div>
+    <div class="fyag-card">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle fyag-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Artículo / Repuesto</th>
+                        <th class="text-center">Stock Bodega</th>
+                        <th class="text-center">Cant. Solicitada</th>
+                        <th class="text-center" style="width: 150px;">Cant. a Aprobar</th>
+                        <th class="text-center">Disponibilidad</th>
+                    </tr>
+                </thead>
+                <tbody class="small">
+                    <tr>
+                        <td class="fw-semibold">ART-VAL-09</td>
+                        <td>Válvula de Expansión Termostática Danfoss TES2</td>
+                        <td class="text-center fw-bold">4 un</td>
+                        <td class="text-center">1 un</td>
+                        <td class="text-center">
+                            <input type="number" class="form-control form-control-sm text-center mx-auto" style="width: 80px;" value="1" min="0" max="4">
+                        </td>
+                        <td class="text-center"><span class="text-success fw-semibold"><i class="bi bi-check-circle-fill"></i> Disponible</span></td>
+                    </tr>
+                    <tr>
+                        <td class="fw-semibold">ART-GAS-04</td>
+                        <td>Cilindro Gas Refrigerante R-404A 10.9 Kg</td>
+                        <td class="text-center fw-bold">6 un</td>
+                        <td class="text-center">2 un</td>
+                        <td class="text-center">
+                            <input type="number" class="form-control form-control-sm text-center mx-auto" style="width: 80px;" value="2" min="0" max="6">
+                        </td>
+                        <td class="text-center"><span class="text-success fw-semibold"><i class="bi bi-check-circle-fill"></i> Disponible</span></td>
+                    </tr>
+                    <tr>
+                        <td class="fw-semibold">ART-ELT-08</td>
+                        <td>Terminales Eléctricos Ojal 4mm (Bolsa 10 un)</td>
+                        <td class="text-center fw-bold text-danger">1 bolsa</td>
+                        <td class="text-center">2 bolsas</td>
+                        <td class="text-center">
+                            <input type="number" class="form-control form-control-sm text-center mx-auto" style="width: 80px;" value="1" min="0" max="1">
+                        </td>
+                        <td class="text-center"><span class="text-warning fw-semibold"><i class="bi bi-exclamation-triangle-fill"></i> Stock parcial</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- RESOLUCIÓN DEL ADMINISTRADOR -->
+<div class="fyag-card">
+    <div class="fyag-section-title">Resolución y Despacho de Bodega</div>
+    <div class="mb-3">
+        <label for="observacionAdmin" class="form-label small fw-semibold">Observación para el técnico:</label>
+        <textarea id="observacionAdmin" class="form-control form-control-sm" rows="2" placeholder="Ej: Se aprueba entrega parcial de terminales eléctricos por quiebre de stock..."></textarea>
+    </div>
+    <div class="d-flex flex-wrap justify-content-end gap-2">
+        <button type="button" id="btnRechazar" class="btn btn-outline-danger btn-sm px-3">
+            <i class="bi bi-x-circle me-1"></i>Rechazar Solicitud
+        </button>
+        <button type="button" id="btnAprobar" class="btn btn-fyag btn-sm px-4">
+            <i class="bi bi-check2-circle me-1"></i>Aprobar y Rebajar Cardex
+        </button>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const badge = document.getElementById("badgeEstadoSolicitud");
+    const obs = document.getElementById("observacionAdmin");
+
+    document.getElementById("btnAprobar").addEventListener("click", function () {
+        badge.className = "badge rounded-pill bg-success px-3 py-2";
+        badge.textContent = "Aprobada y Despachada";
+        alert("Solicitud #SOL-204 aprobada. El stock se ha rebajado del Cardex de bodega.");
+    });
+
+    document.getElementById("btnRechazar").addEventListener("click", function () {
+        if (obs.value.trim() === "") {
+            alert("Por favor, ingresa el motivo del rechazo en la observación.");
+            obs.focus();
+            return;
+        }
+        badge.className = "badge rounded-pill bg-danger px-3 py-2";
+        badge.textContent = "Rechazada";
+        alert("Solicitud #SOL-204 rechazada y notificada al técnico.");
+    });
+});
+</script>
+{% endblock %}
+
+
+<!-- fin codigo agregado por Luciano -->

@@ -1,236 +1,247 @@
+<!-- codigo agregado por Luciano -->
 
-{% extends "base_admin.html" %}
+{% extends 'base_admin.html' %}
 {% load static %}
+
+{% block title %}Solicitudes de Insumos - Frío y Agroindustria SpA{% endblock %}
 
 {% block page_title %}Solicitudes de Insumos{% endblock %}
 
 {% block content %}
+<style>
+    .kpi-card {
+        border-radius: 12px;
+        padding: 1.1rem 1.4rem;
+        border: 1.5px solid #d5dbe8;
+        background: #fff;
+    }
+    .kpi-card.pendiente {
+        background-color: #fff9db;
+        border-color: #f3d97c;
+    }
+    .kpi-card.observacion {
+        background-color: #f3c6c6;
+        border-color: #e09e9e;
+    }
+    .kpi-card.aprobada {
+        background-color: #b8efc2;
+        border-color: #84d694;
+    }
+    .kpi-number {
+        font-size: 2.2rem;
+        font-weight: 600;
+        line-height: 1.1;
+        color: #1f2430;
+    }
+    .panel-tabla {
+        background: #fff;
+        border: 1.5px solid #d5dbe8;
+        border-radius: 12px;
+        padding: 1.25rem;
+    }
+    .tab-filtro {
+        border: 1px solid #d5dbe8;
+        background: #fff;
+        color: #5a6275;
+        border-radius: 8px;
+        padding: 0.35rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+    }
+    .tab-filtro.active {
+        background-color: #2E358F;
+        color: #fff;
+        border-color: #2E358F;
+    }
+    .table-fyag thead th {
+        background-color: #e3e6ee;
+        color: #1e2330;
+        font-weight: 700;
+        font-size: 0.85rem;
+        border-bottom: 1.5px solid #cfd5e6;
+        text-align: center;
+    }
+    .table-fyag tbody td {
+        vertical-align: middle;
+        text-align: center;
+        font-size: 0.88rem;
+    }
+    .pill-aprobada { background: #b8efc2; color: #1b5e20; padding: 0.35em 0.9em; border-radius: 50rem; font-weight: 600; font-size: 0.78rem; }
+    .pill-pendiente { background: #fff3b0; color: #7a5c00; padding: 0.35em 0.9em; border-radius: 50rem; font-weight: 600; font-size: 0.78rem; }
+    .pill-rechazada { background: #f3c6c6; color: #7f1d1d; padding: 0.35em 0.9em; border-radius: 50rem; font-weight: 600; font-size: 0.78rem; }
+    .btn-detalle {
+        background-color: #2E358F;
+        color: #fff;
+        border-radius: 6px;
+        padding: 0.3rem 0.95rem;
+        font-size: 0.82rem;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .btn-detalle:hover {
+        background-color: #20266b;
+        color: #fff;
+    }
+</style>
 
-<!-- Estilos personalizados -->
-<link rel="stylesheet" href="{% static 'css/gestion_obras.css' %}">
-
-<!-- Contenedor principal -->
-<div id="contenedorSolicitudes"
-     data-url-volver="{% url 'inventario:solicitudes' %}">
-
-    <div class="row g-4">
-
-        <!-- Columna izquierda: Tabla y filtros -->
-        <div class="col-lg-8">
-
-            <div class="card-custom p-3 mb-4">
-
-                <!-- Pestañas de estado -->
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-
-                    <div class="d-flex align-items-center flex-wrap gap-2">
-
-                        <button type="button"
-                                class="btn btn-sm text-white px-3"
-                                style="background-color: #3b429f;">
-                            Todas
-                            <span class="badge bg-light text-dark ms-1">3</span>
-                        </button>
-
-                        <button type="button"
-                                class="btn btn-sm btn-outline-secondary px-3">
-                            Pendientes
-                            <span class="badge bg-light text-dark ms-1">2</span>
-                        </button>
-
-                        <button type="button"
-                                class="btn btn-sm btn-outline-secondary px-3">
-                            Enviadas
-                            <span class="badge bg-light text-dark ms-1">1</span>
-                        </button>
-
-                    </div>
-                </div>
-
-                <!-- Búsqueda rápida -->
-                <div class="row">
-
-                    <div class="col-md-7">
-
-                        <div class="input-group input-group-sm">
-
-                            <span class="input-group-text bg-white">
-                                <i class="bi bi-search text-muted"></i>
-                            </span>
-
-                            <input type="text"
-                                   class="form-control"
-                                   placeholder="Búsqueda rápida por cliente o técnico...">
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <!-- Tabla de solicitudes -->
-            <div class="card-custom p-4">
-
-                <div class="table-responsive">
-
-                    <table class="table table-hover align-middle mb-0 small">
-
-                        <thead class="table-light text-secondary">
-
-                            <tr>
-                                <th style="width: 40px;">
-                                    <input type="checkbox" class="form-check-input">
-                                </th>
-
-                                <th>Cliente</th>
-                                <th>Técnico solicitante</th>
-                                <th>Pieza / Cantidad</th>
-                                <th>Estado de validación</th>
-                                <th class="text-center">Acción</th>
-                            </tr>
-
-                        </thead>
-
-                        <tbody>
-
-                            <!-- Solicitud 15 -->
-                            <tr>
-
-                                <td>
-                                    <input type="checkbox" class="form-check-input">
-                                </td>
-
-                                <td class="fw-semibold">
-                                    Viña Matorras del Valle del Itata
-                                </td>
-
-                                <td>Antonio Fernández</td>
-
-                                <td>Cilindro Gas R-134a (x1)</td>
-
-                                <td>
-                                    <span class="badge bg-success px-2 py-1">
-                                        Enviado
-                                    </span>
-                                </td>
-
-                                <td class="text-center">
-
-                                    <button type="button"
-                                            class="btn btn-sm text-white px-3 py-1 btn-ver-detalle"
-                                            style="background-color: #3b429f;"
-                                            data-solicitud="15"
-                                            data-cliente="Viña Matorras del Valle del Itata"
-                                            data-tecnico="Antonio Fernández"
-                                            data-descripcion="Rotura de diafragma en válvula termostática en túnel de frío (riesgo en fruta de exportación)"
-                                            data-disponibilidad="4 unidades en estantería (Stock suficiente)"
-                                            data-img="https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=400">
-
-                                        Ver
-
-                                    </button>
-
-                                </td>
-
-                            </tr>
-
-                            <!-- Solicitud 16 -->
-                            <tr>
-
-                                <td>
-                                    <input type="checkbox" class="form-check-input">
-                                </td>
-
-                                <td class="fw-semibold">
-                                    Frigorífico y Procesadora Frutícola Ñuble Ltda
-                                </td>
-
-                                <td>José Zapata</td>
-
-                                <td>Válvula TXV R-404A (x1)</td>
-
-                                <td>
-                                    <span class="badge bg-warning text-dark px-2 py-1">
-                                        Pendiente
-                                    </span>
-                                </td>
-
-                                <td class="text-center">
-
-                                    <button type="button"
-                                            class="btn btn-sm text-white px-3 py-1 btn-ver-detalle"
-                                            style="background-color: #3b429f;"
-                                            data-solicitud="16"
-                                            data-cliente="Frigorífico y Procesadora Frutícola Ñuble Ltda"
-                                            data-tecnico="José Zapata"
-                                            data-descripcion="Fuga detectada en línea de líquido principal durante ciclo de mantención."
-                                            data-disponibilidad="1 unidad disponible en bodega central."
-                                            data-img="https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=400">
-
-                                        Ver
-
-                                    </button>
-
-                                </td>
-
-                            </tr>
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>
-
+<!-- TARJETAS KPI SUPERIORES -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="kpi-card">
+            <div class="small fw-semibold text-dark mb-1">Solicitudes pendientes</div>
+            <div class="kpi-number">3</div>
         </div>
-
-        <!-- Columna derecha: Alertas y notificaciones -->
-        <div class="col-lg-4">
-
-            <div class="card-custom p-4 h-100">
-
-                <h5 class="fw-bold text-dark mb-3">
-                    Alertas y notificaciones
-                </h5>
-
-                <div class="d-flex flex-column gap-3">
-
-                    <div class="p-3 border rounded-3 bg-light text-danger small d-flex align-items-center gap-2">
-
-                        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
-
-                        <div>
-                            <strong>Alerta:</strong>
-                            Bajo stock de <strong>Gas R-404A</strong>
-                        </div>
-
-                    </div>
-
-                    <div class="p-3 border rounded-3 bg-light text-danger small d-flex align-items-center gap-2">
-
-                        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
-
-                        <div>
-                            <strong>Alerta:</strong>
-                            Bajo stock de <strong>Válvulas</strong>
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
     </div>
-
+    <div class="col-md-4">
+        <div class="kpi-card observacion">
+            <div class="small fw-semibold text-dark mb-1">Urgentes / Sin stock</div>
+            <div class="kpi-number">1</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="kpi-card aprobada">
+            <div class="small fw-semibold text-dark mb-1">Aprobadas y despachadas</div>
+            <div class="kpi-number">5</div>
+        </div>
+    </div>
 </div>
 
-<!-- Script para gestionar el detalle, aprobación y zoom -->
-<script src="{% static 'js/solicitudes.js' %}"></script>
+<!-- CONTENEDOR DE FILTROS Y TABLA -->
+<div class="panel-tabla">
+    <!-- Pestañas de estado -->
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <button type="button" class="tab-filtro active" data-estado="todas">Todas</button>
+        <button type="button" class="tab-filtro" data-estado="pendiente">Pendientes</button>
+        <button type="button" class="tab-filtro" data-estado="aprobada">Aprobadas</button>
+        <button type="button" class="tab-filtro" data-estado="rechazada">Rechazadas</button>
+    </div>
 
+    <!-- Buscador-->
+    <div class="row g-2 mb-3 justify-content-between">
+        <div class="col-md-5">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white text-muted"><i class="bi bi-search"></i></span>
+                <input type="text" id="buscadorSolicitudes" class="form-control" placeholder="Buscar por ID, obra, cliente o técnico...">
+            </div>
+        </div>
+        <div class="col-md-auto">
+            <select id="filtroPrioridad" class="form-select form-select-sm text-muted">
+                <option value="">Filtrar por prioridad...</option>
+                <option value="Alta">Prioridad Alta</option>
+                <option value="Normal">Prioridad Normal</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Tabla principal -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover table-fyag mb-0" id="tablaSolicitudes">
+            <thead>
+                <tr>
+                    <th>ID Sol.</th>
+                    <th>Obra / Cliente</th>
+                    <th>Técnico Solicitante</th>
+                    <th>Fecha</th>
+                    <th>Ítems</th>
+                    <th>Prioridad</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr data-estado="pendiente" data-prioridad="Alta">
+                    <td class="fw-semibold">#SOL-204</td>
+                    <td><strong>OT-101</strong> · Agrícola San Nicolás SpA</td>
+                    <td>xxxx</td>
+                    <td>xxxx</td>
+                    <td>3 artículos</td>
+                    <td><span class="text-danger fw-bold">Alta</span></td>
+                    <td><span class="pill-pendiente">Pendiente</span></td>
+                    <td>
+                        <a href="{% url 'inventario:detalle_solicitud' %}" class="btn-detalle">Revisar</a>
+                    </td>
+                </tr>
+                <tr data-estado="pendiente" data-prioridad="Normal">
+                    <td class="fw-semibold">#SOL-203</td>
+                    <td><strong>OT-102</strong> · Viña Matorras del Valle</td>
+                    <td>xxxx</td>
+                    <td>xxxx</td>
+                    <td>2 artículos</td>
+                    <td><span class="text-secondary">Normal</span></td>
+                    <td><span class="pill-pendiente">Pendiente</span></td>
+                    <td>
+                        <a href="{% url 'inventario:detalle_solicitud' %}" class="btn-detalle">Revisar</a>
+                    </td>
+                </tr>
+                <tr data-estado="aprobada" data-prioridad="Normal">
+                    <td class="fw-semibold">#SOL-202</td>
+                    <td><strong>OT-103</strong> · Frigorífico Ñuble Ltda</td>
+                    <td>xxxx</td>
+                    <td>1xxx</td>
+                    <td>5 artículos</td>
+                    <td><span class="text-secondary">Normal</span></td>
+                    <td><span class="pill-aprobada">Aprobada</span></td>
+                    <td>
+                        <a href="{% url 'inventario:detalle_solicitud' %}" class="btn-detalle">Ver detalle</a>
+                    </td>
+                </tr>
+                <tr data-estado="rechazada" data-prioridad="Alta">
+                    <td class="fw-semibold">#SOL-201</td>
+                    <td><strong>OT-104</strong> · Centro Logístico del Sur</td>
+                    <td>xxxx</td>
+                    <td>xxxx</td>
+                    <td>1 artículo</td>
+                    <td><span class="text-danger fw-bold">Alta</span></td>
+                    <td><span class="pill-rechazada">Rechazada</span></td>
+                    <td>
+                        <a href="{% url 'inventario:detalle_solicitud' %}" class="btn-detalle">Ver detalle</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const tabs = document.querySelectorAll(".tab-filtro");
+    const buscador = document.getElementById("buscadorSolicitudes");
+    const filtroPrioridad = document.getElementById("filtroPrioridad");
+    const filas = document.querySelectorAll("#tablaSolicitudes tbody tr");
+
+    let estadoActivo = "todas";
+
+    function filtrarTabla() {
+        const texto = buscador.value.toLowerCase();
+        const prioridad = filtroPrioridad.value;
+
+        filas.forEach(fila => {
+            const estadoFila = fila.getAttribute("data-estado");
+            const prioridadFila = fila.getAttribute("data-prioridad");
+            const contenidoFila = fila.textContent.toLowerCase();
+
+            const coincideEstado = (estadoActivo === "todas" || estadoFila === estadoActivo);
+            const coincideTexto = contenidoFila.includes(texto);
+            const coincidePrioridad = (prioridad === "" || prioridadFila === prioridad);
+
+            fila.style.display = (coincideEstado && coincideTexto && coincidePrioridad) ? "" : "none";
+        });
+    }
+
+    tabs.forEach(tab => {
+        tab.addEventListener("click", function () {
+            tabs.forEach(t => t.classList.remove("active"));
+            this.classList.add("active");
+            estadoActivo = this.getAttribute("data-estado");
+            filtrarTabla();
+        });
+    });
+
+    buscador.addEventListener("input", filtrarTabla);
+    filtroPrioridad.addEventListener("change", filtrarTabla);
+});
+</script>
 {% endblock %}
+
+<!-- fin codigo agregado por Luciano -->
