@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import ObraListView, ObraDetailView, ObraCreateView, ObraUpdateView, ObraDeleteView, ObraViewAdmin, AuditoriaObras, AuditarObraEspecifica
+from .views import ObraListView, ObraDetailView, ObraCreateView, ObraUpdateView, ObraDeleteView, ObraViewAdmin, AuditoriaObras, AuditarObraEspecifica, LimpiarAuditoriaView
 
 app_name = 'obras'
 
@@ -11,5 +11,6 @@ urlpatterns = [
     path('editar/', ObraUpdateView.as_view(), name='editar_obra'),
     path('eliminar/', ObraDeleteView.as_view(), name='eliminar_obra'),
     path('auditoria/', AuditoriaObras.as_view(), name='auditoria'),
+    path('auditoria/limpiar/', LimpiarAuditoriaView.as_view(), name='limpiar_auditoria'),
     path('auditar_obra/', AuditarObraEspecifica.as_view(), name='auditar_obra'),
 ]
