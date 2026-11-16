@@ -5,9 +5,11 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.views import View
 from django.views.generic import TemplateView
 
+from apps.inventario.models import MovimientoInventario
 from .models import Cliente, OrdenTrabajo
 
 Usuario = get_user_model()
@@ -245,6 +247,170 @@ class LimpiarAuditoriaView(View):
 
 
 class AuditarObraEspecifica(TemplateView):
-    """Vista para auditar una obra específica."""
+    """Vista para auditar y aprobar una obra específica con sus datos reales."""
 
     template_name = "obras/auditar_obra_especifica.html"
+
+    def _obtener_orden(self):
+        orden_id = (
+            self.kwargs.get("pk")
+            or self.request.GET.get("id")
+            or self.request.POST.get("orden_id")
+        )
+        qs = OrdenTrabajo.objects.select_related("cliente", "tecnico")
+        if orden_id:
+            return get_object_or_404(qs, pk=orden_id)
+        return qs.order_by("-id").first()
+
+    def _obtener_campo_archivo(self, obj, nombres):
+        if not obj:
+            return ""
+        for nombre in nombres:
+            valor = getattr(obj, nombre, None)
+            if valor:
+                if hasattr(valor, "url"):
+                    try:
+                        return valor.url
+                    except ValueError:
+                        continue
+                if isinstance(valor, str) and valor.strip():
+                    return valor.strip()
+        return ""
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        orden = self._obtener_orden()
+
+        if not orden:
+            context["orden_auditoria"] = None
+            return context
+
+        estado_raw = (orden.estado or "").strip().lower()
+        if estado_raw in {"aprobada", "aprobadas", "validada", "validadas", "auditada", "auditadas"}:
+            estado_label = "Aprobada"
+            es_aprobada = True
+        elif estado_raw in {"en_proceso", "en proceso", "en_curso", "en curso"}:
+            estado_label = "En proceso"
+            es_aprobada = False
+        else:
+            estado_label = "Pendiente de Aprobación"
+            es_aprobada = False
+
+        cliente = getattr(orden, "cliente", None)
+        mandante = cliente.razon_social if cliente else "Sin mandante"
+        rut_cliente = cliente.rut if (cliente and cliente.rut) else "Sin RUT"
+        contacto_raw = (cliente.contacto if (cliente and cliente.contacto) else "").strip()
+        contacto_nombre = contacto_raw.split("(")[0].strip() if contacto_raw else "Sin contacto registrado"
+
+        tecnico_nombre = "Sin asignar"
+        if orden.tecnico:
+            tecnico_nombre = orden.tecnico.get_full_name().strip() or orden.tecnico.username
+
+        fecha_cierre_dt = getattr(orden, "fecha_cierre", None) or getattr(orden, "fecha_fin", None)
+        if fecha_cierre_dt and hasattr(fecha_cierre_dt, "strftime"):
+            fecha_cierre = fecha_cierre_dt.strftime("%d/%m/%Y - %H:%M hrs")
+        elif orden.fecha_programada:
+            fecha_cierre = f"{orden.fecha_programada.strftime('%d/%m/%Y')} (Programada)"
+        else:
+            fecha_cierre = "Pendiente de cierre"
+
+        lat = getattr(orden, "latitud", None) or getattr(orden, "gps_lat", None)
+        lng = getattr(orden, "longitud", None) or getattr(orden, "gps_lng", None)
+        if lat and lng:
+            gps_faena = f"{lat}, {lng}"
+        else:
+            gps_faena = orden.direccion or (cliente.direccion if cliente else "Sin ubicación registrada")
+
+        # Checklist / observaciones técnicas asociadas a la orden
+        checklist_items = []
+        obs_texto = (orden.observacion_auditoria or "").strip()
+        if obs_texto:
+            for linea in obs_texto.splitlines():
+                limpia = linea.strip(" -•\t")
+                if limpia:
+                    checklist_items.append(limpia)
+
+        # Materiales asociados a esta orden desde MovimientoInventario
+        movimientos = (
+            MovimientoInventario.objects.select_related("material")
+            .filter(orden=orden)
+            .exclude(estado_validacion__iexact="rechazada")
+            .order_by("id")
+        )
+        materiales_consumidos = []
+        for mov in movimientos:
+            cant = f"{mov.cantidad:g}" if mov.cantidad is not None else "0"
+            unidad = mov.material.unidad_medida if mov.material else "un"
+            materiales_consumidos.append({
+                "nombre": mov.material.nombre if mov.material else "Material",
+                "cantidad": f"{cant} {unidad}",
+            })
+
+        # Evidencia multimedia y firma digital si existen en la orden o sus relaciones
+        evidencia_1 = self._obtener_campo_archivo(
+            orden, ("foto_antes", "imagen_antes", "evidencia_1", "foto_1", "imagen_1")
+        )
+        evidencia_2 = self._obtener_campo_archivo(
+            orden, ("foto_despues", "imagen_despues", "evidencia_2", "foto_2", "imagen_2")
+        )
+        firma_url = self._obtener_campo_archivo(
+            orden, ("firma_cliente", "firma_mandante", "firma", "firma_digital")
+        )
+
+        firmante_nombre = getattr(orden, "firmado_por", None) or contacto_nombre
+        firmante_rut = getattr(orden, "rut_firmante", None) or rut_cliente
+        firmante_cargo = getattr(orden, "cargo_firmante", None) or "Responsable en Planta"
+        firmante_fecha = (
+            fecha_cierre_dt.strftime("%d/%m/%Y %H:%M:%S hrs")
+            if (fecha_cierre_dt and hasattr(fecha_cierre_dt, "strftime"))
+            else fecha_cierre
+        )
+
+        context["orden_auditoria"] = {
+            "id": orden.id,
+            "codigo_ot": f"#OT-{orden.id}",
+            "mandante": mandante,
+            "rut": rut_cliente,
+            "contacto": contacto_raw or contacto_nombre,
+            "tipo_servicio": orden.tipo_servicio or "-",
+            "estado_label": estado_label,
+            "es_aprobada": es_aprobada,
+            "tecnico": tecnico_nombre,
+            "fecha_cierre": fecha_cierre,
+            "gps_faena": gps_faena,
+            "checklist_items": checklist_items,
+            "materiales_consumidos": materiales_consumidos,
+            "evidencia_1": evidencia_1,
+            "evidencia_2": evidencia_2,
+            "firmante_nombre": firmante_nombre,
+            "firmante_rut": firmante_rut,
+            "firmante_cargo": firmante_cargo,
+            "firmante_fecha": firmante_fecha,
+            "firma_url": firma_url,
+        }
+        return context
+
+    def post(self, request, *args, **kwargs):
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except (ValueError, UnicodeDecodeError):
+            payload = request.POST.dict()
+
+        orden_id = payload.get("orden_id") or self.kwargs.get("pk") or request.GET.get("id")
+        if not orden_id:
+            return JsonResponse({"ok": False, "error": "No se especificó la orden a aprobar."}, status=400)
+
+        orden = get_object_or_404(OrdenTrabajo, pk=orden_id)
+
+        try:
+            orden.estado = "aprobada"
+            orden.save(update_fields=["estado"])
+            return JsonResponse({
+                "ok": True,
+                "estado_label": "Aprobada",
+            })
+        except Exception:
+            return JsonResponse(
+                {"ok": False, "error": "No se pudo aprobar la obra en la base de datos. Intente nuevamente."},
+                status=500,
+            )
