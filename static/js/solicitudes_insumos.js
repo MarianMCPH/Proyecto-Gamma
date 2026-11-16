@@ -3,7 +3,7 @@
    ================================================= */
 
 document.addEventListener("DOMContentLoaded", function () {
-    const tabs = document.querySelectorAll(".tab-filtro");
+    const tabs = Array.from(document.querySelectorAll(".tab-filtro"));
     const buscador = document.getElementById("buscadorSolicitudes");
     const filtroPrioridad = document.getElementById("filtroPrioridad");
     const filaSinResultados = document.getElementById("filaSinResultadosSolicitudes");
@@ -26,8 +26,8 @@ document.addEventListener("DOMContentLoaded", function () {
         let aprobadas = 0;
 
         filas.forEach((fila) => {
-            const estado = (fila.dataset.estado || "").toLowerCase();
-            const prioridad = (fila.dataset.prioridad || "").toLowerCase();
+            const estado = (fila.dataset.estado || "").trim().toLowerCase();
+            const prioridad = (fila.dataset.prioridad || "").trim().toLowerCase();
             const urgente = fila.dataset.urgente === "1" || prioridad === "alta";
 
             if (estado === "pendiente") pendientes++;
@@ -36,9 +36,15 @@ document.addEventListener("DOMContentLoaded", function () {
             if (urgente && estado !== "aprobada") urgentesSinStock++;
         });
 
-        if (kpiPendientes) kpiPendientes.textContent = pendientes;
-        if (kpiUrgentesSinStock) kpiUrgentesSinStock.textContent = urgentesSinStock;
-        if (kpiAprobadas) kpiAprobadas.textContent = aprobadas;
+        if (kpiPendientes && kpiPendientes.textContent !== String(pendientes)) {
+            kpiPendientes.textContent = String(pendientes);
+        }
+        if (kpiUrgentesSinStock && kpiUrgentesSinStock.textContent !== String(urgentesSinStock)) {
+            kpiUrgentesSinStock.textContent = String(urgentesSinStock);
+        }
+        if (kpiAprobadas && kpiAprobadas.textContent !== String(aprobadas)) {
+            kpiAprobadas.textContent = String(aprobadas);
+        }
     }
 
     function filtrarTabla() {
@@ -48,53 +54,52 @@ document.addEventListener("DOMContentLoaded", function () {
         let visibles = 0;
 
         filas.forEach((fila) => {
-            const estadoFila = fila.dataset.estado || "";
-            const prioridadFila = fila.dataset.prioridad || "";
+            const estadoFila = (fila.dataset.estado || "").trim().toLowerCase();
+            const prioridadFila = (fila.dataset.prioridad || "").trim();
             const contenidoFila = (fila.dataset.busqueda || fila.textContent || "").toLowerCase();
 
             const coincideEstado = estadoActivo === "todas" || estadoFila === estadoActivo;
             const coincideTexto = texto === "" || contenidoFila.includes(texto);
             const coincidePrioridad = prioridad === "" || prioridadFila === prioridad;
 
-            if (coincideEstado && coincideTexto && coincidePrioridad) {
-                fila.style.display = "";
-                visibles++;
-            } else {
-                fila.style.display = "none";
+            const mostrar = coincideEstado && coincideTexto && coincidePrioridad;
+            const displayActual = fila.style.display;
+            const displayDeseado = mostrar ? "" : "none";
+
+            if (displayActual !== displayDeseado) {
+                fila.style.display = displayDeseado;
             }
+            if (mostrar) visibles++;
         });
 
         if (filaSinResultados) {
             if (visibles === 0) {
-                filaSinResultados.style.display = "";
+                if (filaSinResultados.style.display !== "") {
+                    filaSinResultados.style.display = "";
+                }
                 if (textoSinResultados) {
-                    textoSinResultados.textContent =
+                    const mensaje =
                         filas.length === 0
                             ? "No hay solicitudes de insumos registradas."
                             : "No se encontraron solicitudes que coincidan con el filtro o búsqueda.";
+                    if (textoSinResultados.textContent !== mensaje) {
+                        textoSinResultados.textContent = mensaje;
+                    }
                 }
-            } else {
+            } else if (filaSinResultados.style.display !== "none") {
                 filaSinResultados.style.display = "none";
             }
         }
     }
 
-    // Observador para recalcular KPIs automáticamente si se agregan, modifican o quitan filas en el DOM
-    const tbody = document.querySelector("#tablaSolicitudes tbody");
-    if (tbody && typeof MutationObserver !== "undefined") {
-        const observer = new MutationObserver(function () {
-            actualizarKPIs();
-            filtrarTabla();
-        });
-        observer.observe(tbody, { childList: true, subtree: true, attributes: true });
-    }
-
     tabs.forEach((tab) => {
-        tab.addEventListener("click", function () {
+        tab.addEventListener("click", function (e) {
+            e.preventDefault();
             tabs.forEach((t) => t.classList.remove("active"));
             this.classList.add("active");
             estadoActivo = (this.dataset.estado || "todas").trim().toLowerCase();
             filtrarTabla();
+            this.blur();
         });
     });
 
