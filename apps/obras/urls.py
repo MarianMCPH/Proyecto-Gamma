@@ -4,7 +4,7 @@ from .views import ObraListView, ObraDetailView, ObraCreateView, ObraUpdateView,
 app_name = 'obras'
 
 urlpatterns = [
-    # path('', ObraListView.as_view(), name='itinerario'),
+    path('', ObraListView.as_view(), name='itinerario'),
     path('', ObraViewAdmin.as_view(), name='ver_obras'),
     path('detalle/', ObraDetailView.as_view(), name='detalle_obra'),
     path('crear/', ObraCreateView.as_view(), name='nueva_obra'),
