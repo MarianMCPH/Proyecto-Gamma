@@ -48,26 +48,37 @@
     function limpiarBorrador() { try { localStorage.removeItem(K_BORRADOR); } catch (e) { /* nada */ } }
 
     /* ---------- Fotos: se reducen antes de guardarlas (menos peso, menos datos móviles) ---------- */
-    function comprimirImagen(archivo, maxLado = 1280, calidad = 0.7) {
+    const MAX_FOTO_KB = 500;          // requisito: cada foto bajo 500 KB
+
+    function cargarImagen(archivo) {
         return new Promise((resolve, reject) => {
             const lector = new FileReader();
             lector.onerror = () => reject(new Error('No se pudo leer la imagen'));
             lector.onload = () => {
                 const img = new Image();
                 img.onerror = () => reject(new Error('Archivo de imagen inválido'));
-                img.onload = () => {
-                    const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
-                    const c = document.createElement('canvas');
-                    c.width = Math.round(img.width * escala);
-                    c.height = Math.round(img.height * escala);
-                    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-                    const dataUrl = c.toDataURL('image/jpeg', calidad);
-                    resolve({ dataUrl, pesoKb: Math.round(dataUrl.length * 0.75 / 1024), fecha: new Date().toISOString() });
-                };
+                img.onload = () => resolve(img);
                 img.src = lector.result;
             };
             lector.readAsDataURL(archivo);
         });
+    }
+
+    // Prueba tamaños y calidades cada vez menores hasta quedar bajo MAX_FOTO_KB
+    async function comprimirImagen(archivo) {
+        const img = await cargarImagen(archivo);
+        const intentos = [[1280, 0.7], [1280, 0.55], [1024, 0.55], [800, 0.5], [640, 0.45]];
+        for (const [maxLado, calidad] of intentos) {
+            const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
+            const c = document.createElement('canvas');
+            c.width = Math.round(img.width * escala);
+            c.height = Math.round(img.height * escala);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            const dataUrl = c.toDataURL('image/jpeg', calidad);
+            const pesoKb = Math.round(dataUrl.split(',')[1].length * 0.75 / 1024);
+            if (pesoKb <= MAX_FOTO_KB) return { dataUrl, pesoKb, fecha: new Date().toISOString() };
+        }
+        throw new Error('La foto no se pudo reducir a menos de ' + MAX_FOTO_KB + ' KB.');
     }
 
     /* ---------- Cola de sincronización ---------- */
@@ -84,23 +95,49 @@
         return r ? r[0] : null;
     }
     function pendiente(id) { return cola().some(i => i.uuid_sync === id); }
+    function pendientesDe(orden) { return cola().filter(i => i.payload && i.payload.orden === orden); }
     function quitar(id) { guardar(K_COLA, cola().filter(i => i.uuid_sync !== id)); }
+    function cancelarLocal(id) { quitar(id); }      // envío que todavía no salía del dispositivo
 
     function errores() { return leer(K_ERRORES, []); }
     function errorDe(id) { return errores().find(e => e.uuid_sync === id) || null; }
     function registrarError(item, mensaje) {
         const lista = errores().filter(e => e.uuid_sync !== item.uuid_sync);
-        lista.push({ uuid_sync: item.uuid_sync, tipo: item.tipo, orden: item.payload && item.payload.orden, mensaje, fecha: new Date().toISOString() });
-        guardar(K_ERRORES, lista.slice(-20));
+        lista.push({ uuid_sync: item.uuid_sync, tipo: item.tipo, orden: item.payload && item.payload.orden, mensaje, fecha: new Date().toISOString(), item });
+        if (!guardar(K_ERRORES, lista.slice(-10))) {
+            // sin espacio: se guarda el error sin el envío completo
+            guardar(K_ERRORES, lista.slice(-10).map(e => ({ ...e, item: undefined })));
+        }
     }
 
     function limpiarErrores(ids) {
         guardar(K_ERRORES, errores().filter(e => !ids.includes(e.uuid_sync)));
     }
+    function erroresDe(orden) { return errores().filter(e => e.orden === orden); }
+
+    // Vuelve a poner en la cola los envíos rechazados (de una orden) y los intenta de nuevo
+    function reintentarErrores(orden) {
+        const lista = errores().filter(e => (orden == null || e.orden === orden) && e.item);
+        if (!lista.length) return Promise.resolve(0);
+        limpiarErrores(lista.map(e => e.uuid_sync));
+        encolarVarios(lista.map(e => e.item));
+        return sincronizar();
+    }
 
     function csrfToken() {
         const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
         return m ? decodeURIComponent(m[1]) : '';
+    }
+
+    async function postJSON(url, datos) {
+        const resp = await fetch(url, {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+            body: JSON.stringify(datos)
+        });
+        let json = {};
+        try { json = await resp.json(); } catch (e) { /* sin JSON */ }
+        return { ok: resp.ok && json.ok, status: resp.status, datos: json };
     }
 
     // Respuesta: 'ok' (se quita de la cola), 'rechazado' (error de datos: se quita y se informa)
@@ -131,15 +168,19 @@
         if (!navigator.onLine) return Promise.resolve(0);
         if (enCurso) return enCurso.then(() => sincronizar());   // incluye lo encolado mientras tanto
         enCurso = (async () => {
-            let enviados = 0;
+            let enviados = 0, hechos = 0;
+            const total = cola().length;
             let item;
             while ((item = cola()[0])) {
+                window.dispatchEvent(new CustomEvent('faena:progreso', { detail: { hechos, total: Math.max(total, hechos + cola().length), item } }));
                 const r = await enviarAlServidor(item);
                 if (r.estado === 'reintentar') break;            // se respeta el orden: evidencias antes del cierre
                 quitar(item.uuid_sync);
+                hechos++;
                 if (r.estado === 'rechazado') registrarError(item, r.mensaje);
                 else enviados++;
             }
+            window.dispatchEvent(new CustomEvent('faena:progreso', { detail: { hechos, total: Math.max(total, hechos), fin: true } }));
             window.dispatchEvent(new CustomEvent('faena:sync', { detail: { enviados, pendientes: cola().length } }));
             return enviados;
         })();
@@ -166,7 +207,8 @@
 
     window.FaenaStore = {
         FAENA, uuid, borrador, guardarBorrador, limpiarBorrador, comprimirImagen,
-        cola, encolar, encolarVarios, pendiente, sincronizar, errores, errorDe, limpiarErrores,
+        cola, encolar, encolarVarios, pendiente, pendientesDe, cancelarLocal, sincronizar, postJSON,
+        errores, errorDe, erroresDe, limpiarErrores, reintentarErrores, MAX_FOTO_KB,
         guardarUltima, ultima
     };
 })();
