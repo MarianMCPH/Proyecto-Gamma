@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!bloque[tipo]) return;
                 items.push({
                     tipo: 'evidencia', url: btnFin.dataset.urlEvidencia, uuid_sync: `${bloque.uuid_sync}-${tipo}`,
-                    payload: { orden, tipo, bloque: i + 1, dataUrl: bloque[tipo].dataUrl }
+                    payload: { orden, tipo, bloque: i + 1, dataUrl: bloque[tipo].dataUrl, observacion: bloque.observacion || "" }
                 });
             });
         });
