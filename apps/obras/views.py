@@ -266,17 +266,15 @@ class AuditarObraEspecifica(TemplateView):
     def _foto_de_tipo(self, orden, tipo):
         """URL de la primera foto 'antes' o 'despues' que guardó la PWA en EvidenciaFotografica."""
         evidencias = orden.evidencias.order_by("fecha_captura", "id")
-        campos = {f.name for f in EvidenciaFotografica._meta.get_fields()}
-        if "tipo" in campos:
-            # Cuando el modelo tenga el campo `tipo`
-            evidencia = evidencias.filter(tipo=tipo).first()
-        else:
-            # Mientras tanto, la PWA guarda el tipo en el nombre del archivo: antes_OT-5_b1.jpg
-            evidencia = next(
-                (e for e in evidencias
-                 if e.url_imagen and e.url_imagen.name.rsplit("/", 1)[-1].startswith(f"{tipo}_")),
-                None,
-            )
+        # Se usa el campo `tipo`; las fotos subidas antes de que existiera se reconocen
+        # por el nombre del archivo que les puso la PWA (antes_OT-5_b1.jpg)
+        evidencia = next(
+            (e for e in evidencias
+             if (getattr(e, "tipo", "") or "") == tipo
+             or (not getattr(e, "tipo", "") and e.url_imagen
+                 and e.url_imagen.name.rsplit("/", 1)[-1].startswith(f"{tipo}_"))),
+            None,
+        )
         if evidencia and evidencia.url_imagen:
             try:
                 return evidencia.url_imagen.url
