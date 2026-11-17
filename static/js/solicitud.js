@@ -114,19 +114,33 @@ document.addEventListener('DOMContentLoaded', () => {
         avisoAlm.classList.add('d-none');
         const btn = form.querySelector('button[type="submit"]');
         btn.disabled = true;
+        ultimaEnviada = item.uuid_sync;
+        pintarLocales();                               // aparece en "Mis solicitudes" como "Sin enviar"
 
         await FaenaStore.sincronizar();
-        pintarLocales();
+        pintarLocales();                               // si salió, pasa a "Pendiente" (en Bodega)
+        btn.disabled = false;
         const error = FaenaStore.errorDe(item.uuid_sync);
         if (error) {
-            btn.disabled = false;
             mostrarModal('No se pudo enviar', error.mensaje, true);
-        } else if (FaenaStore.pendiente(item.uuid_sync)) {
+            return;
+        }
+        limpiarFormulario();                           // listo para otra solicitud
+        if (FaenaStore.pendiente(item.uuid_sync)) {
             mostrarModal('¡Solicitud Guardada!', 'Sin conexión: se enviará automáticamente cuando vuelva la señal.');
         } else {
             mostrarModal('¡Solicitud Enviada!', 'El requerimiento fue notificado a Bodega Central.');
         }
     });
+
+    let ultimaEnviada = null;
+    function limpiarFormulario() {
+        form.reset();
+        fotos = []; pintarFotos();
+        grupoOtro.classList.add('d-none');
+        document.getElementById('unidad-cantidad').textContent = '';
+        textarea.style.height = 'auto';
+    }
 
     // Cerrar el modal de error para corregir el formulario
     modal.addEventListener('click', (e) => {
@@ -207,9 +221,16 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.disabled = false;
     });
 
+    // Cierra el modal y baja hasta la lista, marcando la solicitud recién enviada
     document.getElementById('btn-ver-solicitudes').addEventListener('click', () => {
-        window.location.hash = 'mis-solicitudes';
-        window.location.reload();                     // recarga para traer el estado desde la BD
+        modal.style.display = 'none';
+        document.getElementById('mis-solicitudes').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const fila = ultimaEnviada && lista.querySelector(`.fila-solicitud[data-uuid="${ultimaEnviada}"]`);
+        if (fila) {
+            fila.classList.remove('nueva');
+            void fila.offsetWidth;                     // reinicia la animación
+            fila.classList.add('nueva');
+        }
     });
 
     window.addEventListener('faena:sync', pintarLocales);
