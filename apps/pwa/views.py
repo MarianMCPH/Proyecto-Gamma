@@ -14,7 +14,7 @@ from django.views.generic import TemplateView
 from PIL import Image
 
 from apps.inventario.models import Material, MovimientoInventario
-from apps.obras.models import EvidenciaFotografica, FirmaDigital, OrdenTrabajo
+from apps.obras.models import Checklist, EvidenciaFotografica, FirmaDigital, OrdenTrabajo, Presupuesto
 
 
 class Formulario(TemplateView):
@@ -32,7 +32,17 @@ class Insumos(TemplateView):
 
 CLAVE_SESION_ORDEN = "pwa_orden_actual"
 ESTADOS_BLOQUEADOS = {"aprobada", "facturada"}
-MAX_FOTO_KB = 600            # la PWA comprime a ~250 KB; esto es un tope de seguridad
+MAX_FOTO_KB = 500            # requisito: fotos bajo 500 KB (la PWA las comprime antes de enviar)
+PREFIJO_SOLICITUD = "Solicitud desde terreno"       # marca los MovimientoInventario que son solicitudes
+PREFIJO_NO_CATALOGADO = "Insumo no catalogado"      # marca los Presupuesto creados desde la PWA
+
+PASOS_FAENA = [
+    (1, "Formulario"),
+    (2, "Insumos"),
+    (3, "Evidencias"),
+    (4, "Firma"),
+    (5, "Sincronización"),
+]
 
 
 def obtener_orden_actual(request):
@@ -90,46 +100,157 @@ def orden_bloqueada(orden):
 
 
 class OrdenPWAMixin:
-    """Agrega la orden actual y sus datos al contexto de las pantallas de la PWA."""
+    """Agrega la orden actual, sus datos y la etapa del servicio al contexto de las pantallas de la PWA."""
+
+    paso_actual = None
+    detalle_paso = ""
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         orden = obtener_orden_actual(self.request)
         context["orden"] = orden
         context["faena"] = datos_faena(orden)
+        context["pasos"] = PASOS_FAENA
+        context["paso_actual"] = self.paso_actual
+        context["nombre_paso"] = dict(PASOS_FAENA).get(self.paso_actual, "")
+        context["detalle_paso"] = self.detalle_paso
         return context
+
+
+def formato_cantidad(valor):
+    """Decimal('2.00') -> '2', Decimal('0.50') -> '0.5'."""
+    return f"{valor.normalize():f}" if valor is not None else "0"
+
+
+def estado_solicitud(valor):
+    """Mismo criterio que la bandeja de Bodega (inventario/views.py)."""
+    v = (valor or "pendiente").strip().lower()
+    if v in {"aprobada", "aprobadas", "despachada", "despachadas"}:
+        return "aprobada", "Aprobada"
+    if v in {"rechazada", "rechazadas"}:
+        return "rechazada", "Rechazada"
+    return "pendiente", "Pendiente"
+
+
+def solicitudes_de_orden(orden):
+    """Solicitudes hechas desde la PWA para una orden: del catálogo (MovimientoInventario) y no catalogadas (Presupuesto)."""
+    if orden is None:
+        return []
+    filas = []
+    movimientos = (MovimientoInventario.objects.select_related("material")
+                   .filter(orden=orden, motivo__startswith=PREFIJO_SOLICITUD))
+    for m in movimientos:
+        slug, label = estado_solicitud(m.estado_validacion)
+        filas.append({
+            "uuid_sync": m.uuid_sync or "",
+            "codigo": f"#SOL-{m.pk}",
+            "articulo": m.material.nombre,
+            "cantidad": f"{formato_cantidad(m.cantidad)} {m.material.unidad_medida}",
+            "estado": slug, "estado_label": label,
+            "fecha": m.fecha,
+        })
+    for p in Presupuesto.objects.filter(orden=orden, descripcion__startswith=PREFIJO_NO_CATALOGADO):
+        slug, label = estado_solicitud(p.estado)
+        nombre = p.descripcion.split("·", 1)[0].replace(PREFIJO_NO_CATALOGADO + ":", "").strip()
+        cantidad = ""
+        for parte in p.descripcion.split("·"):
+            if parte.strip().startswith("Cantidad:"):
+                cantidad = parte.split(":", 1)[1].strip()
+        filas.append({
+            "uuid_sync": p.uuid_sync or "",
+            "codigo": f"#PRE-{p.pk}",
+            "articulo": f"{nombre} (no catalogado)",
+            "cantidad": cantidad,
+            "estado": slug, "estado_label": label,
+            "fecha": None,
+        })
+    return filas
 
 
 class Solicitudes(OrdenPWAMixin, TemplateView):
 
     template_name = 'pwa/solicitudes_insumos.html'
+    paso_actual = 2
+    detalle_paso = "solicitud de piezas o insumos"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["materiales"] = Material.objects.order_by("nombre")
+        context["mis_solicitudes"] = solicitudes_de_orden(context["orden"])
         return context
 
 
 class Evidencias(OrdenPWAMixin, TemplateView):
 
     template_name = 'pwa/evidencia_fotografica.html'
+    paso_actual = 3
 
 
 class FirmaMandante(OrdenPWAMixin, TemplateView):
 
     template_name = 'pwa/firma_mandante.html'
+    paso_actual = 4
+
+
+def nombre_archivo(evidencia):
+    return (evidencia.url_imagen.name or "").rsplit("/", 1)[-1]
+
+
+def verificar_orden(orden):
+    """Revisión previa al cierre: checklist, materiales, fotos y firma registrados en la base de datos."""
+    # Checklist de la orden
+    checklist = (Checklist.objects.filter(orden=orden).prefetch_related("detalles")
+                 .order_by("-id").first())
+    if checklist is None:
+        v_checklist = {"ok": False, "texto": "Sin registrar"}
+    else:
+        detalles = list(checklist.detalles.all())
+        faltan = [d for d in detalles if d.obligatorio and not (d.resultado or "").strip()]
+        if faltan:
+            v_checklist = {"ok": False, "texto": f"Incompleto: faltan {len(faltan)} ítems obligatorios"}
+        else:
+            v_checklist = {"ok": True, "texto": f"Completado ({len(detalles)} ítems)"}
+
+    # Materiales consumidos: movimientos de la orden que no son solicitudes ni rechazados
+    materiales = (MovimientoInventario.objects.filter(orden=orden)
+                  .exclude(motivo__startswith=PREFIJO_SOLICITUD)
+                  .exclude(estado_validacion__iexact="rechazada").count())
+    v_materiales = ({"ok": True, "texto": f"{materiales} registro(s) de consumo"} if materiales
+                    else {"ok": False, "texto": "Sin registrar"})
+
+    # Fotos (Paso 3): la PWA guarda el tipo en el nombre del archivo
+    nombres = [nombre_archivo(e) for e in EvidenciaFotografica.objects.filter(orden=orden)]
+    antes = sum(1 for n in nombres if n.startswith("antes_"))
+    despues = sum(1 for n in nombres if n.startswith("despues_"))
+    v_fotos = {"ok": bool(antes and despues),
+               "texto": f"{antes} antes · {despues} después" if (antes or despues) else "Sin fotos adjuntas"}
+
+    # Firma (Paso 4)
+    firma = FirmaDigital.objects.filter(orden=orden).first()
+    v_firma = ({"ok": True, "texto": f"Registrada: {firma.nombre_firmante}"} if firma
+               else {"ok": False, "texto": "Sin firma del mandante"})
+
+    return firma, [
+        {"nombre": "Checklist técnico", **v_checklist},
+        {"nombre": "Materiales utilizados", **v_materiales},
+        {"nombre": "Fotografías (antes y después)", **v_fotos},
+        {"nombre": "Firma del mandante", **v_firma},
+    ]
 
 
 class SincronizacionFinal(OrdenPWAMixin, TemplateView):
 
     template_name = 'pwa/sincronizacion_faena.html'
+    paso_actual = 5
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         orden = context["orden"]
-        firma = FirmaDigital.objects.filter(orden=orden).first() if orden else None
+        firma, verificacion = verificar_orden(orden) if orden else (None, [])
         context["firma"] = firma
+        context["verificacion"] = verificacion
         context["cierre_registrado"] = bool(firma and orden.fecha_cierre)
+        context["estado_orden"] = orden.get_estado_display() if orden else ""
         return context
 
 
@@ -211,19 +332,19 @@ class EnvioPWAView(View):
 
 
 class ApiSolicitud(EnvioPWAView):
-    """Solicitud de repuesto desde terreno -> MovimientoInventario pendiente (la ve Bodega en inventario/)."""
+    """Solicitud desde terreno.
+    - Artículo del catálogo -> MovimientoInventario pendiente (la ve Bodega en inventario/).
+    - Insumo que no está en el catálogo -> Presupuesto pendiente (requerimiento adicional de la orden).
+    """
 
     def procesar(self, request, payload):
         uuid_sync = uuid_valido(payload.get("uuid_sync"))
-        existente = MovimientoInventario.objects.filter(uuid_sync=uuid_sync).first()
+        existente = (MovimientoInventario.objects.filter(uuid_sync=uuid_sync).first()
+                     or Presupuesto.objects.filter(uuid_sync=uuid_sync).first())
         if existente:
             return {"id": existente.pk, "duplicado": True}
 
         orden = orden_para_envio(payload)
-        try:
-            material = Material.objects.get(pk=int(payload.get("material")))
-        except (TypeError, ValueError, Material.DoesNotExist):
-            raise ErrorEnvio("El artículo solicitado no existe en el catálogo.")
         try:
             cantidad = Decimal(str(payload.get("cantidad")))
         except (InvalidOperation, TypeError):
@@ -233,31 +354,74 @@ class ApiSolicitud(EnvioPWAView):
         justificacion = (payload.get("justificacion") or "").strip()
         if not justificacion:
             raise ErrorEnvio("Falta la justificación de la solicitud.")
-
         fotos = payload.get("fotos") or []
         if len(fotos) > 2:
             raise ErrorEnvio("Se permiten hasta 2 fotos por solicitud.")
 
-        usuario = request.user if request.user.is_authenticated else orden.tecnico
-        mov = MovimientoInventario.objects.create(
-            material=material,
-            orden=orden,
-            usuario=usuario,
-            uuid_sync=uuid_sync,
-            tipo_mov="consumo",
-            cantidad=cantidad,
-            motivo=f"Solicitud desde terreno: {justificacion}"[:255],
-            estado_validacion="pendiente",
-        )
+        nombre_otro = (payload.get("material_otro") or "").strip()
+        if nombre_otro:
+            unidad = (payload.get("unidad_otro") or "un").strip()[:20]
+            registro = Presupuesto.objects.create(
+                orden=orden,
+                uuid_sync=uuid_sync,
+                descripcion=(f"{PREFIJO_NO_CATALOGADO}: {nombre_otro[:120]} · Cantidad: {formato_cantidad(cantidad)} {unidad}"
+                             f" · Justificación: {justificacion}"),
+                monto_estimado=Decimal("0"),
+                estado="pendiente",
+            )
+            codigo = f"PRE-{registro.pk}"
+        else:
+            try:
+                material = Material.objects.get(pk=int(payload.get("material")))
+            except (TypeError, ValueError, Material.DoesNotExist):
+                raise ErrorEnvio("El artículo solicitado no existe en el catálogo.")
+            usuario = request.user if request.user.is_authenticated else orden.tecnico
+            if usuario is None:
+                raise ErrorEnvio("La orden no tiene técnico asignado.")
+            registro = MovimientoInventario.objects.create(
+                material=material,
+                orden=orden,
+                usuario=usuario,
+                uuid_sync=uuid_sync,
+                tipo_mov="consumo",
+                cantidad=cantidad,
+                motivo=f"{PREFIJO_SOLICITUD}: {justificacion}"[:255],
+                estado_validacion="pendiente",
+            )
+            codigo = f"SOL-{registro.pk}"
 
-        # Fotos de la falla: quedan como evidencia de la orden (archivo con prefijo "falla_SOL-<id>")
+        # Fotos de la falla: quedan como evidencia de la orden (archivo con prefijo "falla_<codigo>")
         for i, foto in enumerate(fotos, start=1):
             archivo, peso_kb = imagen_desde_data_url(foto.get("dataUrl") if isinstance(foto, dict) else foto,
-                                                     f"falla_SOL-{mov.pk}_{i}.jpg")
+                                                     f"falla_{codigo}_{i}.jpg")
             EvidenciaFotografica.objects.create(
                 orden=orden, uuid_sync=f"{uuid_sync[:58]}-f{i}", url_imagen=archivo, peso_kb=peso_kb,
             )
-        return {"id": mov.pk, "codigo": f"#SOL-{mov.pk}"}
+        return {"id": registro.pk, "codigo": f"#{codigo}"}
+
+
+class ApiCancelarSolicitud(EnvioPWAView):
+    """Cancela una solicitud que Bodega todavía no revisa.
+    Una solicitud pendiente aún no mueve stock (el stock se rebaja al aprobarla), por eso se elimina.
+    """
+
+    def procesar(self, request, payload):
+        uuid_sync = uuid_valido(payload.get("uuid_sync"))
+        registro = (MovimientoInventario.objects.filter(uuid_sync=uuid_sync, motivo__startswith=PREFIJO_SOLICITUD).first()
+                    or Presupuesto.objects.filter(uuid_sync=uuid_sync, descripcion__startswith=PREFIJO_NO_CATALOGADO).first())
+        if registro is None:
+            return {"cancelada": True, "ya_no_existia": True}
+        estado = registro.estado_validacion if isinstance(registro, MovimientoInventario) else registro.estado
+        slug, label = estado_solicitud(estado)
+        if slug != "pendiente":
+            raise ErrorEnvio(f"La solicitud ya fue {label.lower()} por Bodega y no se puede cancelar.", status=409)
+        if registro.orden and orden_bloqueada(registro.orden):
+            raise ErrorEnvio("La orden ya fue aprobada y no admite cambios.", status=409)
+        for ev in EvidenciaFotografica.objects.filter(uuid_sync__startswith=f"{uuid_sync[:58]}-f"):
+            ev.url_imagen.delete(save=False)
+            ev.delete()
+        registro.delete()
+        return {"cancelada": True}
 
 
 class ApiEvidencia(EnvioPWAView):
@@ -276,9 +440,14 @@ class ApiEvidencia(EnvioPWAView):
         bloque = int(payload.get("bloque") or 1)
         # El tipo y el bloque quedan en el nombre del archivo: el modelo no tiene un campo para eso
         archivo, peso_kb = imagen_desde_data_url(payload.get("dataUrl"), f"{tipo}_OT-{orden.pk}_b{bloque}.jpg")
-        ev = EvidenciaFotografica.objects.create(
-            orden=orden, uuid_sync=uuid_sync, url_imagen=archivo, peso_kb=peso_kb,
-        )
+        datos = {"orden": orden, "uuid_sync": uuid_sync, "url_imagen": archivo, "peso_kb": peso_kb}
+        # Si el grupo agrega estos campos al modelo, se llenan solos (hoy no existen)
+        campos = {f.name for f in EvidenciaFotografica._meta.get_fields()}
+        if "tipo" in campos:
+            datos["tipo"] = tipo
+        if "descripcion" in campos:
+            datos["descripcion"] = (payload.get("observacion") or "").strip()
+        ev = EvidenciaFotografica.objects.create(**datos)
         return {"id": ev.pk}
 
 
