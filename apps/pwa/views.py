@@ -196,6 +196,18 @@ def nombre_archivo(evidencia):
     return (evidencia.url_imagen.name or "").rsplit("/", 1)[-1]
 
 
+def tipo_evidencia(evidencia):
+    """'antes', 'despues' o 'falla'. Usa el campo `tipo` si existe; si no (o está vacío), el nombre del archivo."""
+    tipo = getattr(evidencia, "tipo", "") or ""
+    if tipo:
+        return tipo
+    nombre = nombre_archivo(evidencia)
+    for t in ("antes", "despues", "falla"):
+        if nombre.startswith(f"{t}_"):
+            return t
+    return ""
+
+
 def verificar_orden(orden):
     """Revisión previa al cierre: checklist, materiales, fotos y firma registrados en la base de datos."""
     # Checklist de la orden
@@ -218,10 +230,10 @@ def verificar_orden(orden):
     v_materiales = ({"ok": True, "texto": f"{materiales} registro(s) de consumo"} if materiales
                     else {"ok": False, "texto": "Sin registrar"})
 
-    # Fotos (Paso 3): la PWA guarda el tipo en el nombre del archivo
-    nombres = [nombre_archivo(e) for e in EvidenciaFotografica.objects.filter(orden=orden)]
-    antes = sum(1 for n in nombres if n.startswith("antes_"))
-    despues = sum(1 for n in nombres if n.startswith("despues_"))
+    # Fotos (Paso 3)
+    tipos = [tipo_evidencia(e) for e in EvidenciaFotografica.objects.filter(orden=orden)]
+    antes = tipos.count("antes")
+    despues = tipos.count("despues")
     v_fotos = {"ok": bool(antes and despues),
                "texto": f"{antes} antes · {despues} después" if (antes or despues) else "Sin fotos adjuntas"}
 
@@ -394,9 +406,10 @@ class ApiSolicitud(EnvioPWAView):
         for i, foto in enumerate(fotos, start=1):
             archivo, peso_kb = imagen_desde_data_url(foto.get("dataUrl") if isinstance(foto, dict) else foto,
                                                      f"falla_{codigo}_{i}.jpg")
-            EvidenciaFotografica.objects.create(
-                orden=orden, uuid_sync=f"{uuid_sync[:58]}-f{i}", url_imagen=archivo, peso_kb=peso_kb,
-            )
+            datos_foto = {"orden": orden, "uuid_sync": f"{uuid_sync[:58]}-f{i}", "url_imagen": archivo, "peso_kb": peso_kb}
+            if "tipo" in {f.name for f in EvidenciaFotografica._meta.get_fields()}:
+                datos_foto["tipo"] = "falla"
+            EvidenciaFotografica.objects.create(**datos_foto)
         return {"id": registro.pk, "codigo": f"#{codigo}"}
 
 
@@ -441,7 +454,7 @@ class ApiEvidencia(EnvioPWAView):
         # El tipo y el bloque quedan en el nombre del archivo: el modelo no tiene un campo para eso
         archivo, peso_kb = imagen_desde_data_url(payload.get("dataUrl"), f"{tipo}_OT-{orden.pk}_b{bloque}.jpg")
         datos = {"orden": orden, "uuid_sync": uuid_sync, "url_imagen": archivo, "peso_kb": peso_kb}
-        # Si el grupo agrega estos campos al modelo, se llenan solos (hoy no existen)
+        # Campos `tipo` y `descripcion` del modelo (si la rama aún no los tiene, se omiten)
         campos = {f.name for f in EvidenciaFotografica._meta.get_fields()}
         if "tipo" in campos:
             datos["tipo"] = tipo
@@ -464,10 +477,8 @@ class ApiCerrarFaena(EnvioPWAView):
         if FirmaDigital.objects.filter(orden=orden).exists():
             raise ErrorEnvio("Esta orden ya tiene la firma del mandante registrada.", status=409)
 
-        nombres = list(EvidenciaFotografica.objects.filter(orden=orden).values_list("url_imagen", flat=True))
-        tiene_antes = any("/antes_" in n or n.startswith("antes_") for n in nombres)
-        tiene_despues = any("/despues_" in n or n.startswith("despues_") for n in nombres)
-        if not (tiene_antes and tiene_despues):
+        tipos = {tipo_evidencia(e) for e in EvidenciaFotografica.objects.filter(orden=orden)}
+        if not {"antes", "despues"} <= tipos:
             raise ErrorEnvio("Faltan las fotos «Antes» y «Después» de la faena.")
 
         firma = payload.get("firma") or {}
