@@ -15,6 +15,9 @@
 
     <div id="aviso-evidencia" class="alert-rojo d-none" role="alert"></div>
 
+    <!-- Confirmación de guardado en el dispositivo -->
+    <p id="estado-guardado" class="estado-guardado d-none" role="status" aria-live="polite"></p>
+
     <!-- Botón para adjuntar otro bloque de evidencia -->
     <div class="d-flex justify-content-center mb-2">
         <button type="button" id="btn-agregar-imagen" class="btn-accion-secundario">
@@ -31,19 +34,28 @@
             </div>
 
             <label class="zona-subida-foto" data-zona="antes">
-                <input type="file" data-tipo="antes" accept="image/*" capture="environment" class="visually-hidden">
+                <input type="file" data-tipo="antes" accept="image/*" class="visually-hidden">
                 <i class="bi bi-camera-fill icono-camara" aria-hidden="true"></i>
                 <span class="texto-subida"><i class="bi bi-camera-fill" aria-hidden="true"></i> Subir Foto Antes</span>
+                <span class="texto-ayuda">Cámara o galería</span>
             </label>
             <label class="zona-subida-foto" data-zona="despues">
-                <input type="file" data-tipo="despues" accept="image/*" capture="environment" class="visually-hidden">
+                <input type="file" data-tipo="despues" accept="image/*" class="visually-hidden">
                 <i class="bi bi-camera-fill icono-camara" aria-hidden="true"></i>
                 <span class="texto-subida"><i class="bi bi-camera-fill" aria-hidden="true"></i> Subir Foto Después</span>
+                <span class="texto-ayuda">Cámara o galería</span>
             </label>
 
+            <!-- Vista previa: tocar una foto la quita -->
             <div class="miniaturas">
-                <div class="miniatura" data-mini="antes" title="Antes"><i class="bi bi-image"></i></div>
-                <div class="miniatura" data-mini="despues" title="Después"><i class="bi bi-image"></i></div>
+                <figure class="miniatura-caja">
+                    <button type="button" class="miniatura" data-mini="antes" aria-label="Foto antes (vacía)"><i class="bi bi-image"></i></button>
+                    <figcaption data-peso="antes">Antes</figcaption>
+                </figure>
+                <figure class="miniatura-caja">
+                    <button type="button" class="miniatura" data-mini="despues" aria-label="Foto después (vacía)"><i class="bi bi-image"></i></button>
+                    <figcaption data-peso="despues">Después</figcaption>
+                </figure>
             </div>
 
             <div class="grupo-input">

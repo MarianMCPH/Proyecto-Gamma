@@ -24,16 +24,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function nuevoBloque() { return { uuid_sync: FaenaStore.uuid(), antes: null, despues: null, observacion: '' }; }
 
+    const estadoGuardado = document.getElementById('estado-guardado');
+
+    // Confirmación visible de lo que quedó guardado en el dispositivo
+    function pintarEstadoGuardado() {
+        let n = 0, kb = 0;
+        borrador.evidencias.forEach(b => ['antes', 'despues'].forEach(t => { if (b[t]) { n++; kb += b[t].pesoKb || 0; } }));
+        estadoGuardado.classList.toggle('d-none', n === 0);
+        estadoGuardado.innerHTML = `<i class="bi bi-check-circle-fill" aria-hidden="true"></i> ${n} foto(s) guardada(s) en este dispositivo (${kb} KB en total). `
+            + 'Se envían a la oficina al finalizar la faena en la pantalla de Firma.';
+    }
+
     function guardar() {
         const ok = FaenaStore.guardarBorrador(borrador);
         aviso.classList.toggle('d-none', ok);
         if (!ok) aviso.textContent = 'No hay espacio en el dispositivo para guardar más fotos. Elimine un bloque o use fotos más pequeñas.';
+        pintarEstadoGuardado();
         return ok;
     }
 
     function pintarMini(sec, tipo, foto) {
         const mini = sec.querySelector(`[data-mini="${tipo}"]`);
-        mini.innerHTML = foto ? `<img src="${foto.dataUrl}" alt="Foto ${tipo === 'antes' ? 'antes' : 'después'}">` : '<i class="bi bi-image"></i>';
+        const nombre = tipo === 'antes' ? 'Antes' : 'Después';
+        mini.innerHTML = foto ? `<img src="${foto.dataUrl}" alt="Foto ${nombre.toLowerCase()}">` : '<i class="bi bi-image"></i>';
+        mini.classList.toggle('llena', !!foto);
+        mini.setAttribute('aria-label', foto ? `Quitar foto ${nombre.toLowerCase()}` : `Foto ${nombre.toLowerCase()} (vacía)`);
+        sec.querySelector(`[data-peso="${tipo}"]`).textContent = foto ? `${nombre} · ${foto.pesoKb} KB` : nombre;
         const zona = sec.querySelector(`[data-zona="${tipo}"]`);
         zona.classList.toggle('lista', !!foto);
         if (foto) zona.classList.remove('falta');
@@ -72,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (guardar()) pintarMini(sec, input.dataset.tipo, foto);
             else { bloque[input.dataset.tipo] = null; }
         } catch (err) {
-            aviso.textContent = 'No se pudo leer la imagen. Intente nuevamente.';
+            aviso.textContent = (err && err.message ? err.message : 'No se pudo leer la imagen.') + ' Intente con otra foto.';
             aviso.classList.remove('d-none');
         }
     });
@@ -87,6 +103,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     contenedor.addEventListener('click', (e) => {
+        // Tocar una miniatura con foto la quita (antes de enviarla)
+        const mini = e.target.closest('.miniatura.llena');
+        if (mini) {
+            const sec = mini.closest('.bloque-evidencia');
+            borrador.evidencias[Number(sec.dataset.i)][mini.dataset.mini] = null;
+            guardar();
+            pintarMini(sec, mini.dataset.mini, null);
+            return;
+        }
         const btn = e.target.closest('.btn-eliminar-bloque');
         if (!btn) return;
         borrador.evidencias.splice(Number(btn.closest('.bloque-evidencia').dataset.i), 1);
@@ -116,4 +141,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     dibujar();
+    pintarEstadoGuardado();
 });

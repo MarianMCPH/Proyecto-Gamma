@@ -70,3 +70,17 @@
 
 /* Separación entre botones del pie (base_pwa los deja pegados) */
 .supplies-navigation { gap: 8px; }
+
+/* Vista previa con opción de quitar la foto */
+.texto-ayuda { font-size: 11px; color: #6B7280; }
+.miniatura-caja { margin: 0; display: flex; flex-direction: column; align-items: center; }
+.miniatura-caja figcaption { font-size: 11px; color: #374151; margin-top: 4px; }
+button.miniatura { background: transparent; border: 0; padding: 0; position: relative; }
+button.miniatura.llena::after {
+    content: "\00d7"; position: absolute; top: 3px; right: 3px; width: 22px; height: 22px;
+    background: rgba(0,0,0,.65); color: #fff; border-radius: 50%; font-size: 16px; line-height: 22px;
+}
+.estado-guardado {
+    background: #E8F5E9; border: 1px solid #B7DFBA; color: #1E5E2B; border-radius: 10px;
+    padding: 10px 14px; font-size: 13px; margin-bottom: 14px;
+}
