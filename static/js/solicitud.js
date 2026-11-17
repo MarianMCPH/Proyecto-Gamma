@@ -46,7 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. Validación visible (sin alert)
     function validar() {
         let ok = true;
-        ['repuesto_solicitado', 'cantidad_solicitada', 'justificacion'].forEach(id => {
+        const campos = ['repuesto_solicitado', 'cantidad_solicitada', 'justificacion'];
+        if (esOtro()) campos.splice(1, 0, 'material_otro');
+        campos.forEach(id => {
             const el = document.getElementById(id);
             const malo = !el.value.trim() || (id === 'cantidad_solicitada' && !(Number(el.value) > 0));
             el.classList.toggle('campo-invalido', malo);
@@ -61,11 +63,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (err) err.classList.remove('visible');
     });
 
-    // Unidad de medida junto a "Cantidad"
+    // Unidad de medida junto a "Cantidad" y campo para un insumo que no está en la lista
     const selMaterial = document.getElementById('repuesto_solicitado');
+    const grupoOtro = document.getElementById('grupo-otro');
+    function esOtro() { return selMaterial.value === '__otro__'; }
     selMaterial.addEventListener('change', () => {
         const op = selMaterial.options[selMaterial.selectedIndex];
         document.getElementById('unidad-cantidad').textContent = op && op.dataset.unidad ? `(${op.dataset.unidad})` : '';
+        grupoOtro.classList.toggle('d-none', !esOtro());
+        if (esOtro()) document.getElementById('material_otro').focus();
+    });
+
+    // Cancelar: descarta lo escrito y vuelve a Consumo de Insumos
+    document.getElementById('btn-cancelar').addEventListener('click', () => {
+        form.reset();
+        fotos = []; pintarFotos();
+        window.location.href = form.dataset.urlVolver;
     });
 
     // 4. Envío: se encola y se intenta mandar de inmediato (ver faena_store.js)
@@ -89,7 +102,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!FaenaStore.FAENA || !validar()) return;
         const payload = {
             orden: FaenaStore.FAENA.id,
-            material: Number(selMaterial.value),
+            material: esOtro() ? null : Number(selMaterial.value),
+            material_otro: esOtro() ? document.getElementById('material_otro').value.trim() : '',
+            unidad_otro: esOtro() ? document.getElementById('unidad_otro').value.trim() : '',
             cantidad: document.getElementById('cantidad_solicitada').value,
             justificacion: textarea.value.trim(),
             fotos: fotos.map(f => f.dataUrl)
@@ -101,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.disabled = true;
 
         await FaenaStore.sincronizar();
+        pintarLocales();
         const error = FaenaStore.errorDe(item.uuid_sync);
         if (error) {
             btn.disabled = false;
@@ -116,4 +132,86 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.style.display = 'none';
     });
+
+    // 5. "Mis solicitudes": estado de lo enviado (desde la BD) + lo que aún no sale del dispositivo
+    const lista = document.getElementById('lista-solicitudes');
+    const avisoLista = document.getElementById('aviso-lista');
+    const sinSolicitudes = document.getElementById('sin-solicitudes');
+
+    function actualizarVacio() { sinSolicitudes.classList.toggle('d-none', lista.children.length > 0); }
+
+    function pintarLocales() {
+        // Las que ya salieron del dispositivo pasan a "Pendiente" (en Bodega) o muestran el rechazo
+        lista.querySelectorAll('.fila-solicitud.local').forEach(li => {
+            const uuid = li.dataset.uuid;
+            if (FaenaStore.pendiente(uuid)) { li.remove(); return; }
+            const error = FaenaStore.errorDe(uuid);
+            li.classList.remove('local');
+            li.querySelector('.codigo').textContent = error ? 'No enviada' : 'Enviada';
+            const pill = li.querySelector('.pill-estado');
+            pill.className = 'pill-estado ' + (error ? 'rechazada' : 'pendiente');
+            pill.textContent = error ? 'Rechazada' : 'Pendiente';
+            const btn = li.querySelector('.btn-cancelar-fila');
+            if (error) { btn.remove(); li.title = error.mensaje; }
+            else btn.dataset.local = '';                 // ahora se cancela en el servidor
+        });
+        if (!FaenaStore.FAENA) return;
+        FaenaStore.pendientesDe(FaenaStore.FAENA.id).filter(i => i.tipo === 'solicitud').forEach(i => {
+            const p = i.payload;
+            let articulo = p.material_otro ? `${p.material_otro} (no catalogado)` : '';
+            let unidad = p.unidad_otro || '';
+            if (!articulo) {
+                const op = selMaterial.querySelector(`option[value="${p.material}"]`);
+                articulo = op ? op.textContent.split(' (stock')[0] : 'Artículo';
+                unidad = op ? (op.dataset.unidad || '') : '';
+            }
+            const li = document.createElement('li');
+            li.className = 'fila-solicitud local';
+            li.dataset.uuid = i.uuid_sync;
+            li.innerHTML = `<div class="info-solicitud"><span class="codigo">En este dispositivo</span>
+                <span class="articulo"></span><span class="cantidad"></span></div>
+                <div class="acciones-solicitud"><span class="pill-estado sin-enviar">Sin enviar</span>
+                <button type="button" class="btn-cancelar-fila" data-uuid="${i.uuid_sync}" data-local="1">Cancelar</button></div>`;
+            li.querySelector('.articulo').textContent = articulo;
+            li.querySelector('.cantidad').textContent = `${p.cantidad} ${unidad}`.trim();
+            lista.prepend(li);
+        });
+        actualizarVacio();
+    }
+
+    lista.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.btn-cancelar-fila');
+        if (!btn) return;
+        avisoLista.classList.add('d-none');
+        const uuid = btn.dataset.uuid;
+        if (btn.dataset.local) {                       // nunca salió del dispositivo: se quita de la cola
+            FaenaStore.cancelarLocal(uuid);
+            btn.closest('li').remove();
+            actualizarVacio();
+            return;
+        }
+        if (!navigator.onLine) {
+            avisoLista.textContent = 'Se necesita conexión para cancelar una solicitud que ya fue enviada.';
+            avisoLista.classList.remove('d-none');
+            return;
+        }
+        btn.disabled = true;
+        try {
+            const r = await FaenaStore.postJSON(form.dataset.urlCancelar, { uuid_sync: uuid });
+            if (r.ok) { btn.closest('li').remove(); actualizarVacio(); return; }
+            avisoLista.textContent = r.datos.error || 'No se pudo cancelar la solicitud.';
+        } catch (err) {
+            avisoLista.textContent = 'No se pudo conectar con el servidor. Intente de nuevo.';
+        }
+        avisoLista.classList.remove('d-none');
+        btn.disabled = false;
+    });
+
+    document.getElementById('btn-ver-solicitudes').addEventListener('click', () => {
+        window.location.hash = 'mis-solicitudes';
+        window.location.reload();                     // recarga para traer el estado desde la BD
+    });
+
+    window.addEventListener('faena:sync', pintarLocales);
+    pintarLocales();
 });

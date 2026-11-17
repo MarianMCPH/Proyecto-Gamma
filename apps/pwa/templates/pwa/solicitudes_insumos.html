@@ -11,7 +11,8 @@
 
     {% include "pwa/_faena_comun.html" %}
 
-<form id="form-solicitud-insumo" novalidate data-url-api="{% url 'pwa:api_solicitud' %}">
+<form id="form-solicitud-insumo" novalidate data-url-api="{% url 'pwa:api_solicitud' %}"
+      data-url-cancelar="{% url 'pwa:api_cancelar_solicitud' %}" data-url-volver="{% url 'pwa:insumos' %}">
 
     <!-- Cuadro 1: Detalle del repuesto -->
     <div class="card-insumo">
@@ -25,11 +26,25 @@
                 <option value="" disabled selected>Seleccionar opción</option>
                 {% for m in materiales %}
                     <option value="{{ m.pk }}" data-unidad="{{ m.unidad_medida }}">{{ m.codigo }} · {{ m.nombre }} (stock {{ m.stock_actual|floatformat:"-2" }} {{ m.unidad_medida }})</option>
-                {% empty %}
-                    <option value="" disabled>No hay materiales registrados en bodega</option>
                 {% endfor %}
+                <option value="__otro__">Otro (no está en la lista)</option>
             </select>
             <div class="error-campo" data-error-de="repuesto_solicitado">Seleccione el artículo requerido.</div>
+        </div>
+
+        <!-- Insumo que no está en el catálogo -->
+        <div id="grupo-otro" class="d-none">
+            <div class="grupo-input">
+                <label for="material_otro" class="label-campo">Nombre del insumo requerido</label>
+                <input type="text" id="material_otro" name="material_otro" class="select-tactil input-numero" maxlength="120"
+                       placeholder="Ej: Sensor de temperatura NTC 10K">
+                <div class="error-campo" data-error-de="material_otro">Escriba el nombre del insumo.</div>
+            </div>
+            <div class="grupo-input">
+                <label for="unidad_otro" class="label-campo">Unidad de medida</label>
+                <input type="text" id="unidad_otro" name="unidad_otro" class="select-tactil input-numero" maxlength="20"
+                       placeholder="un, kg, m, lt...">
+            </div>
         </div>
 
         <div class="grupo-input">
@@ -60,9 +75,10 @@
         </div>
 
         <label class="zona-subida-foto" id="zona-subida">
-            <input type="file" id="foto_falla" accept="image/*" capture="environment" class="visually-hidden">
+            <!-- Sin "capture": el celular ofrece elegir entre cámara y galería -->
+            <input type="file" id="foto_falla" accept="image/*" class="visually-hidden">
             <i class="bi bi-camera-fill icono-camara" aria-hidden="true"></i>
-            <span class="texto-subida"><i class="bi bi-camera-fill" aria-hidden="true"></i> Subir Foto</span>
+            <span class="texto-subida"><i class="bi bi-camera-fill" aria-hidden="true"></i> Subir Foto (cámara o galería)</span>
         </label>
 
         <div class="miniaturas" id="miniaturas">
@@ -76,11 +92,39 @@
         No hay espacio en el dispositivo para guardar la solicitud. Intente con fotos más pequeñas.
     </div>
 
-    <!-- Botón Enviar Solicitud -->
+    <!-- Botones: enviar o cancelar la solicitud -->
     <div class="contenedor-submit">
+        <button type="button" id="btn-cancelar" class="btn-cancelar-solicitud">Cancelar</button>
         <button type="submit" class="btn-enviar-solicitud" {% if not orden or faena.bloqueada %}disabled{% endif %}>Enviar Solicitud</button>
     </div>
 </form>
+
+<!-- Estado de las solicitudes de esta orden -->
+<section class="card-insumo mt-3" id="mis-solicitudes" aria-labelledby="titulo-mis-solicitudes">
+    <div class="card-header-insumo">
+        <h3 class="texto-centrado" id="titulo-mis-solicitudes">MIS SOLICITUDES DE ESTA ORDEN</h3>
+    </div>
+    <ul class="lista-solicitudes" id="lista-solicitudes">
+        <!-- Las que aún no salen del dispositivo las agrega solicitud.js -->
+        {% for s in mis_solicitudes %}
+            <li class="fila-solicitud" data-uuid="{{ s.uuid_sync }}">
+                <div class="info-solicitud">
+                    <span class="codigo">{{ s.codigo }}</span>
+                    <span class="articulo">{{ s.articulo }}</span>
+                    <span class="cantidad">{{ s.cantidad }}</span>
+                </div>
+                <div class="acciones-solicitud">
+                    <span class="pill-estado {{ s.estado }}">{{ s.estado_label }}</span>
+                    {% if s.estado == "pendiente" and s.uuid_sync %}
+                        <button type="button" class="btn-cancelar-fila" data-uuid="{{ s.uuid_sync }}" data-local="">Cancelar</button>
+                    {% endif %}
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+    <p class="nota-fotos {% if mis_solicitudes %}d-none{% endif %}" id="sin-solicitudes">Aún no hay solicitudes para esta orden.</p>
+    <div id="aviso-lista" class="alert alert-warning py-2 small d-none mt-2" role="alert"></div>
+</section>
 
 <!-- MODAL DE CONFIRMACIÓN -->
 <div id="modal-confirmacion" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
@@ -88,7 +132,10 @@
         <i class="bi bi-check-lg modal-check" id="modal-icono" aria-hidden="true"></i>
         <h4 id="modal-titulo">¡Solicitud Enviada!</h4>
         <p id="modal-detalle">El requerimiento fue notificado a Bodega Central.</p>
-        <a href="{% url 'pwa:insumos' %}" class="btn-volver-insumos" id="btn-modal-volver">Volver</a>
+        <div class="d-flex flex-column gap-2 align-items-center">
+            <a href="{% url 'pwa:insumos' %}" class="btn-volver-insumos" id="btn-modal-volver">Volver</a>
+            <button type="button" class="btn-ver-solicitudes" id="btn-ver-solicitudes">Ver mis solicitudes</button>
+        </div>
     </div>
 </div>
 

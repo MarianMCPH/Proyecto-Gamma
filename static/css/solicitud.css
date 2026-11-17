@@ -124,3 +124,33 @@
 /* Campo numérico de cantidad (sin la flecha del select) */
 .select-tactil.input-numero { background-image: none; appearance: auto; }
 .modal-check.error { color: #DC3545; }
+
+/* Botón cancelar (formulario) */
+.contenedor-submit { gap: 10px; }
+.btn-cancelar-solicitud {
+    min-height: 48px; padding: 0 22px; background: #FFFFFF; color: #3b3f68;
+    border: 2px solid #3b3f68; border-radius: 8px; font-size: 15px; font-weight: 600;
+}
+.btn-ver-solicitudes { background: none; border: 0; color: #3b3f68; font-weight: 600; text-decoration: underline; min-height: 40px; }
+
+/* Lista "Mis solicitudes" */
+.lista-solicitudes { list-style: none; margin: 0; padding: 0; }
+.fila-solicitud {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    padding: 10px 0; border-bottom: 1px dashed #D1D5DB;
+}
+.fila-solicitud:last-child { border-bottom: 0; }
+.info-solicitud { display: flex; flex-direction: column; min-width: 0; }
+.info-solicitud .codigo { font-size: 11px; color: #6B7280; font-weight: 700; }
+.info-solicitud .articulo { font-size: 13px; color: #111827; font-weight: 600; overflow-wrap: anywhere; }
+.info-solicitud .cantidad { font-size: 12px; color: #374151; }
+.acciones-solicitud { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+.pill-estado { border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.pill-estado.pendiente { background: #FFF3CD; color: #7A5B00; }
+.pill-estado.aprobada { background: #D1E7DD; color: #0F5132; }
+.pill-estado.rechazada { background: #F8D7DA; color: #842029; }
+.pill-estado.sin-enviar { background: #E2E3F5; color: #3b3f68; }
+.btn-cancelar-fila {
+    background: none; border: 1px solid #DC3545; color: #DC3545; border-radius: 6px;
+    font-size: 12px; padding: 4px 10px; min-height: 32px;
+}
