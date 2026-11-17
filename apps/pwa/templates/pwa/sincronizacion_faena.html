@@ -1,7 +1,7 @@
 {% extends "base_pwa.html" %}
 {% load static %}
 
-{% block header_title %}<a href="{% url 'obras:itinerario' %}" class="volver-header" aria-label="Ir al inicio"><i class="bi bi-arrow-left"></i></a> Confirmación y Sincronización{% endblock %}
+{% block header_title %}<a href="{% url 'obras:itinerario' %}" class="volver-header" aria-label="Ir al inicio"><i class="bi bi-arrow-left"></i></a> Paso 5: Sincronización{% endblock %}
 
 {% block work_id %}{% if orden %}ID: #{{ orden.pk }} - {{ orden.tipo_servicio }}{% else %}Sin orden asignada{% endif %}{% endblock %}
 
@@ -21,19 +21,69 @@
             </div>
 
             <p class="detalle-resumen"><strong>Finalizado:</strong> <span id="fecha-cierre">—</span></p>
-            {% if firma %}
-                <p class="detalle-resumen detalle-firma">Recibido por {{ firma.nombre_firmante }} ({{ firma.rut_firmante }}), {{ firma.cargo_firmante }}</p>
+            {% if orden %}
+                <p class="detalle-resumen detalle-estado">Estado de la orden: <strong id="estado-orden">{{ estado_orden }}</strong></p>
             {% endif %}
 
             <div class="estado-sincronizado" id="estado-sync" role="status" aria-live="polite">
                 <span class="punto punto-verde" id="punto-sync">●</span>
                 <span id="texto-sync">Sincronizado con la Oficina Central</span>
             </div>
+
+            <!-- Progreso del envío -->
+            <div class="progreso-sync d-none" id="progreso-sync">
+                <div class="progress" role="progressbar" aria-label="Progreso de la sincronización" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress-bar" id="barra-sync" style="width: 0%"></div>
+                </div>
+                <p class="texto-progreso" id="texto-progreso"></p>
+            </div>
         </div>
     </div>
 
-    <!-- Botón Volver al Inicio -->
-    <div class="contenedor-submit">
+    <!-- Revisión de lo registrado en la base de datos -->
+    {% if orden %}
+    <section class="card-insumo card-resumen" aria-labelledby="titulo-registro">
+        <div class="card-header-insumo">
+            <h3 class="texto-centrado titulo-seccion" id="titulo-registro">INFORMACIÓN REGISTRADA EN LA OBRA</h3>
+        </div>
+        <ul class="lista-verificacion">
+            {% for v in verificacion %}
+                <li class="{% if v.ok %}ok{% else %}falta{% endif %}">
+                    <i class="bi {% if v.ok %}bi-check-circle-fill{% else %}bi-exclamation-circle-fill{% endif %}" aria-hidden="true"></i>
+                    <div><span class="nombre">{{ v.nombre }}</span><span class="detalle">{{ v.texto }}</span></div>
+                </li>
+            {% endfor %}
+        </ul>
+
+        {% if firma %}
+            <div class="firma-registrada">
+                <p class="label-firma">Firma registrada</p>
+                <img src="{{ firma.imagen_base64_url }}" alt="Firma de {{ firma.nombre_firmante }}" class="img-firma">
+                <p class="detalle-firma">{{ firma.nombre_firmante }} ({{ firma.rut_firmante }}), {{ firma.cargo_firmante }}</p>
+            </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    <!-- Datos pendientes en este dispositivo -->
+    <section class="card-insumo card-resumen d-none" id="panel-pendientes" aria-labelledby="titulo-pendientes">
+        <div class="card-header-insumo">
+            <h3 class="texto-centrado titulo-seccion" id="titulo-pendientes">PENDIENTE DE SINCRONIZAR</h3>
+        </div>
+        <ul class="lista-pendientes" id="lista-pendientes"></ul>
+    </section>
+
+    <!-- Errores devueltos por la oficina -->
+    <div id="panel-errores" class="alert alert-danger small d-none" role="alert"></div>
+
+    <!-- Acciones -->
+    <div class="contenedor-submit acciones-sync">
+        <button type="button" id="btn-sincronizar" class="btn-volver-inicio btn-accion">
+            <i class="bi bi-arrow-repeat" aria-hidden="true"></i> Sincronizar ahora
+        </button>
+        <button type="button" id="btn-reintentar" class="btn-reintentar d-none">
+            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Reintentar envíos fallidos
+        </button>
         <a href="{% url 'obras:itinerario' %}" class="btn-volver-inicio">Volver al Inicio</a>
     </div>
 
