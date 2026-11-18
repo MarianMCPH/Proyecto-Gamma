@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+from django.utils import timezone
 import json
 
 from django.contrib.auth import get_user_model
@@ -8,6 +9,9 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views import View
 from django.views.generic import TemplateView
+
+from apps.inventario.models import MovimientoInventario
+from .models import Cliente, OrdenTrabajo
 
 from apps.inventario.models import MovimientoInventario
 from .models import Cliente, OrdenTrabajo
@@ -572,3 +576,182 @@ class AuditarObraEspecifica(TemplateView):
                 {"ok": False, "error": "No se pudo aprobar la obra en la base de datos. Intente nuevamente."},
                 status=500,
             )
+
+class ProgresoResultadosObrasView(TemplateView):
+    """Vista ejecutiva de progreso, distribución por estado y evolución temporal de obras."""
+
+    template_name = "obras/progreso_resultados.html"
+
+    MESES_ES = [
+        "", "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+        "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+    ]
+    DIAS_SEMANA_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+
+    def _clasificar_estado(self, estado_raw: str):
+        estado = (estado_raw or "").strip().lower()
+        if estado in {
+            "aprobada", "aprobadas", "finalizada", "finalizadas",
+            "facturada", "completada", "validada",
+        }:
+            return "finalizadas", "Finalizada", "badge-estado-finalizada", "bi-check-circle-fill"
+        if estado in {
+            "en_proceso", "en proceso", "en_curso", "en curso",
+            "ejecucion", "en_ejecucion",
+        }:
+            return "en_ejecucion", "En ejecución", "badge-estado-ejecucion", "bi-play-circle-fill"
+        if estado in {
+            "cancelada", "canceladas", "anulada", "anuladas",
+            "rechazada", "baja",
+        }:
+            return "canceladas", "Cancelada", "badge-estado-cancelada", "bi-x-circle-fill"
+        return "pendientes", "Pendiente", "badge-estado-pendiente", "bi-clock-fill"
+
+    def _obtener_fecha_referencia(self, orden):
+        for campo in ("fecha_programada", "fecha_cierre", "fecha_fin", "fecha_creacion", "created_at"):
+            val = getattr(orden, campo, None)
+            if val:
+                return val.date() if hasattr(val, "date") else val
+        return None
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        mostrando_historial = self.request.GET.get("historial") == "1"
+
+        periodo = (self.request.GET.get("periodo") or "anio").strip().lower()
+        if periodo not in {"semana", "mes", "anio", "todos"}:
+            periodo = "anio"
+
+        if mostrando_historial:
+            periodo = "todos"
+
+        hoy = timezone.localdate()
+        if periodo == "semana":
+            fecha_inicio = hoy - timedelta(days=6)
+            periodo_label = "Última semana"
+            titulo_barras = "Obras por día (últimos 7 días)"
+        elif periodo == "mes":
+            fecha_inicio = hoy - timedelta(days=29)
+            periodo_label = "Último mes"
+            titulo_barras = "Obras por semana (último mes)"
+        elif periodo == "anio":
+            fecha_inicio = hoy.replace(month=1, day=1)
+            periodo_label = f"Año {hoy.year}"
+            titulo_barras = "Obras por mes"
+        else:
+            fecha_inicio = None
+            periodo_label = "Historial completo"
+            titulo_barras = "Obras por mes (histórico completo)"
+
+        # Siempre consultamos todas las órdenes registradas en BD (sin excluir ocultas de bandejas)
+        qs = OrdenTrabajo.objects.select_related("cliente", "tecnico").order_by("-fecha_programada", "-id")
+        todas_ordenes = list(qs)
+        total_historico = len(todas_ordenes)
+
+        ordenes_filtradas = []
+        for orden in todas_ordenes:
+            fecha_ref = self._obtener_fecha_referencia(orden)
+            if fecha_inicio is not None and fecha_ref is not None and fecha_ref < fecha_inicio:
+                continue
+            ordenes_filtradas.append((orden, fecha_ref))
+
+        total_obras = len(ordenes_filtradas)
+        conteos = {
+            "finalizadas": 0,
+            "en_ejecucion": 0,
+            "pendientes": 0,
+            "canceladas": 0,
+        }
+
+        lista_obras = []
+        for orden, fecha_ref in ordenes_filtradas:
+            cat, label, badge_clase, icono = self._clasificar_estado(orden.estado)
+            conteos[cat] += 1
+
+            cliente_nombre = orden.cliente.razon_social if orden.cliente else "Sin cliente"
+            tecnico_nombre = "Sin asignar"
+            if orden.tecnico:
+                tecnico_nombre = orden.tecnico.get_full_name().strip() or orden.tecnico.username
+
+            fecha_texto = fecha_ref.strftime("%d/%m/%Y") if fecha_ref else "-"
+            busqueda = (
+                f"{cliente_nombre} {orden.tipo_servicio or ''} "
+                f"{tecnico_nombre} {label} {fecha_texto}".lower()
+            )
+
+            lista_obras.append({
+                "cliente": cliente_nombre,
+                "tipo_servicio": orden.tipo_servicio or "-",
+                "tecnico": tecnico_nombre,
+                "fecha": fecha_texto,
+                "categoria": cat,
+                "estado_label": label,
+                "badge_clase": badge_clase,
+                "icono": icono,
+                "busqueda": busqueda,
+            })
+
+        def pct(valor):
+            return round((valor / total_obras) * 100, 1) if total_obras > 0 else 0.0
+
+        pct_finalizadas = pct(conteos["finalizadas"])
+        pct_ejecucion = pct(conteos["en_ejecucion"])
+        pct_pendientes = pct(conteos["pendientes"])
+        pct_canceladas = pct(conteos["canceladas"])
+
+        barras_labels = []
+        barras_valores = []
+
+        if periodo == "semana":
+            for i in range(6, -1, -1):
+                dia = hoy - timedelta(days=i)
+                barras_labels.append(f"{self.DIAS_SEMANA_ES[dia.weekday()]} {dia.day}")
+                barras_valores.append(sum(1 for _, f in ordenes_filtradas if f == dia))
+        elif periodo == "mes":
+            for bloque in range(4):
+                inicio_b = hoy - timedelta(days=27 - bloque * 7)
+                fin_b = inicio_b + timedelta(days=6)
+                barras_labels.append(f"Sem {bloque + 1}")
+                barras_valores.append(
+                    sum(1 for _, f in ordenes_filtradas if f and inicio_b <= f <= fin_b)
+                )
+        else:
+            meses_indices = list(range(1, hoy.month + 1)) if periodo == "anio" else list(range(1, 13))
+            if not meses_indices:
+                meses_indices = [hoy.month]
+            for m in meses_indices:
+                barras_labels.append(self.MESES_ES[m])
+                barras_valores.append(
+                    sum(
+                        1
+                        for _, f in ordenes_filtradas
+                        if f and f.month == m and (periodo != "anio" or f.year == hoy.year)
+                    )
+                )
+
+        context.update({
+            "periodo_actual": periodo,
+            "periodo_label": periodo_label,
+            "titulo_barras": titulo_barras,
+            "mostrando_historial": mostrando_historial,
+            "total_historico": total_historico,
+            "total_obras": total_obras,
+            "total_finalizadas": conteos["finalizadas"],
+            "total_en_ejecucion": conteos["en_ejecucion"],
+            "total_pendientes": conteos["pendientes"],
+            "total_canceladas": conteos["canceladas"],
+            "pct_finalizadas": pct_finalizadas,
+            "pct_ejecucion": pct_ejecucion,
+            "pct_pendientes": pct_pendientes,
+            "pct_canceladas": pct_canceladas,
+            "barras_labels_json": json.dumps(barras_labels),
+            "barras_valores_json": json.dumps(barras_valores),
+            "dona_valores_json": json.dumps([
+                conteos["finalizadas"],
+                conteos["en_ejecucion"],
+                conteos["pendientes"],
+                conteos["canceladas"],
+            ]),
+            "obras_progreso": lista_obras,
+        })
+        return context
