@@ -42,11 +42,28 @@
                                 <a class="nav-link" href="{% url 'inventario:solicitudes' %}" data-path="solicitudes"><i class="bi bi-box-seam me-2"></i>Solicitudes de Insumos</a>
                             </li>
                         </ul>
-                    <div class="perfil mt-auto pt-3">
+
+                <!-- Perfil dinámico del usuario logueado -->
+                <div class="perfil mt-auto pt-3">
+                    {% if request.user.perfil.foto_perfil %}
+                        <img src="{{ request.user.perfil.foto_perfil.url }}" 
+                             alt="{{ request.user.username }}" 
+                             class="rounded-circle mb-2 object-fit-cover border border-2 border-light" 
+                             style="width: 52px; height: 52px;">
+                    {% else %}
                         <i class="bi bi-person-circle fs-1"></i>
-                        <span class="d-block fw-medium small mb-2">Administrador Central</span>
-                        <a href="#" class="btn btn-sm btn-outline-light w-100 rounded-pill">Cerrar sesión</a>
-                    </div>
+                    {% endif %}
+
+                    <span class="d-block fw-medium small mb-2">
+                        {{ request.user.get_full_name|default:request.user.username }}
+                    </span>
+
+                    <form action="{% url 'core:logout' %}" method="POST" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-light w-100 rounded-pill">
+                            Cerrar sesión
+                        </button>
+                    </form>
                 </div>
             </nav>
 

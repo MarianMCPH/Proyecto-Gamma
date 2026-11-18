@@ -10,7 +10,7 @@
     <a href="{% url 'obras:ver_obras' %}" class="text-dark text-decoration-none fs-3" title="Volver a Gestión de Obras">
         <i class="bi bi-arrow-left-circle-fill"></i>
     </a>
-    <span>Detalle de Obra #OT-101</span>
+    <span>Detalle de Obra #OT-{{ orden.id|default:"101" }}</span>
 </div>
 {% endblock %}
 
@@ -20,31 +20,24 @@
         background: #fff;
         border: 1.5px solid #cfd5e6;
         border-radius: 12px;
-        padding: 1.25rem;
+        padding: 2rem;
     }
     .fyag-section-title {
         color: #2E358F;
         font-weight: 700;
-        font-size: 0.95rem;
+        font-size: 1.1rem;
         letter-spacing: 0.4px;
         text-transform: uppercase;
-        margin-bottom: 0.6rem;
-    }
-    .fyag-table thead th {
-        background-color: #e9ecf5;
-        color: #1e235c;
-        font-weight: 700;
-        font-size: 0.85rem;
-        border-bottom: 1.5px solid #cfd5e6;
+        margin-bottom: 0.8rem;
     }
     .badge-estado-curso {
         background-color: #fff3cd;
         color: #856404;
         border: 1px solid #ffe69c;
-        padding: 0.35em 0.85em;
+        padding: 0.4em 1em;
         border-radius: 50rem;
         font-weight: 600;
-        font-size: 0.8rem;
+        font-size: 0.85rem;
     }
     .btn-fyag {
         background-color: #2E358F;
@@ -59,128 +52,79 @@
     }
 </style>
 
+{% if orden %}
 <!-- Barra de acciones rápidas -->
-<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
     <div class="d-flex align-items-center gap-2">
-        <span class="badge-estado-curso"><i class="bi bi-clock-history me-1"></i>En Ejecución (65%)</span>
-        <span class="text-muted small">Presupuesto: <strong>PRES-2026-084</strong></span>
+        <span class="badge-estado-curso"><i class="bi bi-clock-history me-1"></i>{{ orden.get_estado_display }}</span>
+        <span class="text-muted">Servicio: <strong>{{ orden.tipo_servicio }}</strong></span>
     </div>
     <div class="d-flex gap-2">
-        <a href="{% url 'obras:editar_obra' %}" class="btn btn-outline-secondary btn-sm">
+        <a href="{% url 'obras:editar_obra' %}?id={{ orden.id }}" class="btn btn-outline-secondary btn-sm px-3">
             <i class="bi bi-pencil-square me-1"></i>Editar Orden
         </a>
-        <a href="{% url 'obras:auditar_obra' %}" class="btn btn-fyag btn-sm">
+        <a href="{% url 'obras:auditoria' %}" class="btn btn-fyag btn-sm px-3">
             <i class="bi bi-clipboard-check me-1"></i>Ir a Auditoría
         </a>
     </div>
 </div>
 
-<!-- RESUMEN OPERATIVO -->
+<!-- RESUMEN OPERATIVO AMPLIADO -->
 <div class="mb-4">
     <div class="fyag-section-title">Resumen Operativo</div>
-    <div class="fyag-card">
-        <div class="row g-2 small">
-            <div class="col-md-4"><strong>Mandante:</strong> Agrícola y Packing San Nicolás SpA</div>
-            <div class="col-md-4"><strong>RUT:</strong> 76.432.890-K</div>
-            <div class="col-md-4"><strong>Contacto:</strong> xxxx (+56 9 1111 2222)</div>
-            <div class="col-md-4"><strong>Tipo de Servicio:</strong> Mantención Preventiva</div>
-            <div class="col-md-4"><strong>Dirección Faena:</strong> Ruta N-50 Km 12, San Nicolás, Ñuble</div>
-            <div class="col-md-4"><strong>Fecha Inicio / Término Est.:</strong> 08/10/2026 - 14/10/2026</div>
-            <div class="col-md-4"><strong>Técnico Líder:</strong> xxxx</div>
-            <div class="col-md-4"><strong>Cuadrilla Asignada:</strong> xxxx, yyyy</div>
-            <div class="col-md-4"><strong>Coordenadas GPS:</strong> -36.5921, -72.0834</div>
-        </div>
-    </div>
-</div>
-
-<!-- FILA CENTRAL: AVANCE Y MATERIALES ASIGNADOS -->
-<div class="row g-4 mb-4">
-    <!-- Columna Izquierda: Hitos y Avance -->
-    <div class="col-lg-6">
-        <div class="fyag-section-title">Progreso y Tareas de la Obra</div>
-        <div class="fyag-card h-100">
-            <div class="d-flex justify-content-between small fw-bold mb-1">
-                <span>Avance General</span>
-                <span>65%</span>
+    <div class="fyag-card shadow-sm">
+        <div class="row g-4 fs-6">
+            <div class="col-md-4">
+                <span class="text-muted small d-block">Mandante / Cliente</span>
+                <strong class="text-dark fs-5">{{ orden.cliente.razon_social|default:"N/D" }}</strong>
             </div>
-            <div class="progress mb-3" style="height: 10px;">
-                <div class="progress-bar" role="progressbar" style="width: 65%; background-color: #2E358F;"></div>
+            <div class="col-md-4">
+                <span class="text-muted small d-block">RUT Cliente</span>
+                <strong class="text-dark fs-5">{{ orden.cliente.rut|default:"N/D" }}</strong>
             </div>
-
-            <ul class="list-group list-group-flush small">
-                <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-check-circle-fill text-success me-2"></i>Inspección inicial y bloqueo eléctrico</span>
-                    <span class="text-muted">Completado</span>
-                </li>
-                <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-check-circle-fill text-success me-2"></i>Prueba de estanqueidad con nitrógeno</span>
-                    <span class="text-muted">Completado</span>
-                </li>
-                <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-arrow-repeat text-warning me-2"></i>Carga de refrigerante R-404A y calibración</span>
-                    <span class="text-warning fw-semibold">En curso</span>
-                </li>
-                <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-circle text-secondary me-2"></i>Firma de conformidad del mandante</span>
-                    <span class="text-muted">Pendiente</span>
-                </li>
-            </ul>
-        </div>
-    </div>
-
-    <!-- Columna Derecha: Insumos y Cardex de la Obra -->
-    <div class="col-lg-6">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <div class="fyag-section-title m-0">Insumos Asignados / Consumidos</div>
-            <a href="{% url 'inventario:solicitudes' %}" class="small text-decoration-none fw-semibold" style="color: #2E358F;">
-                Ver solicitudes <i class="bi bi-box-arrow-up-right"></i>
-            </a>
-        </div>
-        <div class="fyag-card h-100">
-            <div class="table-responsive">
-                <table class="table table-sm align-middle fyag-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>Artículo / Repuesto</th>
-                            <th class="text-center">Cant.</th>
-                            <th class="text-center">Código</th>
-                            <th class="text-center">Estado Cardex</th>
-                        </tr>
-                    </thead>
-                    <tbody class="small">
-                        <tr>
-                            <td>Cilindro Gas R-404A 10.9 Kg</td>
-                            <td class="text-center">1 un</td>
-                            <td class="text-center">ART-GAS-04</td>
-                            <td class="text-center"><span class="text-success fw-semibold"><i class="bi bi-check-lg"></i> Despachado</span></td>
-                        </tr>
-                        <tr>
-                            <td>Filtro Danfoss DCL 1/2"</td>
-                            <td class="text-center">1 un</td>
-                            <td class="text-center">ART-FIL-12</td>
-                            <td class="text-center"><span class="text-success fw-semibold"><i class="bi bi-check-lg"></i> Despachado</span></td>
-                        </tr>
-                        <tr>
-                            <td>Terminales Eléctricos 4mm</td>
-                            <td class="text-center">2 un</td>
-                            <td class="text-center">ART-ELT-08</td>
-                            <td class="text-center"><span class="text-warning fw-semibold"><i class="bi bi-clock"></i> Solicitado</span></td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="col-md-4">
+                <span class="text-muted small d-block">Contacto en Planta</span>
+                <strong class="text-dark fs-5">{{ orden.cliente.contacto|default:"N/D" }}</strong>
+            </div>
+            <div class="col-md-12"><hr class="text-muted my-1"></div>
+            <div class="col-md-4">
+                <span class="text-muted small d-block">Tipo de Servicio</span>
+                <strong class="text-dark">{{ orden.tipo_servicio }}</strong>
+            </div>
+            <div class="col-md-4">
+                <span class="text-muted small d-block">Dirección de Faena</span>
+                <strong class="text-dark">{{ orden.direccion }}</strong>
+            </div>
+            <div class="col-md-4">
+                <span class="text-muted small d-block">Fecha Programada</span>
+                <strong class="text-dark">{{ orden.fecha_programada|date:"d/m/Y" }}</strong>
+            </div>
+            <div class="col-md-4">
+                <span class="text-muted small d-block">Técnico Asignado</span>
+                <strong class="text-dark">{% if orden.tecnico %}{{ orden.tecnico.get_full_name|default:orden.tecnico.username }}{% else %}Sin asignar{% endif %}</strong>
+            </div>
+            <div class="col-md-4">
+                <span class="text-muted small d-block">Coordenadas GPS</span>
+                <strong class="text-dark">{% if orden.latitud_inicio %}{{ orden.latitud_inicio }}, {{ orden.longitud_inicio }}{% else %}No registradas{% endif %}</strong>
+            </div>
+            <div class="col-md-4">
+                <span class="text-muted small d-block">Estado Operativo</span>
+                <strong class="text-dark">{{ orden.get_estado_display }}</strong>
             </div>
         </div>
     </div>
 </div>
 
-<!--OBSERVACIONES -->
-<div>
-    <div class="fyag-section-title">Observaciones Técnicas de Terreno</div>
-    <div class="fyag-card small text-muted">
-        <p class="mb-1 text-dark"><strong>14/10/2026 - 10:15 hrs (Andrés Troncoso):</strong></p>
-        <p class="mb-0">Se detectó caída de presión en línea de succión de cámara N°2. Se realizó reemplazo de filtro secador y se solicitó reposición de terminales eléctricos adicionales a bodega central.</p>
+{% else %}
+<div class="alert alert-warning text-center py-5">
+    <i class="bi bi-exclamation-triangle fs-1 d-block mb-2"></i>
+    No se ha encontrado la orden de trabajo especificada.
+    <div class="mt-3">
+        <a href="{% url 'obras:ver_obras' %}" class="btn btn-sm btn-secondary">Volver a Gestión de Obras</a>
     </div>
 </div>
+{% endif %}
+
 {% endblock %}
 
 <!-- fin codigo agregado por Luciano -->

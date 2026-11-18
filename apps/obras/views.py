@@ -14,6 +14,7 @@ from .models import Cliente, OrdenTrabajo
 
 Usuario = get_user_model()
 CLAVE_SESION_AUDITORIA = "ordenes_ocultas_auditoria"
+CLAVE_SESION_GESTION_OCULTAS = "ordenes_ocultas_gestion"
 
 
 def obtener_tecnicos_activos():
@@ -35,9 +36,18 @@ class ObraListView(TemplateView):
 
 
 class ObraDetailView(TemplateView):
-    """Vista para ver el detalle completo de una obra específica."""
+    """Vista para ver el detalle completo de una obra específica desde la base de datos."""
 
     template_name = "obras/detalles.obras.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        obra_id = self.request.GET.get('id')
+        orden = None
+        if obra_id:
+            orden = OrdenTrabajo.objects.select_related("cliente", "tecnico").filter(pk=obra_id).first()
+        context["orden"] = orden
+        return context
 
 
 class ObraCreateView(TemplateView):
@@ -126,7 +136,7 @@ class ObraCreateView(TemplateView):
                 {"ok": False, "error": "El técnico seleccionado no es válido o no tiene rol de Técnico activo."},
                 status=400,
             )
-        except Exception:
+        except Exception as e:
             return JsonResponse(
                 {"ok": False, "error": "Ocurrió un problema al guardar en la base de datos. Vuelva a intentarlo."},
                 status=500,
@@ -134,9 +144,62 @@ class ObraCreateView(TemplateView):
 
 
 class ObraUpdateView(TemplateView):
-    """Vista para editar una obra existente."""
+    """Vista para editar una obra existente y guardar sus cambios."""
 
     template_name = "obras/editar_obra.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        obra_id = self.request.GET.get('id')
+        orden = None
+        if obra_id:
+            orden = OrdenTrabajo.objects.select_related("cliente", "tecnico").filter(pk=obra_id).first()
+        
+        context["orden"] = orden
+        context["tecnicos"] = Usuario.objects.filter(is_active=True).order_by("first_name", "username")
+        return context
+
+    def post(self, request, *args, **kwargs):
+        obra_id = request.POST.get("obra_id") or request.GET.get('id')
+        orden = OrdenTrabajo.objects.filter(pk=obra_id).first()
+
+        if not orden:
+            return JsonResponse({"ok": False, "error": "No se encontró la orden de trabajo."}, status=404)
+
+        cliente_nombre = request.POST.get("cliente_nombre", "").strip()
+        rut_cliente = request.POST.get("rut_cliente", "").strip()
+        contacto_cliente = request.POST.get("contacto_cliente", "").strip()
+        tipo_servicio = request.POST.get("tipo_servicio", "").strip()
+        tecnico_id = request.POST.get("tecnico", "").strip()
+        direccion_faena = request.POST.get("direccion_faena", "").strip()
+        fecha_programada = request.POST.get("fecha_programada", "").strip()
+
+        if not all([cliente_nombre, tipo_servicio, tecnico_id, direccion_faena]):
+            return JsonResponse({"ok": False, "error": "Complete los campos obligatorios."}, status=400)
+
+        try:
+            with transaction.atomic():
+                tecnico = Usuario.objects.get(pk=tecnico_id)
+                
+                if orden.cliente:
+                    orden.cliente.razon_social = cliente_nombre
+                    if rut_cliente:
+                        orden.cliente.rut = rut_cliente
+                    if contacto_cliente:
+                        orden.cliente.contacto = contacto_cliente
+                    orden.cliente.direccion = direccion_faena
+                    orden.cliente.save()
+
+                orden.tipo_servicio = tipo_servicio
+                orden.tecnico = tecnico
+                orden.direccion = direccion_faena
+                if fecha_programada:
+                    orden.fecha_programada = fecha_programada
+                orden.save()
+
+            return JsonResponse({"ok": True})
+        except Exception as e:
+            return JsonResponse({"ok": False, "error": "Error al actualizar la orden."}, status=500)
 
 
 class ObraDeleteView(TemplateView):
@@ -149,6 +212,92 @@ class ObraViewAdmin(TemplateView):
     """Vista para listar y buscar todas las obras activas y finalizadas para el administrador."""
 
     template_name = "obras/gestion_obras_adm.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        ids_ocultos = set(self.request.session.get(CLAVE_SESION_GESTION_OCULTAS, []))
+        
+        ordenes = OrdenTrabajo.objects.select_related("cliente", "tecnico").exclude(id__in=ids_ocultos).order_by("-id")
+        
+        lista_ordenes = []
+        total_todas = 0
+        total_en_proceso = 0
+        total_pendientes = 0
+        total_emergencias = 0
+        total_finalizadas = 0
+
+        for orden in ordenes:
+            total_todas += 1
+            estado_raw = (orden.estado or "").strip().lower()
+            
+            es_emergencia = (
+                "emergencia" in (orden.tipo_servicio or "").lower() or
+                "urgente" in (orden.tipo_servicio or "").lower() or
+                "emergencia" in (orden.observacion_auditoria or "").lower() or
+                "urgente" in (orden.observacion_auditoria or "").lower()
+            )
+            if es_emergencia:
+                total_emergencias += 1
+
+            if estado_raw == "en_proceso":
+                total_en_proceso += 1
+                categoria = "en_proceso"
+                badge_clase = "bg-info text-dark"
+            elif estado_raw in ["aprobada", "facturada"]:
+                total_finalizadas += 1
+                categoria = "finalizadas"
+                badge_clase = "bg-success text-white"
+            else:
+                total_pendientes += 1
+                categoria = "pendientes"
+                badge_clase = "bg-warning text-dark"
+
+            tecnico_nombre = "Sin asignar"
+            if orden.tecnico:
+                tecnico_nombre = orden.tecnico.get_full_name().strip() or orden.tecnico.username
+
+            cliente_nombre = orden.cliente.razon_social if orden.cliente else "Sin cliente"
+
+            lista_ordenes.append({
+                "id": orden.id,
+                "cliente": cliente_nombre,
+                "tipo_servicio": orden.tipo_servicio or "-",
+                "tecnico": tecnico_nombre,
+                "estado_label": orden.get_estado_display(),
+                "badge_clase": badge_clase,
+                "categoria": categoria,
+                "es_emergencia": es_emergencia,
+            })
+
+        context["ordenes"] = lista_ordenes
+        context["total_todas"] = total_todas
+        context["total_en_proceso"] = total_en_proceso
+        context["total_pendientes"] = total_pendientes
+        context["total_emergencias"] = total_emergencias
+        context["total_finalizadas"] = total_finalizadas
+        return context
+
+
+class OcultarGestionObraView(View):
+    """Oculta temporalmente de la pantalla de gestión las obras seleccionadas sin eliminarlas de la BD."""
+
+    def post(self, request, *args, **kwargs):
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+            ids = payload.get("ids", [])
+        except (ValueError, UnicodeDecodeError):
+            ids = request.POST.getlist("ids[]")
+
+        ids_nuevos = [int(i) for i in ids if str(i).isdigit()]
+        if not ids_nuevos:
+            return JsonResponse({"ok": False, "error": "Seleccione al menos una obra para desactivar."}, status=400)
+
+        actuales = set(request.session.get(CLAVE_SESION_GESTION_OCULTAS, []))
+        actuales.update(ids_nuevos)
+        request.session[CLAVE_SESION_GESTION_OCULTAS] = list(actuales)
+        request.session.modified = True
+
+        return JsonResponse({"ok": True, "actualizadas": len(ids_nuevos)})
 
 
 class AuditoriaObras(TemplateView):
