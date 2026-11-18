@@ -93,9 +93,9 @@
                         {% endif %}
                     </td>
                     <td><span class="{{ sol.pill_clase }}">{{ sol.estado_label }}</span></td>
-                    <td>
-                        <a href="{% url 'inventario:detalle_solicitud' %}" class="btn-detalle">Revisar</a>
-                    </td>
+                        <td>
+                            <a href="{% url 'inventario:detalle_solicitud' %}?id={{ sol.id }}" class="btn-detalle">Revisar</a>
+                        </td>
                 </tr>
                 {% endfor %}
 

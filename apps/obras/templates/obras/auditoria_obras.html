@@ -74,7 +74,7 @@
                         <td>{{ orden.tecnico }}</td>
                         <td><span class="badge {{ orden.badge_clase }} px-2 py-1">{{ orden.estado_label }}</span></td>
                         <td class="text-center">
-                            <a href="{% url 'obras:auditar_obra' %}" class="btn btn-sm text-white px-3 py-1" style="background-color: #474b7e;">Auditar</a>
+                            <a href="{% url 'obras:auditar_obra' %}?id={{ orden.id }}" class="btn btn-sm text-white px-3 py-1" style="background-color: #474b7e;">Auditar</a>
                         </td>
                     </tr>
                     {% endfor %}
