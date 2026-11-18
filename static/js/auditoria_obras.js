@@ -1,5 +1,5 @@
 /* =================================================
-   Filtros, Búsqueda Rápida, Contadores y Limpiar Selección - Auditoría de Obras
+   Filtros, Búsqueda Rápida, Contadores y Limpiar/Restaurar - Auditoría de Obras
    ================================================= */
 
 function crearOverlayAuditoria(id) {
@@ -85,57 +85,66 @@ document.addEventListener("DOMContentLoaded", function () {
     const textoSinResultados = document.getElementById("textoSinResultadosAuditoria");
     const checkSelectAll = document.getElementById("selectAllAuditoria");
     const btnLimpiar = document.getElementById("btnLimpiarAuditoria");
+    const btnRestaurar = document.getElementById("btnRestaurarAuditoria");
 
     const badgeTodas = document.getElementById("badgeTodas");
     const badgeEnProceso = document.getElementById("badgeEnProceso");
     const badgePendientes = document.getElementById("badgePendientes");
     const badgeAprobadas = document.getElementById("badgeAprobadas");
 
-    let filtroActual = "todas";
+    let filtroActivo = "todas";
 
     function obtenerFilas() {
-        return document.querySelectorAll(".fila-auditoria");
+        return Array.from(document.querySelectorAll("#tbodyAuditoria tr.fila-auditoria"));
     }
 
-    function actualizarContadores() {
+    function actualizarBadges() {
         const filas = obtenerFilas();
-        let total = 0;
         let enProceso = 0;
         let pendientes = 0;
         let aprobadas = 0;
 
         filas.forEach((fila) => {
-            total++;
-            const categoria = fila.dataset.categoria || "";
-            if (categoria === "en_proceso") enProceso++;
-            else if (categoria === "aprobadas") aprobadas++;
+            const cat = (fila.dataset.categoria || "").trim();
+            if (cat === "en_proceso") enProceso++;
+            else if (cat === "aprobadas") aprobadas++;
             else pendientes++;
         });
 
-        if (badgeTodas) badgeTodas.textContent = total;
-        if (badgeEnProceso) badgeEnProceso.textContent = enProceso;
-        if (badgePendientes) badgePendientes.textContent = pendientes;
-        if (badgeAprobadas) badgeAprobadas.textContent = aprobadas;
+        if (badgeTodas) badgeTodas.textContent = String(filas.length);
+        if (badgeEnProceso) badgeEnProceso.textContent = String(enProceso);
+        if (badgePendientes) badgePendientes.textContent = String(pendientes);
+        if (badgeAprobadas) badgeAprobadas.textContent = String(aprobadas);
+    }
+
+    function sincronizarSelectAll() {
+        if (!checkSelectAll) return;
+        const visibles = obtenerFilas().filter((f) => f.style.display !== "none");
+        if (visibles.length === 0) {
+            checkSelectAll.checked = false;
+            return;
+        }
+        checkSelectAll.checked = visibles.every((f) => {
+            const cb = f.querySelector(".check-auditoria");
+            return cb && cb.checked;
+        });
     }
 
     function aplicarFiltros() {
         const filas = obtenerFilas();
-        const termino = (inputBuscador ? inputBuscador.value : "").trim().toLowerCase();
+        const texto = (inputBuscador ? inputBuscador.value : "").trim().toLowerCase();
         let visibles = 0;
 
         filas.forEach((fila) => {
-            const categoria = fila.dataset.categoria || "";
-            const textoFila = fila.dataset.busqueda || "";
+            const cat = (fila.dataset.categoria || "").trim();
+            const contenido = (fila.dataset.busqueda || fila.textContent || "").toLowerCase();
 
-            const coincideEstado = filtroActual === "todas" || categoria === filtroActual;
-            const coincideBusqueda = termino === "" || textoFila.includes(termino);
+            const coincideEstado = filtroActivo === "todas" || cat === filtroActivo;
+            const coincideTexto = texto === "" || contenido.includes(texto);
 
-            if (coincideEstado && coincideBusqueda) {
-                fila.style.display = "";
-                visibles++;
-            } else {
-                fila.style.display = "none";
-            }
+            const mostrar = coincideEstado && coincideTexto;
+            fila.style.display = mostrar ? "" : "none";
+            if (mostrar) visibles++;
         });
 
         if (filaSinResultados) {
@@ -151,22 +160,21 @@ document.addEventListener("DOMContentLoaded", function () {
                 filaSinResultados.style.display = "none";
             }
         }
+        sincronizarSelectAll();
     }
 
-    botonesFiltro.forEach((boton) => {
-        boton.addEventListener("click", function () {
-            filtroActual = this.dataset.filtro || "todas";
-
+    botonesFiltro.forEach((btn) => {
+        btn.addEventListener("click", function () {
             botonesFiltro.forEach((b) => {
                 b.classList.remove("text-white");
                 b.classList.add("btn-outline-secondary");
                 b.style.backgroundColor = "";
             });
-
             this.classList.remove("btn-outline-secondary");
             this.classList.add("text-white");
             this.style.backgroundColor = "#424571";
 
+            filtroActivo = (this.dataset.filtro || "todas").trim();
             aplicarFiltros();
         });
     });
@@ -177,55 +185,72 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (checkSelectAll) {
         checkSelectAll.addEventListener("change", function () {
-            document.querySelectorAll(".check-auditoria").forEach((c) => {
-                c.checked = checkSelectAll.checked;
+            obtenerFilas().forEach((fila) => {
+                if (fila.style.display !== "none") {
+                    const cb = fila.querySelector(".check-auditoria");
+                    if (cb) cb.checked = checkSelectAll.checked;
+                }
             });
         });
     }
+
+    document.addEventListener("change", function (e) {
+        if (e.target.classList && e.target.classList.contains("check-auditoria")) {
+            sincronizarSelectAll();
+        }
+    });
 
     if (btnLimpiar) {
         btnLimpiar.addEventListener("click", function () {
-            const seleccionados = Array.from(document.querySelectorAll(".check-auditoria:checked"));
-
-            if (seleccionados.length === 0) {
-                mostrarAlertaSeleccionAuditoria("Para quitar obras primero debe seleccionar al menos una obra.");
+            const seleccionadas = Array.from(document.querySelectorAll(".check-auditoria:checked"));
+            if (seleccionadas.length === 0) {
+                mostrarAlertaSeleccionAuditoria("Seleccione al menos una obra en la tabla antes de presionar Limpiar.");
                 return;
             }
 
-            mostrarConfirmacionLimpiarAuditoria("¿Quieres eliminar estas obras de aquí?", function () {
-                const urlLimpiar = btnLimpiar.getAttribute("data-url-limpiar");
-                const ids = seleccionados.map((chk) => chk.value);
+            const ids = seleccionadas.map((cb) => cb.value);
+            const urlLimpiar = btnLimpiar.dataset.urlLimpiar;
 
-                fetch(urlLimpiar, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRFToken": obtenerCsrfToken(),
-                        "X-Requested-With": "XMLHttpRequest",
-                    },
-                    body: JSON.stringify({ ids: ids }),
-                })
-                    .then(async (response) => {
-                        const data = await response.json().catch(() => ({}));
-                        if (!response.ok || !data.ok) {
-                            throw new Error(data.error || "No se pudieron quitar las obras seleccionadas.");
-                        }
-
-                        seleccionados.forEach((chk) => {
-                            const fila = chk.closest(".fila-auditoria");
-                            if (fila) fila.remove();
-                        });
-
-                        if (checkSelectAll) checkSelectAll.checked = false;
-                        actualizarContadores();
-                        aplicarFiltros();
-                    })
-                    .catch((error) => {
-                        mostrarAlertaSeleccionAuditoria(error.message || "Error al comunicar con el servidor.");
+            mostrarConfirmacionLimpiarAuditoria(
+                `¿Desea quitar ${ids.length} obra(s) seleccionada(s) de esta pantalla? No se eliminarán del historial y podrá volver a verlas en el historial completo.`,
+                async function () {
+                    const resp = await fetch(urlLimpiar, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": obtenerCsrfToken(),
+                        },
+                        body: JSON.stringify({ accion: "limpiar", ids }),
                     });
-            });
+                    const data = await resp.json();
+                    if (!resp.ok || !data.ok) {
+                        mostrarAlertaSeleccionAuditoria(data.error || "No se pudieron limpiar las obras.");
+                        return;
+                    }
+                    window.location.reload();
+                }
+            );
         });
     }
 
-    actualizarContadores();
+    if (btnRestaurar) {
+        btnRestaurar.addEventListener("click", async function () {
+            const urlRestaurar = btnRestaurar.dataset.urlRestaurar;
+            const resp = await fetch(urlRestaurar, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": obtenerCsrfToken(),
+                },
+                body: JSON.stringify({ accion: "restaurar" }),
+            });
+            const data = await resp.json();
+            if (resp.ok && data.ok) {
+                window.location.href = window.location.pathname;
+            }
+        });
+    }
+
+    actualizarBadges();
+    aplicarFiltros();
 });

@@ -1,12 +1,11 @@
 from django.urls import path
-# codigo agregado por Luciano
-from .views import SolicitudInsumo, DetalleSolicitudView
+from . import views
 
-app_name = 'inventario'
+app_name = "inventario"
 
 urlpatterns = [
-    path('', SolicitudInsumo.as_view(), name='solicitudes'),
+    path("solicitudes/", views.SolicitudInsumo.as_view(), name="solicitudes"),
+    path("solicitudes/limpiar/", views.LimpiarSolicitudesInsumoView.as_view(), name="limpiar_solicitudes"),
+    path("solicitudes/detalle/", views.DetalleSolicitudView.as_view(), name="detalle_solicitud"),
     
-    # codigo agregado por Luciano
-    path('detalle/', DetalleSolicitudView.as_view(), name='detalle_solicitud'),
 ]

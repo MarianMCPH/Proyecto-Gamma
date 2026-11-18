@@ -136,7 +136,7 @@ class ObraCreateView(TemplateView):
                 {"ok": False, "error": "El técnico seleccionado no es válido o no tiene rol de Técnico activo."},
                 status=400,
             )
-        except Exception as e:
+        except Exception:
             return JsonResponse(
                 {"ok": False, "error": "Ocurrió un problema al guardar en la base de datos. Vuelva a intentarlo."},
                 status=500,
@@ -154,7 +154,7 @@ class ObraUpdateView(TemplateView):
         orden = None
         if obra_id:
             orden = OrdenTrabajo.objects.select_related("cliente", "tecnico").filter(pk=obra_id).first()
-        
+
         context["orden"] = orden
         context["tecnicos"] = Usuario.objects.filter(is_active=True).order_by("first_name", "username")
         return context
@@ -180,7 +180,7 @@ class ObraUpdateView(TemplateView):
         try:
             with transaction.atomic():
                 tecnico = Usuario.objects.get(pk=tecnico_id)
-                
+
                 if orden.cliente:
                     orden.cliente.razon_social = cliente_nombre
                     if rut_cliente:
@@ -198,7 +198,7 @@ class ObraUpdateView(TemplateView):
                 orden.save()
 
             return JsonResponse({"ok": True})
-        except Exception as e:
+        except Exception:
             return JsonResponse({"ok": False, "error": "Error al actualizar la orden."}, status=500)
 
 
@@ -216,9 +216,9 @@ class ObraViewAdmin(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         ids_ocultos = set(self.request.session.get(CLAVE_SESION_GESTION_OCULTAS, []))
-        
+
         ordenes = OrdenTrabajo.objects.select_related("cliente", "tecnico").exclude(id__in=ids_ocultos).order_by("-id")
-        
+
         lista_ordenes = []
         total_todas = 0
         total_en_proceso = 0
@@ -229,7 +229,7 @@ class ObraViewAdmin(TemplateView):
         for orden in ordenes:
             total_todas += 1
             estado_raw = (orden.estado or "").strip().lower()
-            
+
             es_emergencia = (
                 "emergencia" in (orden.tipo_servicio or "").lower() or
                 "urgente" in (orden.tipo_servicio or "").lower() or
@@ -307,13 +307,16 @@ class AuditoriaObras(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        mostrando_historial = self.request.GET.get("historial") == "1"
         ids_ocultos = set(self.request.session.get(CLAVE_SESION_AUDITORIA, []))
 
-        ordenes = (
-            OrdenTrabajo.objects.select_related("cliente", "tecnico")
-            .exclude(id__in=ids_ocultos)
-            .order_by("-id")
-        )
+        qs_base = OrdenTrabajo.objects.select_related("cliente", "tecnico").order_by("-id")
+        total_historial = qs_base.count()
+
+        if mostrando_historial:
+            ordenes = qs_base
+        else:
+            ordenes = qs_base.exclude(id__in=ids_ocultos)
 
         lista_ordenes = []
         total_en_proceso = 0
@@ -361,21 +364,30 @@ class AuditoriaObras(TemplateView):
         context["total_en_proceso"] = total_en_proceso
         context["total_pendientes"] = total_pendientes
         context["total_aprobadas"] = total_aprobadas
+        context["mostrando_historial"] = mostrando_historial
+        context["total_historial"] = total_historial
+        context["total_ocultas"] = len(ids_ocultos)
         return context
 
 
 class LimpiarAuditoriaView(View):
-    """Oculta de la pantalla de auditoría las órdenes seleccionadas sin eliminarlas del historial."""
+    """Oculta o restaura en la pantalla de auditoría las órdenes sin eliminarlas del historial."""
 
     def post(self, request, *args, **kwargs):
         try:
             payload = json.loads(request.body.decode("utf-8") or "{}")
-            ids = payload.get("ids", [])
         except (ValueError, UnicodeDecodeError):
-            ids = request.POST.getlist("ids[]")
+            payload = {"ids": request.POST.getlist("ids[]"), "accion": request.POST.get("accion", "limpiar")}
+
+        accion = (payload.get("accion") or "limpiar").strip().lower()
+
+        if accion == "restaurar":
+            request.session[CLAVE_SESION_AUDITORIA] = []
+            request.session.modified = True
+            return JsonResponse({"ok": True})
 
         ids_nuevos = []
-        for raw_id in ids:
+        for raw_id in payload.get("ids", []):
             try:
                 ids_nuevos.append(int(raw_id))
             except (TypeError, ValueError):
@@ -470,7 +482,6 @@ class AuditarObraEspecifica(TemplateView):
         else:
             gps_faena = orden.direccion or (cliente.direccion if cliente else "Sin ubicación registrada")
 
-        # Checklist / observaciones técnicas asociadas a la orden
         checklist_items = []
         obs_texto = (orden.observacion_auditoria or "").strip()
         if obs_texto:
@@ -479,7 +490,6 @@ class AuditarObraEspecifica(TemplateView):
                 if limpia:
                     checklist_items.append(limpia)
 
-        # Materiales asociados a esta orden desde MovimientoInventario
         movimientos = (
             MovimientoInventario.objects.select_related("material")
             .filter(orden=orden)
@@ -495,7 +505,6 @@ class AuditarObraEspecifica(TemplateView):
                 "cantidad": f"{cant} {unidad}",
             })
 
-        # Evidencia multimedia y firma digital si existen en la orden o sus relaciones
         evidencia_1 = self._obtener_campo_archivo(
             orden, ("foto_antes", "imagen_antes", "evidencia_1", "foto_1", "imagen_1")
         )

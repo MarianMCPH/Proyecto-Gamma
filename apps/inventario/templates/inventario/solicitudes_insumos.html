@@ -34,12 +34,25 @@
 
 <!-- CONTENEDOR DE FILTROS Y TABLA -->
 <div class="panel-tabla">
-    <!-- Pestañas de estado -->
-    <div class="d-flex flex-wrap gap-2 mb-3">
-        <button type="button" class="tab-filtro active" data-estado="todas">Todas</button>
-        <button type="button" class="tab-filtro" data-estado="pendiente">Pendientes</button>
-        <button type="button" class="tab-filtro" data-estado="aprobada">Aprobadas</button>
-        <button type="button" class="tab-filtro" data-estado="rechazada">Rechazadas</button>
+    {% csrf_token %}
+
+    <!-- Pestañas de estado + Botón Limpiar -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="tab-filtro active" data-estado="todas">Todas</button>
+            <button type="button" class="tab-filtro" data-estado="pendiente">Pendientes</button>
+            <button type="button" class="tab-filtro" data-estado="aprobada">Aprobadas</button>
+            <button type="button" class="tab-filtro" data-estado="rechazada">Rechazadas</button>
+        </div>
+
+        <div>
+            <button type="button"
+                    id="btnLimpiarSolicitudes"
+                    data-url-limpiar="{% url 'inventario:limpiar_solicitudes' %}"
+                    class="btn btn-sm btn-outline-secondary px-3">
+                <i class="bi bi-eraser me-1"></i> Limpiar
+            </button>
+        </div>
     </div>
 
     <!-- Buscador -->
@@ -64,6 +77,9 @@
         <table class="table table-bordered table-hover table-fyag mb-0" id="tablaSolicitudes">
             <thead>
                 <tr>
+                    <th style="width: 38px;" class="text-center">
+                        <input type="checkbox" id="selectAllSolicitudes" class="form-check-input" title="Seleccionar visibles">
+                    </th>
                     <th>Obra / Cliente</th>
                     <th>Técnico Solicitante</th>
                     <th>Fecha</th>
@@ -81,6 +97,9 @@
                     data-prioridad="{{ sol.prioridad }}"
                     data-urgente="{% if sol.es_urgente %}1{% else %}0{% endif %}"
                     data-busqueda="{{ sol.texto_busqueda }}">
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input check-solicitud" value="{{ sol.id }}">
+                    </td>
                     <td>{{ sol.obra_cliente }}</td>
                     <td>{{ sol.tecnico }}</td>
                     <td>{{ sol.fecha }}</td>
@@ -93,19 +112,55 @@
                         {% endif %}
                     </td>
                     <td><span class="{{ sol.pill_clase }}">{{ sol.estado_label }}</span></td>
-                        <td>
-                            <a href="{% url 'inventario:detalle_solicitud' %}?id={{ sol.id }}" class="btn-detalle">Revisar</a>
-                        </td>
+                    <td>
+                        <a href="{% url 'inventario:detalle_solicitud' %}?id={{ sol.id }}" class="btn-detalle">Revisar</a>
+                    </td>
                 </tr>
                 {% endfor %}
 
                 <tr id="filaSinResultadosSolicitudes" {% if solicitudes %}style="display: none;"{% endif %}>
-                    <td colspan="7" class="text-center py-4 text-muted">
+                    <td colspan="8" class="text-center py-4 text-muted">
                         <span id="textoSinResultadosSolicitudes">No hay solicitudes de insumos registradas.</span>
                     </td>
                 </tr>
             </tbody>
         </table>
+    </div>
+
+    <!-- Enlace inferior para alternar entre bandeja activa e historial completo -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 pt-2 border-top small">
+        <div class="text-muted">
+            {% if mostrando_historial %}
+                Mostrando el <strong>historial completo</strong> ({{ total_historial }} solicitudes registradas en la base de datos).
+            {% else %}
+                {% if total_ocultas > 0 %}
+                    Hay <strong>{{ total_ocultas }}</strong> solicitud{{ total_ocultas|pluralize:"es" }} limpia{{ total_ocultas|pluralize:"s" }} de esta vista.
+                {% else %}
+                    Mostrando todas las solicitudes activas en bandeja.
+                {% endif %}
+            {% endif %}
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            {% if total_ocultas > 0 %}
+                <button type="button"
+                        id="btnRestaurarSolicitudes"
+                        data-url-restaurar="{% url 'inventario:limpiar_solicitudes' %}"
+                        class="btn btn-link btn-sm text-decoration-none p-0 text-secondary">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Restaurar limpiadas ({{ total_ocultas }})
+                </button>
+            {% endif %}
+
+            {% if mostrando_historial %}
+                <a href="{% url 'inventario:solicitudes' %}" class="text-decoration-none fw-semibold" style="color: #373b6e;">
+                    <i class="bi bi-funnel me-1"></i>Volver a vista filtrada
+                </a>
+            {% else %}
+                <a href="{% url 'inventario:solicitudes' %}?historial=1" class="text-decoration-none fw-semibold" style="color: #373b6e;">
+                    <i class="bi bi-clock-history me-1"></i>Ver historial completo de solicitudes ({{ total_historial }})
+                </a>
+            {% endif %}
+        </div>
     </div>
 </div>
 
