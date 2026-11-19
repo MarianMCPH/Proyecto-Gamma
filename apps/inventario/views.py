@@ -4,9 +4,12 @@ import json
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from django.views import View
 from django.views.generic import TemplateView
 
 from .models import Material, MovimientoInventario
+
+CLAVE_SESION_SOLICITUDES_OCULTAS = "solicitudes_insumos_ocultas"
 
 
 class SolicitudInsumo(TemplateView):
@@ -16,16 +19,21 @@ class SolicitudInsumo(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        mostrando_historial = self.request.GET.get("historial") == "1"
+        ids_ocultos = set(self.request.session.get(CLAVE_SESION_SOLICITUDES_OCULTAS, []))
 
-        movimientos = (
-            MovimientoInventario.objects.select_related(
-                "material",
-                "orden",
-                "orden__cliente",
-                "usuario",
-            )
-            .order_by("-fecha", "-id")
-        )
+        qs_base = MovimientoInventario.objects.select_related(
+            "material",
+            "orden",
+            "orden__cliente",
+            "usuario",
+        ).order_by("-fecha", "-id")
+
+        total_historial = qs_base.count()
+        if mostrando_historial:
+            movimientos = qs_base
+        else:
+            movimientos = qs_base.exclude(id__in=ids_ocultos)
 
         solicitudes = []
         pendientes_count = 0
@@ -103,7 +111,47 @@ class SolicitudInsumo(TemplateView):
         context["total_pendientes"] = pendientes_count
         context["total_urgentes_sin_stock"] = urgentes_sin_stock_count
         context["total_aprobadas"] = aprobadas_count
+        context["mostrando_historial"] = mostrando_historial
+        context["total_historial"] = total_historial
+        context["total_ocultas"] = len(ids_ocultos)
         return context
+
+
+class LimpiarSolicitudesInsumoView(View):
+    """Oculta de la bandeja principal las solicitudes seleccionadas sin borrarlas de la BD."""
+
+    def post(self, request, *args, **kwargs):
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except (ValueError, UnicodeDecodeError):
+            payload = {"ids": request.POST.getlist("ids[]"), "accion": request.POST.get("accion", "limpiar")}
+
+        accion = (payload.get("accion") or "limpiar").strip().lower()
+
+        if accion == "restaurar":
+            request.session[CLAVE_SESION_SOLICITUDES_OCULTAS] = []
+            request.session.modified = True
+            return JsonResponse({"ok": True})
+
+        ids_nuevos = []
+        for raw_id in payload.get("ids", []):
+            try:
+                ids_nuevos.append(int(raw_id))
+            except (TypeError, ValueError):
+                continue
+
+        if not ids_nuevos:
+            return JsonResponse(
+                {"ok": False, "error": "Para limpiar la pantalla primero debe seleccionar al menos una solicitud."},
+                status=400,
+            )
+
+        actuales = set(request.session.get(CLAVE_SESION_SOLICITUDES_OCULTAS, []))
+        actuales.update(ids_nuevos)
+        request.session[CLAVE_SESION_SOLICITUDES_OCULTAS] = list(actuales)
+        request.session.modified = True
+
+        return JsonResponse({"ok": True, "actualizadas": len(ids_nuevos)})
 
 
 class DetalleSolicitudView(TemplateView):
@@ -306,7 +354,6 @@ class DetalleSolicitudView(TemplateView):
                             status=400,
                         )
 
-                    # Rebajar stock en Cardex solo si aún no estaba aprobada
                     if (mov_locked.estado_validacion or "").strip().lower() not in {"aprobada", "despachada"}:
                         material_locked.stock_actual = (material_locked.stock_actual or Decimal("0")) - cant_aprobar
                         material_locked.save(update_fields=["stock_actual"])
@@ -329,7 +376,6 @@ class DetalleSolicitudView(TemplateView):
                         "stock_actualizado": f"{material_locked.stock_actual:g}",
                     })
 
-                # Acción: rechazar
                 mov_locked.estado_validacion = "rechazada"
                 mov_locked.motivo = (
                     f"{base_motivo} | Obs. Admin: {observacion}"
