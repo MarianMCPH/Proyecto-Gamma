@@ -9,12 +9,12 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views import View
 from django.views.generic import TemplateView
+from django.template.loader import render_to_string
+from django.templatetags.static import static
+from django.views import View
 
 from apps.inventario.models import MovimientoInventario
-from .models import Cliente, OrdenTrabajo
-
-from apps.inventario.models import MovimientoInventario
-from .models import Cliente, OrdenTrabajo
+from .models import Cliente, OrdenTrabajo, ReporteGenerado
 
 Usuario = get_user_model()
 CLAVE_SESION_AUDITORIA = "ordenes_ocultas_auditoria"
@@ -755,3 +755,153 @@ class ProgresoResultadosObrasView(TemplateView):
             "obras_progreso": lista_obras,
         })
         return context
+
+class ReportesObrasView(TemplateView):
+    """Pantalla de generación de reportes e historial."""
+
+    template_name = "obras/reportes.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        hoy = timezone.localdate()
+
+        reportes = ReporteGenerado.objects.select_related("generado_por").all()[:40]
+        lista_reportes = []
+        for rep in reportes:
+            autor = "Administrador"
+            if rep.generado_por:
+                autor = rep.generado_por.get_full_name().strip() or rep.generado_por.username
+
+            lista_reportes.append({
+                "id": rep.id,
+                "titulo": rep.titulo,
+                "fecha_generacion": timezone.localtime(rep.fecha_generacion).strftime("%d/%m/%Y %H:%M"),
+                "autor": autor,
+                "formato": rep.formato,
+                "secciones": rep.secciones_incluidas or [],
+            })
+
+        context["fecha_desde_default"] = hoy.replace(day=1).strftime("%Y-%m-%d")
+        context["fecha_hasta_default"] = hoy.strftime("%Y-%m-%d")
+        context["historial_reportes"] = lista_reportes
+        return context
+
+
+class GenerarReportePDFView(View):
+    """Genera un reporte sencillo según fechas y checkboxes, y lo guarda en el historial."""
+
+    def _clasificar(self, estado_raw: str):
+        estado = (estado_raw or "").strip().lower()
+        if estado in {"aprobada", "aprobadas", "finalizada", "finalizadas", "facturada", "completada", "validada"}:
+            return "finalizadas"
+        if estado in {"en_proceso", "en proceso", "en_curso", "en curso", "ejecucion", "en_ejecucion"}:
+            return "en_ejecucion"
+        if estado in {"cancelada", "canceladas", "anulada", "anuladas", "rechazada", "baja"}:
+            return "canceladas"
+        return "pendientes"
+
+    def post(self, request, *args, **kwargs):
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except (ValueError, UnicodeDecodeError):
+            payload = request.POST.dict()
+
+        desde_str = (payload.get("fecha_desde") or "").strip()
+        hasta_str = (payload.get("fecha_hasta") or "").strip()
+        opciones = payload.get("opciones") or {}
+
+        if not desde_str or not hasta_str:
+            return JsonResponse({"ok": False, "error": "Seleccione ambas fechas (Desde y Hasta)."}, status=400)
+
+        try:
+            fecha_desde = datetime.strptime(desde_str, "%Y-%m-%d").date()
+            fecha_hasta = datetime.strptime(hasta_str, "%Y-%m-%d").date()
+        except ValueError:
+            return JsonResponse({"ok": False, "error": "Fechas no válidas."}, status=400)
+
+        if fecha_desde > fecha_hasta:
+            return JsonResponse({"ok": False, "error": "'Desde' no puede ser mayor que 'Hasta'."}, status=400)
+
+        inc_total = bool(opciones.get("total_obras", True))
+        inc_finalizadas = bool(opciones.get("finalizadas", True))
+        inc_ejecucion = bool(opciones.get("en_ejecucion", True))
+        inc_canceladas = bool(opciones.get("canceladas", True))
+        inc_graficos = bool(opciones.get("graficos", True))
+
+        if not any([inc_total, inc_finalizadas, inc_ejecucion, inc_canceladas, inc_graficos]):
+            return JsonResponse({"ok": False, "error": "Marque al menos una opción en 'Información incluida'."}, status=400)
+
+        ordenes = list(
+            OrdenTrabajo.objects.select_related("cliente", "tecnico")
+            .filter(fecha_programada__range=(fecha_desde, fecha_hasta))
+            .order_by("fecha_programada", "id")
+        )
+
+        grupos = {"finalizadas": [], "en_ejecucion": [], "pendientes": [], "canceladas": []}
+        for o in ordenes:
+            grupos[self._clasificar(o.estado)].append({
+                "cliente": o.cliente.razon_social if o.cliente else "Sin cliente",
+                "servicio": o.tipo_servicio or "-",
+                "tecnico": (o.tecnico.get_full_name().strip() or o.tecnico.username) if o.tecnico else "Sin asignar",
+                "fecha": o.fecha_programada.strftime("%d/%m/%Y") if o.fecha_programada else "-",
+                "motivo": (o.observacion_auditoria or "Sin motivo registrado.").strip(),
+            })
+
+        total = len(ordenes)
+        pct_fin = round((len(grupos["finalizadas"]) / total) * 100, 1) if total > 0 else 0
+
+        secciones = []
+        if inc_total:
+            secciones.append("Total de obras")
+        if inc_finalizadas:
+            secciones.append("Obras finalizadas")
+        if inc_ejecucion:
+            secciones.append("Obras en ejecución")
+        if inc_canceladas:
+            secciones.append("Obras canceladas y sus motivos")
+        if inc_graficos:
+            secciones.append("Gráficos de resultados")
+
+        logo_url = request.build_absolute_uri(static("img/logo.png"))
+
+        html_reporte = render_to_string(
+            "obras/hoja_reporte.html",
+            {
+                "logo_url": logo_url,
+                "nombre_empresa": "Frío y Agroindustria SpA",
+                "fecha_desde": fecha_desde.strftime("%d/%m/%Y"),
+                "fecha_hasta": fecha_hasta.strftime("%d/%m/%Y"),
+                "inc_total": inc_total,
+                "inc_finalizadas": inc_finalizadas,
+                "inc_ejecucion": inc_ejecucion,
+                "inc_canceladas": inc_canceladas,
+                "inc_graficos": inc_graficos,
+                "total_obras": total,
+                "pct_finalizadas": pct_fin,
+                "finalizadas": grupos["finalizadas"],
+                "en_ejecucion": grupos["en_ejecucion"],
+                "pendientes": grupos["pendientes"],
+                "canceladas": grupos["canceladas"],
+            },
+        )
+
+        titulo = f"Reporte de Obras ({fecha_desde.strftime('%d/%m/%Y')} - {fecha_hasta.strftime('%d/%m/%Y')})"
+        rep = ReporteGenerado.objects.create(
+            titulo=titulo,
+            fecha_desde=fecha_desde,
+            fecha_hasta=fecha_hasta,
+            secciones_incluidas=secciones,
+            formato="PDF",
+            contenido_html=html_reporte,
+            generado_por=request.user if request.user.is_authenticated else None,
+        )
+
+        return JsonResponse({"ok": True, "id": rep.id})
+
+
+class VerReporteHTMLView(View):
+    """Devuelve la hoja HTML del reporte guardado para mostrarla en grande o imprimir/guardar como PDF."""
+
+    def get(self, request, pk, *args, **kwargs):
+        rep = get_object_or_404(ReporteGenerado, pk=pk)
+        return JsonResponse({"ok": True, "titulo": rep.titulo, "html": rep.contenido_html})

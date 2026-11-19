@@ -175,3 +175,28 @@ class Presupuesto(models.Model):
 
     def __str__(self):
         return f"Presupuesto #{self.pk} - OT #{self.orden.pk}"
+
+class ReporteGenerado(models.Model):
+    """Historial de reportes generados desde el Panel Administrativo."""
+
+    titulo = models.CharField(max_length=180)
+    fecha_desde = models.DateField()
+    fecha_hasta = models.DateField()
+    secciones_incluidas = models.JSONField(default=list, blank=True)
+    formato = models.CharField(max_length=10, default="PDF")
+    contenido_html = models.TextField()
+    generado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reportes_generados",
+    )
+    fecha_generacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "reportegenerado"
+        ordering = ["-fecha_generacion", "-id"]
+
+    def __str__(self):
+        return f"{self.titulo} ({self.fecha_desde} al {self.fecha_hasta})"

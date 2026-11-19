@@ -15,4 +15,7 @@ urlpatterns = [
     path('auditoria/limpiar/', views.LimpiarAuditoriaView.as_view(), name='limpiar_auditoria'),
     path('auditar_obra/', views.AuditarObraEspecifica.as_view(), name='auditar_obra'),
     path("progreso-resultados/", views.ProgresoResultadosObrasView.as_view(), name="progreso_resultados"),
+    path("reportes/", views.ReportesObrasView.as_view(), name="reportes"),
+    path("reportes/generar/", views.GenerarReportePDFView.as_view(), name="generar_reporte_pdf"),
+    path("reportes/<int:pk>/ver/", views.VerReporteHTMLView.as_view(), name="ver_reporte_html"),
 ]
