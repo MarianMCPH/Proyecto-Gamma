@@ -1,5 +1,8 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
+from django.db.models import F, Sum
 
 
 class Material(models.Model):
@@ -14,11 +17,63 @@ class Material(models.Model):
     # Umbral para alertas de stock bajo/crítico en el panel administrativo
     stock_minimo = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
+    # Precio unitario base para presupuestos y kits de herramientas
+    precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
     class Meta:
         db_table = "Material"
 
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
+
+
+class KitHerramientas(models.Model):
+    """Kit de materiales y herramientas asociado a un tipo de servicio."""
+
+    nombre = models.CharField(max_length=150)
+    tipo_servicio = models.CharField(max_length=100)
+    descripcion = models.TextField(blank=True, null=True)
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "KitHerramientas"
+        ordering = ["-id"]
+
+    def __str__(self):
+        return f"{self.nombre} ({self.tipo_servicio})"
+
+    @property
+    def total_presupuesto(self):
+        """Calcula automáticamente el presupuesto total del kit."""
+        total = self.detalles.aggregate(
+            total=Sum(F("cantidad") * F("precio_unitario"))
+        )["total"]
+        return total if total is not None else Decimal("0.00")
+
+
+class DetalleKitHerramienta(models.Model):
+    """Material incluido dentro de un kit con su cantidad y precio unitario."""
+
+    kit = models.ForeignKey(
+        KitHerramientas, on_delete=models.CASCADE, related_name="detalles"
+    )
+    material = models.ForeignKey(
+        Material, on_delete=models.PROTECT, related_name="detalles_kit"
+    )
+    cantidad = models.DecimalField(max_digits=10, decimal_places=2, default=1)
+    precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    class Meta:
+        db_table = "DetalleKitHerramienta"
+        unique_together = ("kit", "material")
+
+    @property
+    def subtotal(self):
+        return (self.cantidad or Decimal("0")) * (self.precio_unitario or Decimal("0"))
+
+    def __str__(self):
+        return f"{self.material.nombre} x{self.cantidad} ({self.kit.nombre})"
 
 
 class MovimientoInventario(models.Model):

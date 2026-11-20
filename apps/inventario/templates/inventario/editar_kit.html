@@ -1,0 +1,146 @@
+{% extends "base_admin.html" %}
+{% load static %}
+
+{% block page_title %}Editar Kit: {{ kit.nombre }}{% endblock %}
+
+{% block content %}
+<div class="card-custom p-4">
+    <form id="formEditarKit" method="post">
+        {% csrf_token %}
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label class="form-label small fw-semibold">Nombre del Kit *</label>
+                <input type="text" name="nombre" class="form-control form-control-sm" value="{{ kit.nombre }}" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small fw-semibold">Tipo de Servicio *</label>
+                <input type="text" name="tipo_servicio" list="listaTiposServicioEditar" class="form-control form-control-sm" value="{{ kit.tipo_servicio }}" required>
+                <datalist id="listaTiposServicioEditar">
+                    {% for ts in tipos_servicio %}
+                        <option value="{{ ts }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div class="col-12">
+                <label class="form-label small fw-semibold">Descripción</label>
+                <input type="text" name="descripcion" class="form-control form-control-sm" value="{{ kit.descripcion|default:'' }}">
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small fw-semibold text-dark">Materiales del Kit</span>
+            <button type="button" id="btnAgregarFilaKit" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-plus-lg me-1"></i>Agregar material
+            </button>
+        </div>
+
+        <div class="table-responsive mb-3">
+            <table class="table table-sm align-middle mb-0" id="tablaItemsKit">
+                <thead class="table-light small text-muted">
+                    <tr>
+                        <th>Material</th>
+                        <th style="width: 110px;">Cantidad</th>
+                        <th style="width: 140px;">Precio Unit. ($)</th>
+                        <th style="width: 130px;">Subtotal ($)</th>
+                        <th style="width: 45px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoItemsKit">
+                    {% for det in detalles %}
+                    <tr class="fila-item-kit">
+                        <td>
+                            <select name="material_id[]" class="form-select form-select-sm select-material-kit" required>
+                                <option value="" data-precio="0">Seleccione material...</option>
+                                {% for m in materiales %}
+                                    <option value="{{ m.id }}" data-precio="{{ m.precio_unitario|floatformat:2 }}" {% if m.id == det.material_id %}selected{% endif %}>
+                                        {{ m.codigo }} - {{ m.nombre }} ({{ m.unidad_medida }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="cantidad[]" class="form-control form-control-sm input-cantidad-kit" step="0.01" min="0.01" value="{{ det.cantidad|floatformat:2 }}" required>
+                        </td>
+                        <td>
+                            <input type="number" name="precio_unitario[]" class="form-control form-control-sm input-precio-kit" step="0.01" min="0" value="{{ det.precio_unitario|floatformat:2 }}" required>
+                        </td>
+                        <td class="fw-semibold text-end subtotal-kit">${{ det.subtotal|floatformat:2 }}</td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 btn-quitar-fila" title="Quitar">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr class="fila-item-kit">
+                        <td>
+                            <select name="material_id[]" class="form-select form-select-sm select-material-kit" required>
+                                <option value="" data-precio="0">Seleccione material...</option>
+                                {% for m in materiales %}
+                                    <option value="{{ m.id }}" data-precio="{{ m.precio_unitario|floatformat:2 }}">
+                                        {{ m.codigo }} - {{ m.nombre }} ({{ m.unidad_medida }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="cantidad[]" class="form-control form-control-sm input-cantidad-kit" step="0.01" min="0.01" value="1" required>
+                        </td>
+                        <td>
+                            <input type="number" name="precio_unitario[]" class="form-control form-control-sm input-precio-kit" step="0.01" min="0" value="0.00" required>
+                        </td>
+                        <td class="fw-semibold text-end subtotal-kit">$0.00</td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 btn-quitar-fila" title="Quitar">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center bg-light p-3 rounded mb-4">
+            <span class="fw-semibold text-dark">Presupuesto Total Calculado del Kit:</span>
+            <span id="totalPresupuestoKit" class="fs-5 fw-bold text-success">${{ kit.total_presupuesto|floatformat:2 }}</span>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+            <a href="{% url 'inventario:detalle_kit' kit.id %}" class="btn btn-sm btn-outline-secondary px-3">Cancelar</a>
+            <button type="submit" class="btn btn-sm text-white fw-semibold px-4" style="background-color: #3f4270;">
+                Guardar Cambios
+            </button>
+        </div>
+    </form>
+</div>
+
+<template id="plantillaFilaKit">
+    <tr class="fila-item-kit">
+        <td>
+            <select name="material_id[]" class="form-select form-select-sm select-material-kit" required>
+                <option value="" data-precio="0">Seleccione material...</option>
+                {% for m in materiales %}
+                    <option value="{{ m.id }}" data-precio="{{ m.precio_unitario|floatformat:2 }}">
+                        {{ m.codigo }} - {{ m.nombre }} ({{ m.unidad_medida }})
+                    </option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <input type="number" name="cantidad[]" class="form-control form-control-sm input-cantidad-kit" step="0.01" min="0.01" value="1" required>
+        </td>
+        <td>
+            <input type="number" name="precio_unitario[]" class="form-control form-control-sm input-precio-kit" step="0.01" min="0" value="0.00" required>
+        </td>
+        <td class="fw-semibold text-end subtotal-kit">$0.00</td>
+        <td class="text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 btn-quitar-fila" title="Quitar">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<script src="{% static 'js/kits_herramientas.js' %}"></script>
+{% endblock %}

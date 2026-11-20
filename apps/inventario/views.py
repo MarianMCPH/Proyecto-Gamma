@@ -3,10 +3,38 @@ import json
 
 from django.db import transaction
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
+from django.views import View
 from django.views.generic import TemplateView
 
-from .models import Material, MovimientoInventario
+from apps.obras.models import OrdenTrabajo
+from .models import DetalleKitHerramienta, KitHerramientas, Material, MovimientoInventario
+
+
+def _obtener_tipos_servicio():
+    """Obtiene tipos de servicio desde OrdenTrabajo junto con opciones base."""
+    base = [
+        "Climatización",
+        "Proyecto eléctrico",
+        "Mantención preventiva",
+        "Emergencia en terreno",
+    ]
+    desde_bd = list(
+        OrdenTrabajo.objects.exclude(tipo_servicio__isnull=True)
+        .exclude(tipo_servicio__exact="")
+        .values_list("tipo_servicio", flat=True)
+        .distinct()
+    )
+    combinados = []
+    vistos = set()
+    for item in base + desde_bd:
+        limpio = item.strip()
+        clave = limpio.lower()
+        if limpio and clave not in vistos:
+            vistos.add(clave)
+            combinados.append(limpio)
+    return combinados
 
 
 class SolicitudInsumo(TemplateView):
@@ -306,7 +334,6 @@ class DetalleSolicitudView(TemplateView):
                             status=400,
                         )
 
-                    # Rebajar stock en Cardex solo si aún no estaba aprobada
                     if (mov_locked.estado_validacion or "").strip().lower() not in {"aprobada", "despachada"}:
                         material_locked.stock_actual = (material_locked.stock_actual or Decimal("0")) - cant_aprobar
                         material_locked.save(update_fields=["stock_actual"])
@@ -329,7 +356,6 @@ class DetalleSolicitudView(TemplateView):
                         "stock_actualizado": f"{material_locked.stock_actual:g}",
                     })
 
-                # Acción: rechazar
                 mov_locked.estado_validacion = "rechazada"
                 mov_locked.motivo = (
                     f"{base_motivo} | Obs. Admin: {observacion}"
@@ -350,3 +376,244 @@ class DetalleSolicitudView(TemplateView):
                 {"ok": False, "error": "Ocurrió un problema al actualizar la solicitud. Intente nuevamente."},
                 status=500,
             )
+
+
+class KitHerramientasView(TemplateView):
+    """Pantalla principal del módulo de Kit de herramientas + mini inventario."""
+
+    template_name = "inventario/kits_herramientas.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        kits = KitHerramientas.objects.prefetch_related("detalles__material").all()
+        materiales = Material.objects.order_by("nombre")
+
+        kits_data = []
+        for kit in kits:
+            kits_data.append({
+                "id": kit.id,
+                "nombre": kit.nombre,
+                "tipo_servicio": kit.tipo_servicio,
+                "descripcion": kit.descripcion or "",
+                "cantidad_items": kit.detalles.count(),
+                "total_presupuesto": kit.total_presupuesto,
+            })
+
+        context["kits"] = kits_data
+        context["materiales"] = materiales
+        context["tipos_servicio"] = _obtener_tipos_servicio()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        accion = (request.POST.get("accion") or "").strip()
+
+        if accion == "crear_material":
+            codigo = (request.POST.get("codigo") or "").strip()
+            nombre = (request.POST.get("nombre") or "").strip()
+            unidad = (request.POST.get("unidad_medida") or "un").strip()
+            try:
+                stock_actual = Decimal(request.POST.get("stock_actual") or "0")
+                stock_minimo = Decimal(request.POST.get("stock_minimo") or "0")
+                precio_unitario = Decimal(request.POST.get("precio_unitario") or "0")
+            except InvalidOperation:
+                return JsonResponse({"ok": False, "error": "Valores numéricos inválidos."}, status=400)
+
+            if not codigo or not nombre:
+                return JsonResponse({"ok": False, "error": "Código y nombre son obligatorios."}, status=400)
+
+            if Material.objects.filter(codigo__iexact=codigo).exists():
+                return JsonResponse({"ok": False, "error": "Ya existe un material con ese código."}, status=400)
+
+            mat = Material.objects.create(
+                codigo=codigo,
+                nombre=nombre,
+                unidad_medida=unidad,
+                stock_actual=stock_actual,
+                stock_minimo=stock_minimo,
+                precio_unitario=precio_unitario,
+            )
+            return JsonResponse({
+                "ok": True,
+                "material": {
+                    "id": mat.id,
+                    "codigo": mat.codigo,
+                    "nombre": mat.nombre,
+                    "unidad_medida": mat.unidad_medida,
+                    "stock_actual": f"{mat.stock_actual:g}",
+                    "precio_unitario": f"{mat.precio_unitario:.2f}",
+                },
+            })
+
+        if accion == "actualizar_precio_material":
+            mat_id = request.POST.get("material_id")
+            try:
+                nuevo_precio = Decimal(request.POST.get("precio_unitario") or "0")
+                if nuevo_precio < 0:
+                    raise InvalidOperation
+            except InvalidOperation:
+                return JsonResponse({"ok": False, "error": "Precio inválido."}, status=400)
+
+            mat = get_object_or_404(Material, pk=mat_id)
+            mat.precio_unitario = nuevo_precio
+            mat.save(update_fields=["precio_unitario"])
+            return JsonResponse({"ok": True, "precio_unitario": f"{mat.precio_unitario:.2f}"})
+
+        nombre_kit = (request.POST.get("nombre") or "").strip()
+        tipo_servicio = (request.POST.get("tipo_servicio") or "").strip()
+        descripcion = (request.POST.get("descripcion") or "").strip()
+
+        material_ids = request.POST.getlist("material_id[]")
+        cantidades = request.POST.getlist("cantidad[]")
+        precios = request.POST.getlist("precio_unitario[]")
+
+        if not nombre_kit or not tipo_servicio:
+            return JsonResponse({"ok": False, "error": "Indica el nombre del kit y el tipo de servicio."}, status=400)
+
+        try:
+            with transaction.atomic():
+                kit = KitHerramientas.objects.create(
+                    nombre=nombre_kit,
+                    tipo_servicio=tipo_servicio,
+                    descripcion=descripcion,
+                )
+
+                for idx, mat_id in enumerate(material_ids):
+                    if not str(mat_id).isdigit():
+                        continue
+                    mat = Material.objects.filter(pk=int(mat_id)).first()
+                    if not mat:
+                        continue
+
+                    cant_raw = cantidades[idx] if idx < len(cantidades) else "1"
+                    precio_raw = precios[idx] if idx < len(precios) else ""
+
+                    cant = Decimal(cant_raw or "1")
+                    if cant <= 0:
+                        continue
+
+                    precio = (
+                        Decimal(precio_raw)
+                        if (precio_raw and str(precio_raw).strip() != "")
+                        else (mat.precio_unitario or Decimal("0"))
+                    )
+                    if precio < 0:
+                        precio = Decimal("0")
+
+                    if precio_raw and str(precio_raw).strip() != "":
+                        mat.precio_unitario = precio
+                        mat.save(update_fields=["precio_unitario"])
+
+                    DetalleKitHerramienta.objects.update_or_create(
+                        kit=kit,
+                        material=mat,
+                        defaults={"cantidad": cant, "precio_unitario": precio},
+                    )
+
+            return JsonResponse({"ok": True, "redirect_url": reverse("inventario:detalle_kit", args=[kit.id])})
+        except Exception:
+            return JsonResponse({"ok": False, "error": "No se pudo crear el kit."}, status=500)
+
+
+class DetalleKitView(TemplateView):
+    """Visualiza un kit con sus materiales, precios y presupuesto total calculado."""
+
+    template_name = "inventario/detalle_kit.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        kit = get_object_or_404(
+            KitHerramientas.objects.prefetch_related("detalles__material"),
+            pk=kwargs.get("pk"),
+        )
+        items = []
+        for det in kit.detalles.all():
+            items.append({
+                "id": det.id,
+                "codigo": det.material.codigo,
+                "nombre": det.material.nombre,
+                "unidad": det.material.unidad_medida,
+                "cantidad": det.cantidad,
+                "precio_unitario": det.precio_unitario,
+                "subtotal": det.subtotal,
+            })
+
+        context["kit"] = kit
+        context["items"] = items
+        context["total_presupuesto"] = kit.total_presupuesto
+        return context
+
+
+class EditarKitView(TemplateView):
+    """Permite editar el kit, sus materiales, cantidades y precios."""
+
+    template_name = "inventario/editar_kit.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        kit = get_object_or_404(
+            KitHerramientas.objects.prefetch_related("detalles__material"),
+            pk=kwargs.get("pk"),
+        )
+        context["kit"] = kit
+        context["detalles"] = list(kit.detalles.select_related("material").all())
+        context["materiales"] = Material.objects.order_by("nombre")
+        context["tipos_servicio"] = _obtener_tipos_servicio()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        kit = get_object_or_404(KitHerramientas, pk=kwargs.get("pk"))
+        nombre_kit = (request.POST.get("nombre") or "").strip()
+        tipo_servicio = (request.POST.get("tipo_servicio") or "").strip()
+        descripcion = (request.POST.get("descripcion") or "").strip()
+
+        material_ids = request.POST.getlist("material_id[]")
+        cantidades = request.POST.getlist("cantidad[]")
+        precios = request.POST.getlist("precio_unitario[]")
+
+        if not nombre_kit or not tipo_servicio:
+            return JsonResponse({"ok": False, "error": "Nombre y tipo de servicio son obligatorios."}, status=400)
+
+        try:
+            with transaction.atomic():
+                kit.nombre = nombre_kit
+                kit.tipo_servicio = tipo_servicio
+                kit.descripcion = descripcion
+                kit.save(update_fields=["nombre", "tipo_servicio", "descripcion"])
+
+                kit.detalles.all().delete()
+                for idx, mat_id in enumerate(material_ids):
+                    if not str(mat_id).isdigit():
+                        continue
+                    mat = Material.objects.filter(pk=int(mat_id)).first()
+                    if not mat:
+                        continue
+                    cant = Decimal((cantidades[idx] if idx < len(cantidades) else "1") or "1")
+                    if cant <= 0:
+                        continue
+                    precio_raw = precios[idx] if idx < len(precios) else ""
+                    precio = (
+                        Decimal(precio_raw)
+                        if (precio_raw and str(precio_raw).strip() != "")
+                        else (mat.precio_unitario or Decimal("0"))
+                    )
+                    DetalleKitHerramienta.objects.create(
+                        kit=kit,
+                        material=mat,
+                        cantidad=cant,
+                        precio_unitario=precio,
+                    )
+
+            return JsonResponse({"ok": True, "redirect_url": reverse("inventario:detalle_kit", args=[kit.id])})
+        except Exception:
+            return JsonResponse({"ok": False, "error": "No se pudo actualizar el kit."}, status=500)
+
+
+class EliminarKitView(View):
+    """Elimina un kit de herramientas."""
+
+    def post(self, request, *args, **kwargs):
+        kit = get_object_or_404(KitHerramientas, pk=kwargs.get("pk"))
+        kit.delete()
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"ok": True})
+        return redirect("inventario:kits_herramientas")

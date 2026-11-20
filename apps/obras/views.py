@@ -42,7 +42,7 @@ class ObraDetailView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        obra_id = self.request.GET.get('id')
+        obra_id = self.request.GET.get("id")
         orden = None
         if obra_id:
             orden = OrdenTrabajo.objects.select_related("cliente", "tecnico").filter(pk=obra_id).first()
@@ -136,7 +136,7 @@ class ObraCreateView(TemplateView):
                 {"ok": False, "error": "El técnico seleccionado no es válido o no tiene rol de Técnico activo."},
                 status=400,
             )
-        except Exception as e:
+        except Exception:
             return JsonResponse(
                 {"ok": False, "error": "Ocurrió un problema al guardar en la base de datos. Vuelva a intentarlo."},
                 status=500,
@@ -150,17 +150,17 @@ class ObraUpdateView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        obra_id = self.request.GET.get('id')
+        obra_id = self.request.GET.get("id")
         orden = None
         if obra_id:
             orden = OrdenTrabajo.objects.select_related("cliente", "tecnico").filter(pk=obra_id).first()
-        
+
         context["orden"] = orden
-        context["tecnicos"] = Usuario.objects.filter(is_active=True).order_by("first_name", "username")
+        context["tecnicos"] = obtener_tecnicos_activos()
         return context
 
     def post(self, request, *args, **kwargs):
-        obra_id = request.POST.get("obra_id") or request.GET.get('id')
+        obra_id = request.POST.get("obra_id") or self.request.GET.get("id")
         orden = OrdenTrabajo.objects.filter(pk=obra_id).first()
 
         if not orden:
@@ -179,8 +179,8 @@ class ObraUpdateView(TemplateView):
 
         try:
             with transaction.atomic():
-                tecnico = Usuario.objects.get(pk=tecnico_id)
-                
+                tecnico = obtener_tecnicos_activos().get(pk=tecnico_id)
+
                 if orden.cliente:
                     orden.cliente.razon_social = cliente_nombre
                     if rut_cliente:
@@ -198,7 +198,9 @@ class ObraUpdateView(TemplateView):
                 orden.save()
 
             return JsonResponse({"ok": True})
-        except Exception as e:
+        except Usuario.DoesNotExist:
+            return JsonResponse({"ok": False, "error": "El técnico seleccionado no es válido."}, status=400)
+        except Exception:
             return JsonResponse({"ok": False, "error": "Error al actualizar la orden."}, status=500)
 
 
@@ -216,9 +218,13 @@ class ObraViewAdmin(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         ids_ocultos = set(self.request.session.get(CLAVE_SESION_GESTION_OCULTAS, []))
-        
-        ordenes = OrdenTrabajo.objects.select_related("cliente", "tecnico").exclude(id__in=ids_ocultos).order_by("-id")
-        
+
+        ordenes = (
+            OrdenTrabajo.objects.select_related("cliente", "tecnico")
+            .exclude(id__in=ids_ocultos)
+            .order_by("-id")
+        )
+
         lista_ordenes = []
         total_todas = 0
         total_en_proceso = 0
@@ -229,12 +235,12 @@ class ObraViewAdmin(TemplateView):
         for orden in ordenes:
             total_todas += 1
             estado_raw = (orden.estado or "").strip().lower()
-            
+
             es_emergencia = (
-                "emergencia" in (orden.tipo_servicio or "").lower() or
-                "urgente" in (orden.tipo_servicio or "").lower() or
-                "emergencia" in (orden.observacion_auditoria or "").lower() or
-                "urgente" in (orden.observacion_auditoria or "").lower()
+                "emergencia" in (orden.tipo_servicio or "").lower()
+                or "urgente" in (orden.tipo_servicio or "").lower()
+                or "emergencia" in (orden.observacion_auditoria or "").lower()
+                or "urgente" in (orden.observacion_auditoria or "").lower()
             )
             if es_emergencia:
                 total_emergencias += 1
@@ -279,25 +285,32 @@ class ObraViewAdmin(TemplateView):
 
 
 class OcultarGestionObraView(View):
-    """Oculta temporalmente de la pantalla de gestión las obras seleccionadas sin eliminarlas de la BD."""
+    """Marca o desmarca desactivada_gestion en la base de datos."""
 
     def post(self, request, *args, **kwargs):
         try:
             payload = json.loads(request.body.decode("utf-8") or "{}")
             ids = payload.get("ids", [])
+            accion = payload.get("accion", "toggle")
         except (ValueError, UnicodeDecodeError):
             ids = request.POST.getlist("ids[]")
+            accion = request.POST.get("accion", "toggle")
 
-        ids_nuevos = [int(i) for i in ids if str(i).isdigit()]
-        if not ids_nuevos:
-            return JsonResponse({"ok": False, "error": "Seleccione al menos una obra para desactivar."}, status=400)
+        ids_objetivo = [int(i) for i in ids if str(i).isdigit()]
+        if not ids_objetivo:
+            return JsonResponse({"ok": False, "error": "Seleccione al menos una obra."}, status=400)
 
-        actuales = set(request.session.get(CLAVE_SESION_GESTION_OCULTAS, []))
-        actuales.update(ids_nuevos)
-        request.session[CLAVE_SESION_GESTION_OCULTAS] = list(actuales)
-        request.session.modified = True
+        ordenes = OrdenTrabajo.objects.filter(pk__in=ids_objetivo)
+        for orden in ordenes:
+            if accion == "activar":
+                orden.desactivada_gestion = False
+            elif accion == "desactivar":
+                orden.desactivada_gestion = True
+            else:
+                orden.desactivada_gestion = not orden.desactivada_gestion
+            orden.save(update_fields=["desactivada_gestion"])
 
-        return JsonResponse({"ok": True, "actualizadas": len(ids_nuevos)})
+        return JsonResponse({"ok": True, "actualizadas": ordenes.count()})
 
 
 class AuditoriaObras(TemplateView):
@@ -470,7 +483,6 @@ class AuditarObraEspecifica(TemplateView):
         else:
             gps_faena = orden.direccion or (cliente.direccion if cliente else "Sin ubicación registrada")
 
-        # Checklist / observaciones técnicas asociadas a la orden
         checklist_items = []
         obs_texto = (orden.observacion_auditoria or "").strip()
         if obs_texto:
@@ -479,7 +491,6 @@ class AuditarObraEspecifica(TemplateView):
                 if limpia:
                     checklist_items.append(limpia)
 
-        # Materiales asociados a esta orden desde MovimientoInventario
         movimientos = (
             MovimientoInventario.objects.select_related("material")
             .filter(orden=orden)
@@ -495,7 +506,6 @@ class AuditarObraEspecifica(TemplateView):
                 "cantidad": f"{cant} {unidad}",
             })
 
-        # Evidencia multimedia y firma digital si existen en la orden o sus relaciones
         evidencia_1 = self._obtener_campo_archivo(
             orden, ("foto_antes", "imagen_antes", "evidencia_1", "foto_1", "imagen_1")
         )
