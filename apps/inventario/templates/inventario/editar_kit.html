@@ -50,19 +50,19 @@
                     <tr class="fila-item-kit">
                         <td>
                             <select name="material_id[]" class="form-select form-select-sm select-material-kit" required>
-                                <option value="" data-precio="0">Seleccione material...</option>
+                                <option value="" data-precio="0.00">Seleccione material...</option>
                                 {% for m in materiales %}
-                                    <option value="{{ m.id }}" data-precio="{{ m.precio_unitario|floatformat:2 }}" {% if m.id == det.material_id %}selected{% endif %}>
+                                    <option value="{{ m.id }}" data-precio="{{ m.precio_unitario|stringformat:'.2f' }}" {% if m.id == det.material_id %}selected{% endif %}>
                                         {{ m.codigo }} - {{ m.nombre }} ({{ m.unidad_medida }})
                                     </option>
                                 {% endfor %}
                             </select>
                         </td>
                         <td>
-                            <input type="number" name="cantidad[]" class="form-control form-control-sm input-cantidad-kit" step="0.01" min="0.01" value="{{ det.cantidad|floatformat:2 }}" required>
+                            <input type="number" name="cantidad[]" class="form-control form-control-sm input-cantidad-kit" step="0.01" min="0.01" value="{{ det.cantidad|stringformat:'.2f' }}" required>
                         </td>
                         <td>
-                            <input type="number" name="precio_unitario[]" class="form-control form-control-sm input-precio-kit" step="0.01" min="0" value="{{ det.precio_unitario|floatformat:2 }}" required>
+                            <input type="number" name="precio_unitario[]" class="form-control form-control-sm input-precio-kit" step="0.01" min="0" value="{{ det.precio_unitario|stringformat:'.2f' }}" required>
                         </td>
                         <td class="fw-semibold text-end subtotal-kit">${{ det.subtotal|floatformat:2 }}</td>
                         <td class="text-end">
@@ -75,16 +75,16 @@
                     <tr class="fila-item-kit">
                         <td>
                             <select name="material_id[]" class="form-select form-select-sm select-material-kit" required>
-                                <option value="" data-precio="0">Seleccione material...</option>
+                                <option value="" data-precio="0.00">Seleccione material...</option>
                                 {% for m in materiales %}
-                                    <option value="{{ m.id }}" data-precio="{{ m.precio_unitario|floatformat:2 }}">
+                                    <option value="{{ m.id }}" data-precio="{{ m.precio_unitario|stringformat:'.2f' }}">
                                         {{ m.codigo }} - {{ m.nombre }} ({{ m.unidad_medida }})
                                     </option>
                                 {% endfor %}
                             </select>
                         </td>
                         <td>
-                            <input type="number" name="cantidad[]" class="form-control form-control-sm input-cantidad-kit" step="0.01" min="0.01" value="1" required>
+                            <input type="number" name="cantidad[]" class="form-control form-control-sm input-cantidad-kit" step="0.01" min="0.01" value="1.00" required>
                         </td>
                         <td>
                             <input type="number" name="precio_unitario[]" class="form-control form-control-sm input-precio-kit" step="0.01" min="0" value="0.00" required>
@@ -119,16 +119,16 @@
     <tr class="fila-item-kit">
         <td>
             <select name="material_id[]" class="form-select form-select-sm select-material-kit" required>
-                <option value="" data-precio="0">Seleccione material...</option>
+                <option value="" data-precio="0.00">Seleccione material...</option>
                 {% for m in materiales %}
-                    <option value="{{ m.id }}" data-precio="{{ m.precio_unitario|floatformat:2 }}">
+                    <option value="{{ m.id }}" data-precio="{{ m.precio_unitario|stringformat:'.2f' }}">
                         {{ m.codigo }} - {{ m.nombre }} ({{ m.unidad_medida }})
                     </option>
                 {% endfor %}
             </select>
         </td>
         <td>
-            <input type="number" name="cantidad[]" class="form-control form-control-sm input-cantidad-kit" step="0.01" min="0.01" value="1" required>
+            <input type="number" name="cantidad[]" class="form-control form-control-sm input-cantidad-kit" step="0.01" min="0.01" value="1.00" required>
         </td>
         <td>
             <input type="number" name="precio_unitario[]" class="form-control form-control-sm input-precio-kit" step="0.01" min="0" value="0.00" required>

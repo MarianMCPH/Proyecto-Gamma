@@ -1,0 +1,194 @@
+{% extends "base_admin.html" %}
+{% load static %}
+
+{% block page_title %}Crear Nuevo Kit de Herramientas{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card-custom p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4">
+                <div>
+                    <h5 class="fw-bold text-dark m-0">
+                        <i class="bi bi-tools me-2"></i>Configurar Nuevo Kit por Tipo de Servicio
+                    </h5>
+                    <p class="text-muted small mb-0 mt-1">
+                        Selecciona el tipo de servicio y los materiales registrados en el inventario para calcular el presupuesto automáticamente.
+                    </p>
+                </div>
+                <a href="{% url 'inventario:kits_herramientas' %}" class="btn btn-sm btn-outline-secondary fw-semibold px-3">
+                    <i class="bi bi-arrow-left me-1"></i>Regresar
+                </a>
+            </div>
+
+            <form id="formCrearKit" method="post">
+                {% csrf_token %}
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Nombre del Kit *</label>
+                        <input type="text" id="nombreKitInput" name="nombre" class="form-control form-control-sm" placeholder="Nombre del kit" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Tipo de Servicio *</label>
+                        <input type="text" id="tipoServicioKitInput" name="tipo_servicio" list="listaTiposServicio" class="form-control form-control-sm" placeholder="Selecciona o escribe un tipo de servicio" required>
+                        <datalist id="listaTiposServicio">
+                            {% for ts in tipos_servicio %}
+                                <option value="{{ ts }}">
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Descripción (opcional)</label>
+                        <input type="text" id="descripcionKitInput" name="descripcion" class="form-control form-control-sm" placeholder="Detalle breve del kit...">
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small fw-semibold text-dark">Materiales del Kit</span>
+                    <button type="button" id="btnAgregarFilaKit" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-plus-lg me-1"></i>Agregar material al kit
+                    </button>
+                </div>
+
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm align-middle mb-0" id="tablaItemsKit">
+                        <thead class="table-light small text-muted">
+                            <tr>
+                                <th>Material</th>
+                                <th style="width: 130px;">Cantidad</th>
+                                <th style="width: 150px;">Precio Unit. ($)</th>
+                                <th style="width: 140px;" class="text-end">Subtotal ($)</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuerpoItemsKit">
+                            <tr class="fila-item-kit">
+                                <td>
+                                    <select name="material_id[]" class="form-select form-select-sm select-material-kit" required>
+                                        <option value="" data-precio="0.00">
+                                            {% if materiales %}Seleccione un material...{% else %}Aún no se ha agregado ningún material{% endif %}
+                                        </option>
+                                        {% for m in materiales %}
+                                            <option value="{{ m.id }}" data-precio="{{ m.precio_unitario|stringformat:'.2f' }}">
+                                                {{ m.codigo }} - {{ m.nombre }} ({{ m.unidad_medida }})
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="number" name="cantidad[]" class="form-control form-control-sm input-cantidad-kit" step="0.01" min="0.01" value="1.00" required>
+                                </td>
+                                <td>
+                                    <input type="number" name="precio_unitario[]" class="form-control form-control-sm input-precio-kit" step="0.01" min="0" value="0.00" required>
+                                </td>
+                                <td class="fw-semibold text-end subtotal-kit">$0.00</td>
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 btn-quitar-fila" title="Quitar">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center bg-light p-3 rounded mb-4">
+                    <span class="fw-semibold text-dark">Presupuesto Total Calculado del Kit:</span>
+                    <span id="totalPresupuestoKit" class="fs-5 fw-bold text-success">$0.00</span>
+                </div>
+
+                <div class="d-flex justify-content-end">
+                    <button type="button" id="btnAbrirModalConfirmarKit" class="btn btn-sm text-white fw-semibold px-4" style="background-color: #3f4270;">
+                        <i class="bi bi-check-lg me-1"></i>Guardar nuevo kit
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Plantilla oculta para nuevas filas del kit -->
+<template id="plantillaFilaKit">
+    <tr class="fila-item-kit">
+        <td>
+            <select name="material_id[]" class="form-select form-select-sm select-material-kit" required>
+                <option value="" data-precio="0.00">
+                    {% if materiales %}Seleccione un material...{% else %}Aún no se ha agregado ningún material{% endif %}
+                </option>
+                {% for m in materiales %}
+                    <option value="{{ m.id }}" data-precio="{{ m.precio_unitario|stringformat:'.2f' }}">
+                        {{ m.codigo }} - {{ m.nombre }} ({{ m.unidad_medida }})
+                    </option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <input type="number" name="cantidad[]" class="form-control form-control-sm input-cantidad-kit" step="0.01" min="0.01" value="1.00" required>
+        </td>
+        <td>
+            <input type="number" name="precio_unitario[]" class="form-control form-control-sm input-precio-kit" step="0.01" min="0" value="0.00" required>
+        </td>
+        <td class="fw-semibold text-end subtotal-kit">$0.00</td>
+        <td class="text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 btn-quitar-fila" title="Quitar">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<!-- Modal de Confirmación antes de Guardar -->
+<div class="modal fade" id="modalConfirmarGuardarKit" tabindex="-1" aria-labelledby="modalConfirmarGuardarKitLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" id="modalConfirmarGuardarKitLabel">
+                    <i class="bi bi-question-circle me-2 text-primary"></i>Confirmar creación de kit
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body small">
+                <p class="mb-2">¿Deseas guardar este nuevo kit en el sistema con la siguiente información?</p>
+                <div class="bg-light p-3 rounded">
+                    <div><strong>Kit:</strong> <span id="resumenNombreKit">-</span></div>
+                    <div><strong>Tipo de servicio:</strong> <span id="resumenTipoServicioKit">-</span></div>
+                    <div><strong>Presupuesto total:</strong> <span id="resumenTotalKit" class="text-success fw-bold">$0.00</span></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="btnConfirmarGuardarKit" class="btn btn-sm text-white fw-semibold" style="background-color: #3f4270;">
+                    <i class="bi bi-check2 me-1"></i>Sí, guardar kit
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Éxito al Guardar -->
+<div class="modal fade" id="modalExitoGuardarKit" tabindex="-1" aria-labelledby="modalExitoGuardarKitLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold text-success" id="modalExitoGuardarKitLabel">
+                    <i class="bi bi-check-circle-fill me-2"></i>Kit guardado correctamente
+                </h6>
+            </div>
+            <div class="modal-body small">
+                <p class="mb-2">El kit <strong id="exitoNombreKit"></strong> ha sido registrado exitosamente en la base de datos.</p>
+                <p class="mb-0">Presupuesto total calculado: <strong id="exitoTotalKit" class="text-success">$0.00</strong></p>
+            </div>
+            <div class="modal-footer">
+                <a id="btnIrListadoKitsExito" href="{% url 'inventario:kits_herramientas' %}" class="btn btn-sm btn-outline-secondary">
+                    Volver al listado
+                </a>
+                <a id="btnVerDetalleKitExito" href="#" class="btn btn-sm text-white fw-semibold" style="background-color: #3f4270;">
+                    Ver detalle del kit
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/kits_herramientas.js' %}"></script>
+{% endblock %}

@@ -13,7 +13,7 @@ from .models import DetalleKitHerramienta, KitHerramientas, Material, Movimiento
 
 
 def _obtener_tipos_servicio():
-    """Obtiene tipos de servicio desde OrdenTrabajo junto con opciones base."""
+    """Obtiene tipos de servicio reales desde OrdenTrabajo junto con opciones base."""
     base = [
         "Climatización",
         "Proyecto eléctrico",
@@ -379,7 +379,7 @@ class DetalleSolicitudView(TemplateView):
 
 
 class KitHerramientasView(TemplateView):
-    """Pantalla principal del módulo de Kit de herramientas + mini inventario."""
+    """Pantalla 1: Mini inventario de materiales + listado de kits creados con sus acciones."""
 
     template_name = "inventario/kits_herramientas.html"
 
@@ -401,37 +401,49 @@ class KitHerramientasView(TemplateView):
 
         context["kits"] = kits_data
         context["materiales"] = materiales
-        context["tipos_servicio"] = _obtener_tipos_servicio()
         return context
 
     def post(self, request, *args, **kwargs):
         accion = (request.POST.get("accion") or "").strip()
 
-        if accion == "crear_material":
+        if accion == "editar_material":
+            mat_id = request.POST.get("material_id")
+            mat = get_object_or_404(Material, pk=mat_id)
+
             codigo = (request.POST.get("codigo") or "").strip()
             nombre = (request.POST.get("nombre") or "").strip()
             unidad = (request.POST.get("unidad_medida") or "un").strip()
             try:
-                stock_actual = Decimal(request.POST.get("stock_actual") or "0")
-                stock_minimo = Decimal(request.POST.get("stock_minimo") or "0")
-                precio_unitario = Decimal(request.POST.get("precio_unitario") or "0")
+                stock_actual = Decimal(str(request.POST.get("stock_actual") or "0").replace(",", "."))
+                stock_minimo = Decimal(str(request.POST.get("stock_minimo") or "0").replace(",", "."))
+                precio_unitario = Decimal(str(request.POST.get("precio_unitario") or "0").replace(",", "."))
             except InvalidOperation:
                 return JsonResponse({"ok": False, "error": "Valores numéricos inválidos."}, status=400)
 
             if not codigo or not nombre:
                 return JsonResponse({"ok": False, "error": "Código y nombre son obligatorios."}, status=400)
 
-            if Material.objects.filter(codigo__iexact=codigo).exists():
-                return JsonResponse({"ok": False, "error": "Ya existe un material con ese código."}, status=400)
+            if stock_actual < 0 or stock_minimo < 0 or precio_unitario < 0:
+                return JsonResponse({"ok": False, "error": "Los valores numéricos no pueden ser negativos."}, status=400)
 
-            mat = Material.objects.create(
-                codigo=codigo,
-                nombre=nombre,
-                unidad_medida=unidad,
-                stock_actual=stock_actual,
-                stock_minimo=stock_minimo,
-                precio_unitario=precio_unitario,
-            )
+            if Material.objects.filter(codigo__iexact=codigo).exclude(pk=mat.pk).exists():
+                return JsonResponse({"ok": False, "error": "Ya existe otro material con ese código."}, status=400)
+
+            mat.codigo = codigo
+            mat.nombre = nombre
+            mat.unidad_medida = unidad
+            mat.stock_actual = stock_actual
+            mat.stock_minimo = stock_minimo
+            mat.precio_unitario = precio_unitario
+            mat.save(update_fields=[
+                "codigo",
+                "nombre",
+                "unidad_medida",
+                "stock_actual",
+                "stock_minimo",
+                "precio_unitario",
+            ])
+
             return JsonResponse({
                 "ok": True,
                 "material": {
@@ -439,7 +451,8 @@ class KitHerramientasView(TemplateView):
                     "codigo": mat.codigo,
                     "nombre": mat.nombre,
                     "unidad_medida": mat.unidad_medida,
-                    "stock_actual": f"{mat.stock_actual:g}",
+                    "stock_actual": f"{mat.stock_actual:.2f}",
+                    "stock_minimo": f"{mat.stock_minimo:.2f}",
                     "precio_unitario": f"{mat.precio_unitario:.2f}",
                 },
             })
@@ -447,7 +460,7 @@ class KitHerramientasView(TemplateView):
         if accion == "actualizar_precio_material":
             mat_id = request.POST.get("material_id")
             try:
-                nuevo_precio = Decimal(request.POST.get("precio_unitario") or "0")
+                nuevo_precio = Decimal(str(request.POST.get("precio_unitario") or "0").replace(",", "."))
                 if nuevo_precio < 0:
                     raise InvalidOperation
             except InvalidOperation:
@@ -458,6 +471,93 @@ class KitHerramientasView(TemplateView):
             mat.save(update_fields=["precio_unitario"])
             return JsonResponse({"ok": True, "precio_unitario": f"{mat.precio_unitario:.2f}"})
 
+        if accion == "eliminar_material":
+            mat_id = request.POST.get("material_id")
+            mat = get_object_or_404(Material, pk=mat_id)
+
+            if DetalleKitHerramienta.objects.filter(material=mat).exists():
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "error": "No se puede eliminar este material porque está asociado a uno o más kits.",
+                    },
+                    status=400,
+                )
+
+            if MovimientoInventario.objects.filter(material=mat).exists():
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "error": "No se puede eliminar este material porque tiene movimientos de inventario registrados.",
+                    },
+                    status=400,
+                )
+
+            mat.delete()
+            return JsonResponse({"ok": True})
+
+        return JsonResponse({"ok": False, "error": "Acción no válida."}, status=400)
+
+
+class NuevoMaterialView(TemplateView):
+    """Pantalla 2A: Pantalla dedicada para ingresar un nuevo material al inventario."""
+
+    template_name = "inventario/nuevo_material.html"
+
+    def post(self, request, *args, **kwargs):
+        codigo = (request.POST.get("codigo") or "").strip()
+        nombre = (request.POST.get("nombre") or "").strip()
+        unidad = (request.POST.get("unidad_medida") or "un").strip()
+        try:
+            stock_actual = Decimal(str(request.POST.get("stock_actual") or "0").replace(",", "."))
+            stock_minimo = Decimal(str(request.POST.get("stock_minimo") or "0").replace(",", "."))
+            precio_unitario = Decimal(str(request.POST.get("precio_unitario") or "0").replace(",", "."))
+        except InvalidOperation:
+            return JsonResponse({"ok": False, "error": "Valores numéricos inválidos."}, status=400)
+
+        if not codigo or not nombre:
+            return JsonResponse({"ok": False, "error": "Código y nombre son obligatorios."}, status=400)
+
+        if stock_actual < 0 or stock_minimo < 0 or precio_unitario < 0:
+            return JsonResponse({"ok": False, "error": "Los valores numéricos no pueden ser negativos."}, status=400)
+
+        if Material.objects.filter(codigo__iexact=codigo).exists():
+            return JsonResponse({"ok": False, "error": "Ya existe un material con ese código."}, status=400)
+
+        mat = Material.objects.create(
+            codigo=codigo,
+            nombre=nombre,
+            unidad_medida=unidad,
+            stock_actual=stock_actual,
+            stock_minimo=stock_minimo,
+            precio_unitario=precio_unitario,
+        )
+        return JsonResponse({
+            "ok": True,
+            "material": {
+                "id": mat.id,
+                "codigo": mat.codigo,
+                "nombre": mat.nombre,
+                "unidad_medida": mat.unidad_medida,
+                "stock_actual": f"{mat.stock_actual:.2f}",
+                "precio_unitario": f"{mat.precio_unitario:.2f}",
+            },
+            "redirect_url": reverse("inventario:kits_herramientas"),
+        })
+
+
+class CrearKitView(TemplateView):
+    """Pantalla 2B: Formulario dedicado para crear un nuevo kit de herramientas."""
+
+    template_name = "inventario/crear_kit.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["materiales"] = Material.objects.order_by("nombre")
+        context["tipos_servicio"] = _obtener_tipos_servicio()
+        return context
+
+    def post(self, request, *args, **kwargs):
         nombre_kit = (request.POST.get("nombre") or "").strip()
         tipo_servicio = (request.POST.get("tipo_servicio") or "").strip()
         descripcion = (request.POST.get("descripcion") or "").strip()
@@ -467,16 +567,20 @@ class KitHerramientasView(TemplateView):
         precios = request.POST.getlist("precio_unitario[]")
 
         if not nombre_kit or not tipo_servicio:
-            return JsonResponse({"ok": False, "error": "Indica el nombre del kit y el tipo de servicio."}, status=400)
+            return JsonResponse(
+                {"ok": False, "error": "Indica el nombre del kit y el tipo de servicio."},
+                status=400,
+            )
+
+        if not material_ids:
+            return JsonResponse(
+                {"ok": False, "error": "Debes agregar al menos un material al kit."},
+                status=400,
+            )
 
         try:
             with transaction.atomic():
-                kit = KitHerramientas.objects.create(
-                    nombre=nombre_kit,
-                    tipo_servicio=tipo_servicio,
-                    descripcion=descripcion,
-                )
-
+                items_validos = []
                 for idx, mat_id in enumerate(material_ids):
                     if not str(mat_id).isdigit():
                         continue
@@ -484,8 +588,8 @@ class KitHerramientasView(TemplateView):
                     if not mat:
                         continue
 
-                    cant_raw = cantidades[idx] if idx < len(cantidades) else "1"
-                    precio_raw = precios[idx] if idx < len(precios) else ""
+                    cant_raw = str(cantidades[idx] if idx < len(cantidades) else "1").replace(",", ".").strip()
+                    precio_raw = str(precios[idx] if idx < len(precios) else "").replace(",", ".").strip()
 
                     cant = Decimal(cant_raw or "1")
                     if cant <= 0:
@@ -493,13 +597,28 @@ class KitHerramientasView(TemplateView):
 
                     precio = (
                         Decimal(precio_raw)
-                        if (precio_raw and str(precio_raw).strip() != "")
+                        if precio_raw != ""
                         else (mat.precio_unitario or Decimal("0"))
                     )
                     if precio < 0:
                         precio = Decimal("0")
 
-                    if precio_raw and str(precio_raw).strip() != "":
+                    items_validos.append((mat, cant, precio, precio_raw != ""))
+
+                if not items_validos:
+                    return JsonResponse(
+                        {"ok": False, "error": "Selecciona al menos un material válido con cantidad mayor a 0."},
+                        status=400,
+                    )
+
+                kit = KitHerramientas.objects.create(
+                    nombre=nombre_kit,
+                    tipo_servicio=tipo_servicio,
+                    descripcion=descripcion,
+                )
+
+                for mat, cant, precio, actualizar_precio_base in items_validos:
+                    if actualizar_precio_base and mat.precio_unitario != precio:
                         mat.precio_unitario = precio
                         mat.save(update_fields=["precio_unitario"])
 
@@ -509,13 +628,22 @@ class KitHerramientasView(TemplateView):
                         defaults={"cantidad": cant, "precio_unitario": precio},
                     )
 
-            return JsonResponse({"ok": True, "redirect_url": reverse("inventario:detalle_kit", args=[kit.id])})
+            return JsonResponse({
+                "ok": True,
+                "kit_id": kit.id,
+                "kit_nombre": kit.nombre,
+                "total_presupuesto": f"{kit.total_presupuesto:.2f}",
+                "detalle_url": reverse("inventario:detalle_kit", args=[kit.id]),
+                "listado_url": reverse("inventario:kits_herramientas"),
+            })
+        except InvalidOperation:
+            return JsonResponse({"ok": False, "error": "Revisa las cantidades y precios ingresados."}, status=400)
         except Exception:
-            return JsonResponse({"ok": False, "error": "No se pudo crear el kit."}, status=500)
+            return JsonResponse({"ok": False, "error": "No se pudo guardar el nuevo kit."}, status=500)
 
 
 class DetalleKitView(TemplateView):
-    """Visualiza un kit con sus materiales, precios y presupuesto total calculado."""
+    """Pantalla 3: Visualiza un kit con sus materiales, precios y presupuesto total calculado."""
 
     template_name = "inventario/detalle_kit.html"
 
@@ -587,13 +715,13 @@ class EditarKitView(TemplateView):
                     mat = Material.objects.filter(pk=int(mat_id)).first()
                     if not mat:
                         continue
-                    cant = Decimal((cantidades[idx] if idx < len(cantidades) else "1") or "1")
+                    cant = Decimal(str(cantidades[idx] if idx < len(cantidades) else "1").replace(",", "."))
                     if cant <= 0:
                         continue
-                    precio_raw = precios[idx] if idx < len(precios) else ""
+                    precio_raw = str(precios[idx] if idx < len(precios) else "").replace(",", ".").strip()
                     precio = (
                         Decimal(precio_raw)
-                        if (precio_raw and str(precio_raw).strip() != "")
+                        if precio_raw != ""
                         else (mat.precio_unitario or Decimal("0"))
                     )
                     DetalleKitHerramienta.objects.create(
