@@ -78,3 +78,55 @@ class RespuestaChecklist(models.Model):
     def __str__(self):
         estado = "OK" if self.completada else "Pendiente"
         return f"OT #{self.formulario.orden_trabajo_id} - {self.actividad.descripcion}: {estado}"
+
+
+class EvidenciaFotografica(models.Model):
+    """Registro fotográfico (Antes, Después y Adicionales) asociado a una orden de trabajo."""
+
+    TIPO_CHOICES = [
+        ("ANTES", "Antes de la faena"),
+        ("DESPUES", "Después de la faena"),
+        ("ADICIONAL", "Evidencia adicional"),
+    ]
+
+    orden_trabajo = models.ForeignKey(
+        "obras.OrdenTrabajo",
+        on_delete=models.CASCADE,
+        related_name="evidencias_fotograficas",
+    )
+    tecnico = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="evidencias_subidas",
+    )
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default="ADICIONAL")
+    imagen = models.ImageField(upload_to="evidencias_faena/%Y/%m/")
+    observacion = models.TextField(blank=True, null=True)
+    fecha_subida = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "EvidenciaFotografica"
+
+    def __str__(self):
+        return f"Evidencia {self.tipo} - OT #{self.orden_trabajo_id}"
+
+
+class ActaEntregaMandante(models.Model):
+    """Recepción conforme y firma digital del cliente/mandante al finalizar la orden."""
+
+    orden_trabajo = models.OneToOneField(
+        "obras.OrdenTrabajo",
+        on_delete=models.CASCADE,
+        related_name="acta_entrega",
+    )
+    rut_mandante = models.CharField(max_length=20)
+    nombre_completo = models.CharField(max_length=150)
+    cargo_planta = models.CharField(max_length=100)
+    firma_base64 = models.TextField()
+    fecha_firma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "ActaEntregaMandante"
+
+    def __str__(self):
+        return f"Acta OT #{self.orden_trabajo_id} - {self.nombre_completo}"
