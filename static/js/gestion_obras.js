@@ -9,13 +9,14 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.addEventListener('click', function () {
             botonesFiltro.forEach(b => {
                 b.classList.remove('active', 'text-white');
-                if(!b.classList.contains('btn-outline-danger')) {
+                b.style.backgroundColor = '';
+                if (!b.classList.contains('btn-outline-danger')) {
                     b.classList.add('btn-outline-secondary');
                 }
             });
 
             this.classList.add('active', 'text-white');
-            if(this.classList.contains('btn-outline-danger')) {
+            if (this.classList.contains('btn-outline-danger')) {
                 this.style.backgroundColor = '#dc3545';
             } else {
                 this.style.backgroundColor = '#3f4268';
@@ -34,10 +35,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Función unificada para filtrar por categoría y texto de búsqueda
     function aplicarFiltros() {
         const textoBusqueda = inputBuscador ? inputBuscador.value.toLowerCase().trim() : '';
-        let visibles = 0;
 
         filas.forEach(fila => {
             const categoria = fila.getAttribute('data-categoria');
@@ -54,13 +53,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const coincideTexto = textoFila.includes(textoBusqueda);
-
-            if (coincideCategoria && coincideTexto) {
-                fila.style.display = '';
-                visibles++;
-            } else {
-                fila.style.display = 'none';
-            }
+            fila.style.display = (coincideCategoria && coincideTexto) ? '' : 'none';
         });
     }
 
@@ -75,61 +68,36 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     }
-});
-document.addEventListener('DOMContentLoaded', function () {
-    // 1. Seleccionar todos los checkboxes de la tabla
-    const selectAll = document.getElementById('selectAll');
-    if (selectAll) {
-        selectAll.addEventListener('change', function () {
-            document.querySelectorAll('.check-fila').forEach(cb => {
-                if (cb.closest('tr').style.display !== 'none') {
-                    cb.checked = selectAll.checked;
-                }
-            });
-        });
-    }
 
-    // 2. Lógica del botón Desactivar con mensaje de confirmación
-    const btnDesactivar = document.getElementById('btnDesactivarObras');
-    if (btnDesactivar) {
-        btnDesactivar.addEventListener('click', function () {
-            const seleccionadas = Array.from(document.querySelectorAll('.check-fila:checked')).map(cb => cb.value);
-            
-            if (seleccionadas.length === 0) {
-                alert('Por favor, seleccione al menos una orden para desactivar.');
+    // 4. Botón individual "Desactivar obra" en la columna Acciones
+    document.querySelectorAll('.btn-desactivar-obra').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const obraId = this.getAttribute('data-id');
+
+            if (!confirm('¿Estás segura o seguro de desactivar esta orden?')) {
                 return;
             }
 
-            // Mensaje de confirmación personalizado
-            const mensaje = seleccionadas.length === 1 
-                ? '¿Estás segura o seguro de desactivar esta orden?' 
-                : `¿Estás segura o seguro de desactivar las ${seleccionadas.length} órdenes seleccionadas?`;
-
-            if (!confirm(mensaje)) {
-                return; // Si cancela, no hace nada
-            }
-
-            // Petición al backend para ocultarlas de la pantalla
             fetch("/obras/gestion/ocultar/", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
                 },
-                body: JSON.stringify({ ids: seleccionadas })
+                body: JSON.stringify({ ids: [obraId] })
             })
             .then(res => res.json())
             .then(data => {
                 if (data.ok) {
                     location.reload();
                 } else {
-                    alert(data.error || 'Ocurrió un problema al desactivar.');
+                    alert(data.error || 'Ocurrió un problema al desactivar la orden.');
                 }
             })
             .catch(err => {
                 console.error('Error:', err);
-                alert('Error de conexión al intentar desactivar.');
+                alert('Error de conexión al intentar desactivar la orden.');
             });
         });
-    }
+    });
 });
