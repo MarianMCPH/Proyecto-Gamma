@@ -26,9 +26,11 @@
               action="{% url 'usuarios:detalle_usuario' usuario_obj.id %}"
               enctype="multipart/form-data"
               data-url-volver="{% url 'usuarios:ver_usuarios' %}"
+              data-modo="edicion"
               novalidate>
 
             {% csrf_token %}
+            <input type="hidden" id="eliminarFotoActual" name="eliminar_foto" value="0">
 
             <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">
                 Foto de Perfil y Datos Personales
@@ -53,8 +55,16 @@
                     <label for="foto_perfil" class="form-label small fw-semibold mb-1">
                         Cambiar Foto de Perfil <span class="text-muted fw-normal">(Opcional)</span>
                     </label>
-                    <input type="file" class="form-control form-control-sm" id="foto_perfil" name="foto_perfil" accept="image/*">
-                    <div class="text-muted mt-1" style="font-size: 11px;">Si no selecciona una nueva imagen, se conservará la foto actual.</div>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <input type="file" class="form-control form-control-sm" id="foto_perfil" name="foto_perfil" accept="image/*" style="max-width: 320px;">
+                        <button type="button"
+                                id="btnQuitarFoto"
+                                class="btn btn-outline-danger btn-sm"
+                                {% if not perfil_obj or not perfil_obj.foto_perfil %}style="display: none;"{% endif %}>
+                            <i class="bi bi-trash me-1"></i> Quitar foto
+                        </button>
+                    </div>
+                    <div class="text-muted mt-1" style="font-size: 11px;">Si no selecciona una nueva imagen ni la quita, se conservará la foto actual.</div>
                 </div>
             </div>
 
@@ -73,23 +83,37 @@
                         RUT Trabajador <span class="text-danger">*</span>
                     </label>
                     <input type="text" class="form-control form-control-sm" id="rut" name="rut"
-                           value="{% if perfil_obj %}{{ perfil_obj.rut }}{% endif %}" required>
+                           value="{% if perfil_obj %}{{ perfil_obj.rut }}{% endif %}"
+                           placeholder="Ej: 23456789-0" maxlength="10" required>
+                    <div class="text-muted mt-1" style="font-size: 11px;">
+                        Ingrese sin puntos y con guión verificador (Ej: 23456789-0).
+                    </div>
+                    <div id="errorRut" class="text-danger mt-1" style="font-size: 11px; display: none;">
+                        Formato inválido. Debe ingresar el RUT sin puntos y con guión verificador (Ej: 23456789-0).
+                    </div>
                 </div>
 
                 <div class="col-md-4">
                     <label for="correo" class="form-label small fw-semibold">
                         Correo Corporativo <span class="text-danger">*</span>
                     </label>
-                    <input type="email" class="form-control form-control-sm" id="correo" name="correo"
-                           value="{{ usuario_obj.email|default:usuario_obj.username }}" required>
+                    <input type="email" class="form-control form-control-sm bg-light" id="correo" name="correo"
+                           value="{{ usuario_obj.email|default:usuario_obj.username }}" readonly required>
+                    <div class="text-muted mt-1" style="font-size: 11px;">
+                        Se actualiza automáticamente según el nombre del usuario (@frioyagroindustria.cl).
+                    </div>
                 </div>
 
                 <div class="col-md-4">
                     <label for="telefono" class="form-label small fw-semibold">
-                        Número de Contacto <span class="text-danger">*</span>
+                        Número de Contacto <span class="text-muted fw-normal">(Opcional)</span>
                     </label>
                     <input type="text" class="form-control form-control-sm" id="telefono" name="telefono"
-                           value="{% if perfil_obj and perfil_obj.telefono %}{{ perfil_obj.telefono }}{% endif %}" required>
+                           value="{% if perfil_obj and perfil_obj.telefono %}{{ perfil_obj.telefono }}{% endif %}"
+                           placeholder="Ej: 9 7433 8345 o +56 9 7433 8345" maxlength="16">
+                    <div id="errorTelefono" class="text-danger mt-1" style="font-size: 11px; display: none;">
+                        Formato inválido. Use 9 7433 8345 (el +56 es opcional).
+                    </div>
                 </div>
 
                 <div class="col-md-8">
@@ -115,8 +139,10 @@
                     </label>
 
                     <select class="form-select form-select-sm" id="rol" name="rol" required>
-                        <option value="Tecnico" {% if rol_actual == "Tecnico" %}selected{% endif %}>Técnico de Terreno</option>
-                        <option value="Administrador" {% if rol_actual == "Administrador" %}selected{% endif %}>Administrador Central</option>
+                        <option value="Administrador General" {% if rol_actual == "Administrador General" or rol_actual == "Administrador" %}selected{% endif %}>Administrador General</option>
+                        <option value="Administrador Auditor" {% if rol_actual == "Administrador Auditor" %}selected{% endif %}>Administrador Auditor</option>
+                        <option value="Administrador Gestor" {% if rol_actual == "Administrador Gestor" %}selected{% endif %}>Administrador Gestor</option>
+                        <option value="Tecnico" {% if rol_actual == "Tecnico" %}selected{% endif %}>Técnico</option>
                     </select>
                 </div>
 
@@ -155,8 +181,11 @@
                     <input type="password" class="form-control form-control-sm"
                            id="password" name="password" minlength="8"
                            placeholder="Dejar en blanco para mantener actual">
+                    <div id="ayudaPasswordSegura" class="text-muted mt-1" style="font-size: 11px;">
+                        Si no desea cambiar la contraseña, deje el espacio en blanco.
+                    </div>
                     <div id="errorPasswordLongitud" class="text-danger mt-1" style="font-size: 11px; display: none;">
-                        La contraseña debe tener al menos 8 caracteres.
+                        La contraseña debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas y números, y no contener caracteres especiales.
                     </div>
                 </div>
 

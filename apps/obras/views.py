@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+from django.utils import timezone
 import json
 
 from django.contrib.auth import get_user_model
@@ -8,9 +9,12 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views import View
 from django.views.generic import TemplateView
+from django.template.loader import render_to_string
+from django.templatetags.static import static
+from django.views import View
 
 from apps.inventario.models import MovimientoInventario
-from .models import Cliente, OrdenTrabajo
+from .models import Cliente, OrdenTrabajo, ReporteGenerado
 
 Usuario = get_user_model()
 CLAVE_SESION_AUDITORIA = "ordenes_ocultas_auditoria"
@@ -320,13 +324,16 @@ class AuditoriaObras(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        mostrando_historial = self.request.GET.get("historial") == "1"
         ids_ocultos = set(self.request.session.get(CLAVE_SESION_AUDITORIA, []))
 
-        ordenes = (
-            OrdenTrabajo.objects.select_related("cliente", "tecnico")
-            .exclude(id__in=ids_ocultos)
-            .order_by("-id")
-        )
+        qs_base = OrdenTrabajo.objects.select_related("cliente", "tecnico").order_by("-id")
+        total_historial = qs_base.count()
+
+        if mostrando_historial:
+            ordenes = qs_base
+        else:
+            ordenes = qs_base.exclude(id__in=ids_ocultos)
 
         lista_ordenes = []
         total_en_proceso = 0
@@ -374,21 +381,30 @@ class AuditoriaObras(TemplateView):
         context["total_en_proceso"] = total_en_proceso
         context["total_pendientes"] = total_pendientes
         context["total_aprobadas"] = total_aprobadas
+        context["mostrando_historial"] = mostrando_historial
+        context["total_historial"] = total_historial
+        context["total_ocultas"] = len(ids_ocultos)
         return context
 
 
 class LimpiarAuditoriaView(View):
-    """Oculta de la pantalla de auditoría las órdenes seleccionadas sin eliminarlas del historial."""
+    """Oculta o restaura en la pantalla de auditoría las órdenes sin eliminarlas del historial."""
 
     def post(self, request, *args, **kwargs):
         try:
             payload = json.loads(request.body.decode("utf-8") or "{}")
-            ids = payload.get("ids", [])
         except (ValueError, UnicodeDecodeError):
-            ids = request.POST.getlist("ids[]")
+            payload = {"ids": request.POST.getlist("ids[]"), "accion": request.POST.get("accion", "limpiar")}
+
+        accion = (payload.get("accion") or "limpiar").strip().lower()
+
+        if accion == "restaurar":
+            request.session[CLAVE_SESION_AUDITORIA] = []
+            request.session.modified = True
+            return JsonResponse({"ok": True})
 
         ids_nuevos = []
-        for raw_id in ids:
+        for raw_id in payload.get("ids", []):
             try:
                 ids_nuevos.append(int(raw_id))
             except (TypeError, ValueError):
@@ -573,3 +589,332 @@ class AuditarObraEspecifica(TemplateView):
                 {"ok": False, "error": "No se pudo aprobar la obra en la base de datos. Intente nuevamente."},
                 status=500,
             )
+
+class ProgresoResultadosObrasView(TemplateView):
+    """Vista ejecutiva de progreso, distribución por estado y evolución temporal de obras."""
+
+    template_name = "obras/progreso_resultados.html"
+
+    MESES_ES = [
+        "", "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+        "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+    ]
+    DIAS_SEMANA_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+
+    def _clasificar_estado(self, estado_raw: str):
+        estado = (estado_raw or "").strip().lower()
+        if estado in {
+            "aprobada", "aprobadas", "finalizada", "finalizadas",
+            "facturada", "completada", "validada",
+        }:
+            return "finalizadas", "Finalizada", "badge-estado-finalizada", "bi-check-circle-fill"
+        if estado in {
+            "en_proceso", "en proceso", "en_curso", "en curso",
+            "ejecucion", "en_ejecucion",
+        }:
+            return "en_ejecucion", "En ejecución", "badge-estado-ejecucion", "bi-play-circle-fill"
+        if estado in {
+            "cancelada", "canceladas", "anulada", "anuladas",
+            "rechazada", "baja",
+        }:
+            return "canceladas", "Cancelada", "badge-estado-cancelada", "bi-x-circle-fill"
+        return "pendientes", "Pendiente", "badge-estado-pendiente", "bi-clock-fill"
+
+    def _obtener_fecha_referencia(self, orden):
+        for campo in ("fecha_programada", "fecha_cierre", "fecha_fin", "fecha_creacion", "created_at"):
+            val = getattr(orden, campo, None)
+            if val:
+                return val.date() if hasattr(val, "date") else val
+        return None
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        mostrando_historial = self.request.GET.get("historial") == "1"
+
+        periodo = (self.request.GET.get("periodo") or "anio").strip().lower()
+        if periodo not in {"semana", "mes", "anio", "todos"}:
+            periodo = "anio"
+
+        if mostrando_historial:
+            periodo = "todos"
+
+        hoy = timezone.localdate()
+        if periodo == "semana":
+            fecha_inicio = hoy - timedelta(days=6)
+            periodo_label = "Última semana"
+            titulo_barras = "Obras por día (últimos 7 días)"
+        elif periodo == "mes":
+            fecha_inicio = hoy - timedelta(days=29)
+            periodo_label = "Último mes"
+            titulo_barras = "Obras por semana (último mes)"
+        elif periodo == "anio":
+            fecha_inicio = hoy.replace(month=1, day=1)
+            periodo_label = f"Año {hoy.year}"
+            titulo_barras = "Obras por mes"
+        else:
+            fecha_inicio = None
+            periodo_label = "Historial completo"
+            titulo_barras = "Obras por mes (histórico completo)"
+
+        # Siempre consultamos todas las órdenes registradas en BD (sin excluir ocultas de bandejas)
+        qs = OrdenTrabajo.objects.select_related("cliente", "tecnico").order_by("-fecha_programada", "-id")
+        todas_ordenes = list(qs)
+        total_historico = len(todas_ordenes)
+
+        ordenes_filtradas = []
+        for orden in todas_ordenes:
+            fecha_ref = self._obtener_fecha_referencia(orden)
+            if fecha_inicio is not None and fecha_ref is not None and fecha_ref < fecha_inicio:
+                continue
+            ordenes_filtradas.append((orden, fecha_ref))
+
+        total_obras = len(ordenes_filtradas)
+        conteos = {
+            "finalizadas": 0,
+            "en_ejecucion": 0,
+            "pendientes": 0,
+            "canceladas": 0,
+        }
+
+        lista_obras = []
+        for orden, fecha_ref in ordenes_filtradas:
+            cat, label, badge_clase, icono = self._clasificar_estado(orden.estado)
+            conteos[cat] += 1
+
+            cliente_nombre = orden.cliente.razon_social if orden.cliente else "Sin cliente"
+            tecnico_nombre = "Sin asignar"
+            if orden.tecnico:
+                tecnico_nombre = orden.tecnico.get_full_name().strip() or orden.tecnico.username
+
+            fecha_texto = fecha_ref.strftime("%d/%m/%Y") if fecha_ref else "-"
+            busqueda = (
+                f"{cliente_nombre} {orden.tipo_servicio or ''} "
+                f"{tecnico_nombre} {label} {fecha_texto}".lower()
+            )
+
+            lista_obras.append({
+                "cliente": cliente_nombre,
+                "tipo_servicio": orden.tipo_servicio or "-",
+                "tecnico": tecnico_nombre,
+                "fecha": fecha_texto,
+                "categoria": cat,
+                "estado_label": label,
+                "badge_clase": badge_clase,
+                "icono": icono,
+                "busqueda": busqueda,
+            })
+
+        def pct(valor):
+            return round((valor / total_obras) * 100, 1) if total_obras > 0 else 0.0
+
+        pct_finalizadas = pct(conteos["finalizadas"])
+        pct_ejecucion = pct(conteos["en_ejecucion"])
+        pct_pendientes = pct(conteos["pendientes"])
+        pct_canceladas = pct(conteos["canceladas"])
+
+        barras_labels = []
+        barras_valores = []
+
+        if periodo == "semana":
+            for i in range(6, -1, -1):
+                dia = hoy - timedelta(days=i)
+                barras_labels.append(f"{self.DIAS_SEMANA_ES[dia.weekday()]} {dia.day}")
+                barras_valores.append(sum(1 for _, f in ordenes_filtradas if f == dia))
+        elif periodo == "mes":
+            for bloque in range(4):
+                inicio_b = hoy - timedelta(days=27 - bloque * 7)
+                fin_b = inicio_b + timedelta(days=6)
+                barras_labels.append(f"Sem {bloque + 1}")
+                barras_valores.append(
+                    sum(1 for _, f in ordenes_filtradas if f and inicio_b <= f <= fin_b)
+                )
+        else:
+            meses_indices = list(range(1, hoy.month + 1)) if periodo == "anio" else list(range(1, 13))
+            if not meses_indices:
+                meses_indices = [hoy.month]
+            for m in meses_indices:
+                barras_labels.append(self.MESES_ES[m])
+                barras_valores.append(
+                    sum(
+                        1
+                        for _, f in ordenes_filtradas
+                        if f and f.month == m and (periodo != "anio" or f.year == hoy.year)
+                    )
+                )
+
+        context.update({
+            "periodo_actual": periodo,
+            "periodo_label": periodo_label,
+            "titulo_barras": titulo_barras,
+            "mostrando_historial": mostrando_historial,
+            "total_historico": total_historico,
+            "total_obras": total_obras,
+            "total_finalizadas": conteos["finalizadas"],
+            "total_en_ejecucion": conteos["en_ejecucion"],
+            "total_pendientes": conteos["pendientes"],
+            "total_canceladas": conteos["canceladas"],
+            "pct_finalizadas": pct_finalizadas,
+            "pct_ejecucion": pct_ejecucion,
+            "pct_pendientes": pct_pendientes,
+            "pct_canceladas": pct_canceladas,
+            "barras_labels_json": json.dumps(barras_labels),
+            "barras_valores_json": json.dumps(barras_valores),
+            "dona_valores_json": json.dumps([
+                conteos["finalizadas"],
+                conteos["en_ejecucion"],
+                conteos["pendientes"],
+                conteos["canceladas"],
+            ]),
+            "obras_progreso": lista_obras,
+        })
+        return context
+
+class ReportesObrasView(TemplateView):
+    """Pantalla de generación de reportes e historial."""
+
+    template_name = "obras/reportes.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        hoy = timezone.localdate()
+
+        reportes = ReporteGenerado.objects.select_related("generado_por").all()[:40]
+        lista_reportes = []
+        for rep in reportes:
+            autor = "Administrador"
+            if rep.generado_por:
+                autor = rep.generado_por.get_full_name().strip() or rep.generado_por.username
+
+            lista_reportes.append({
+                "id": rep.id,
+                "titulo": rep.titulo,
+                "fecha_generacion": timezone.localtime(rep.fecha_generacion).strftime("%d/%m/%Y %H:%M"),
+                "autor": autor,
+                "formato": rep.formato,
+                "secciones": rep.secciones_incluidas or [],
+            })
+
+        context["fecha_desde_default"] = hoy.replace(day=1).strftime("%Y-%m-%d")
+        context["fecha_hasta_default"] = hoy.strftime("%Y-%m-%d")
+        context["historial_reportes"] = lista_reportes
+        return context
+
+
+class GenerarReportePDFView(View):
+    """Genera un reporte sencillo según fechas y checkboxes, y lo guarda en el historial."""
+
+    def _clasificar(self, estado_raw: str):
+        estado = (estado_raw or "").strip().lower()
+        if estado in {"aprobada", "aprobadas", "finalizada", "finalizadas", "facturada", "completada", "validada"}:
+            return "finalizadas"
+        if estado in {"en_proceso", "en proceso", "en_curso", "en curso", "ejecucion", "en_ejecucion"}:
+            return "en_ejecucion"
+        if estado in {"cancelada", "canceladas", "anulada", "anuladas", "rechazada", "baja"}:
+            return "canceladas"
+        return "pendientes"
+
+    def post(self, request, *args, **kwargs):
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except (ValueError, UnicodeDecodeError):
+            payload = request.POST.dict()
+
+        desde_str = (payload.get("fecha_desde") or "").strip()
+        hasta_str = (payload.get("fecha_hasta") or "").strip()
+        opciones = payload.get("opciones") or {}
+
+        if not desde_str or not hasta_str:
+            return JsonResponse({"ok": False, "error": "Seleccione ambas fechas (Desde y Hasta)."}, status=400)
+
+        try:
+            fecha_desde = datetime.strptime(desde_str, "%Y-%m-%d").date()
+            fecha_hasta = datetime.strptime(hasta_str, "%Y-%m-%d").date()
+        except ValueError:
+            return JsonResponse({"ok": False, "error": "Fechas no válidas."}, status=400)
+
+        if fecha_desde > fecha_hasta:
+            return JsonResponse({"ok": False, "error": "'Desde' no puede ser mayor que 'Hasta'."}, status=400)
+
+        inc_total = bool(opciones.get("total_obras", True))
+        inc_finalizadas = bool(opciones.get("finalizadas", True))
+        inc_ejecucion = bool(opciones.get("en_ejecucion", True))
+        inc_canceladas = bool(opciones.get("canceladas", True))
+        inc_graficos = bool(opciones.get("graficos", True))
+
+        if not any([inc_total, inc_finalizadas, inc_ejecucion, inc_canceladas, inc_graficos]):
+            return JsonResponse({"ok": False, "error": "Marque al menos una opción en 'Información incluida'."}, status=400)
+
+        ordenes = list(
+            OrdenTrabajo.objects.select_related("cliente", "tecnico")
+            .filter(fecha_programada__range=(fecha_desde, fecha_hasta))
+            .order_by("fecha_programada", "id")
+        )
+
+        grupos = {"finalizadas": [], "en_ejecucion": [], "pendientes": [], "canceladas": []}
+        for o in ordenes:
+            grupos[self._clasificar(o.estado)].append({
+                "cliente": o.cliente.razon_social if o.cliente else "Sin cliente",
+                "servicio": o.tipo_servicio or "-",
+                "tecnico": (o.tecnico.get_full_name().strip() or o.tecnico.username) if o.tecnico else "Sin asignar",
+                "fecha": o.fecha_programada.strftime("%d/%m/%Y") if o.fecha_programada else "-",
+                "motivo": (o.observacion_auditoria or "Sin motivo registrado.").strip(),
+            })
+
+        total = len(ordenes)
+        pct_fin = round((len(grupos["finalizadas"]) / total) * 100, 1) if total > 0 else 0
+
+        secciones = []
+        if inc_total:
+            secciones.append("Total de obras")
+        if inc_finalizadas:
+            secciones.append("Obras finalizadas")
+        if inc_ejecucion:
+            secciones.append("Obras en ejecución")
+        if inc_canceladas:
+            secciones.append("Obras canceladas y sus motivos")
+        if inc_graficos:
+            secciones.append("Gráficos de resultados")
+
+        logo_url = request.build_absolute_uri(static("img/logo.png"))
+
+        html_reporte = render_to_string(
+            "obras/hoja_reporte.html",
+            {
+                "logo_url": logo_url,
+                "nombre_empresa": "Frío y Agroindustria SpA",
+                "fecha_desde": fecha_desde.strftime("%d/%m/%Y"),
+                "fecha_hasta": fecha_hasta.strftime("%d/%m/%Y"),
+                "inc_total": inc_total,
+                "inc_finalizadas": inc_finalizadas,
+                "inc_ejecucion": inc_ejecucion,
+                "inc_canceladas": inc_canceladas,
+                "inc_graficos": inc_graficos,
+                "total_obras": total,
+                "pct_finalizadas": pct_fin,
+                "finalizadas": grupos["finalizadas"],
+                "en_ejecucion": grupos["en_ejecucion"],
+                "pendientes": grupos["pendientes"],
+                "canceladas": grupos["canceladas"],
+            },
+        )
+
+        titulo = f"Reporte de Obras ({fecha_desde.strftime('%d/%m/%Y')} - {fecha_hasta.strftime('%d/%m/%Y')})"
+        rep = ReporteGenerado.objects.create(
+            titulo=titulo,
+            fecha_desde=fecha_desde,
+            fecha_hasta=fecha_hasta,
+            secciones_incluidas=secciones,
+            formato="PDF",
+            contenido_html=html_reporte,
+            generado_por=request.user if request.user.is_authenticated else None,
+        )
+
+        return JsonResponse({"ok": True, "id": rep.id})
+
+
+class VerReporteHTMLView(View):
+    """Devuelve la hoja HTML del reporte guardado para mostrarla en grande o imprimir/guardar como PDF."""
+
+    def get(self, request, pk, *args, **kwargs):
+        rep = get_object_or_404(ReporteGenerado, pk=pk)
+        return JsonResponse({"ok": True, "titulo": rep.titulo, "html": rep.contenido_html})

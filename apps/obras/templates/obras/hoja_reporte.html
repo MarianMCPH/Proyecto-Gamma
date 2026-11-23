@@ -1,0 +1,226 @@
+<style>
+    .rep-hoja {
+        font-family: system-ui, -apple-system, sans-serif;
+        color: #1e293b;
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 28px 32px;
+        background: #ffffff;
+    }
+    .rep-header {
+        text-align: center;
+        border-bottom: 2px solid #373b6e;
+        padding-bottom: 16px;
+        margin-bottom: 22px;
+    }
+    .rep-logo {
+        max-height: 76px;
+        width: auto;
+        margin-bottom: 8px;
+    }
+    .rep-empresa {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    .rep-periodo {
+        font-size: 13px;
+        color: #64748b;
+        margin-top: 4px;
+    }
+    .rep-seccion {
+        margin-bottom: 20px;
+    }
+    .rep-titulo-sec {
+        font-size: 14px;
+        font-weight: 700;
+        color: #373b6e;
+        margin-bottom: 10px;
+    }
+    .rep-caja-graficos {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 14px;
+        font-size: 13px;
+    }
+    .rep-fila-barra {
+        margin-bottom: 10px;
+    }
+    .rep-fila-barra:last-child {
+        margin-bottom: 0;
+    }
+    .rep-barra-fondo {
+        background: #e2e8f0;
+        height: 10px;
+        border-radius: 999px;
+        overflow: hidden;
+        margin-top: 4px;
+    }
+    .rep-barra-relleno {
+        height: 100%;
+    }
+    .rep-barra-fin { background: #16a34a; width: 75%; }
+    .rep-barra-eje { background: #2563eb; width: 50%; }
+    .rep-barra-pen { background: #eab308; width: 40%; }
+    .rep-barra-can { background: #dc2626; width: 35%; }
+    .rep-tabla {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    .rep-tabla th {
+        background: #f1f5f9;
+        text-align: left;
+        padding: 8px;
+        border: 1px solid #cbd5e1;
+    }
+    .rep-tabla td {
+        padding: 7px 8px;
+        border: 1px solid #cbd5e1;
+    }
+    .rep-vacio {
+        font-size: 13px;
+        color: #64748b;
+        margin: 0;
+    }
+</style>
+
+<div class="rep-hoja">
+    <div class="rep-header">
+        <img src="{{ logo_url }}" alt="Frío y Agroindustria SpA" class="rep-logo">
+        <h3 class="rep-empresa">{{ nombre_empresa }}</h3>
+        <div class="rep-periodo">
+            Reporte de Obras · Período del <strong>{{ fecha_desde }}</strong> al <strong>{{ fecha_hasta }}</strong>
+        </div>
+    </div>
+
+    {% if inc_total %}
+    <div class="rep-seccion">
+        <h5 class="rep-titulo-sec">Total de obras</h5>
+        <p style="margin: 0; font-size: 14px;">
+            Total de obras en el período: <strong>{{ total_obras }}</strong>
+            (Finalizadas: <strong>{{ finalizadas|length }}</strong> ·
+            En ejecución: <strong>{{ en_ejecucion|length }}</strong> ·
+            Pendientes: <strong>{{ pendientes|length }}</strong> ·
+            Canceladas: <strong>{{ canceladas|length }}</strong> ·
+            Cumplimiento: <strong>{{ pct_finalizadas }}%</strong>)
+        </p>
+    </div>
+    {% endif %}
+
+    {% if inc_graficos %}
+    <div class="rep-seccion">
+        <h5 class="rep-titulo-sec">Gráficos de resultados</h5>
+        <div class="rep-caja-graficos">
+            <div class="rep-fila-barra">
+                <span>Finalizadas: <strong>{{ finalizadas|length }}</strong></span>
+                <div class="rep-barra-fondo"><div class="rep-barra-relleno rep-barra-fin"></div></div>
+            </div>
+            <div class="rep-fila-barra">
+                <span>En ejecución: <strong>{{ en_ejecucion|length }}</strong></span>
+                <div class="rep-barra-fondo"><div class="rep-barra-relleno rep-barra-eje"></div></div>
+            </div>
+            <div class="rep-fila-barra">
+                <span>Pendientes: <strong>{{ pendientes|length }}</strong></span>
+                <div class="rep-barra-fondo"><div class="rep-barra-relleno rep-barra-pen"></div></div>
+            </div>
+            <div class="rep-fila-barra">
+                <span>Canceladas: <strong>{{ canceladas|length }}</strong></span>
+                <div class="rep-barra-fondo"><div class="rep-barra-relleno rep-barra-can"></div></div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if inc_finalizadas %}
+    <div class="rep-seccion">
+        <h5 class="rep-titulo-sec">Obras finalizadas ({{ finalizadas|length }})</h5>
+        {% if finalizadas %}
+        <table class="rep-tabla">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Tipo de servicio</th>
+                    <th>Técnico</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in finalizadas %}
+                <tr>
+                    <td>{{ item.cliente }}</td>
+                    <td>{{ item.servicio }}</td>
+                    <td>{{ item.tecnico }}</td>
+                    <td>{{ item.fecha }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="rep-vacio">Sin obras finalizadas en el período.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if inc_ejecucion %}
+    <div class="rep-seccion">
+        <h5 class="rep-titulo-sec">Obras en ejecución ({{ en_ejecucion|length }})</h5>
+        {% if en_ejecucion %}
+        <table class="rep-tabla">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Tipo de servicio</th>
+                    <th>Técnico</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in en_ejecucion %}
+                <tr>
+                    <td>{{ item.cliente }}</td>
+                    <td>{{ item.servicio }}</td>
+                    <td>{{ item.tecnico }}</td>
+                    <td>{{ item.fecha }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="rep-vacio">Sin obras en ejecución en el período.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if inc_canceladas %}
+    <div class="rep-seccion">
+        <h5 class="rep-titulo-sec">Obras canceladas y sus motivos ({{ canceladas|length }})</h5>
+        {% if canceladas %}
+        <table class="rep-tabla">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Servicio</th>
+                    <th>Fecha</th>
+                    <th>Motivo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in canceladas %}
+                <tr>
+                    <td>{{ item.cliente }}</td>
+                    <td>{{ item.servicio }}</td>
+                    <td>{{ item.fecha }}</td>
+                    <td>{{ item.motivo }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="rep-vacio">Sin obras canceladas en el período.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
