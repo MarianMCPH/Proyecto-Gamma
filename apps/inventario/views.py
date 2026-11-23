@@ -36,6 +36,7 @@ def _obtener_tipos_servicio():
             combinados.append(limpio)
     return combinados
 
+
 CLAVE_SESION_SOLICITUDES_OCULTAS = "solicitudes_insumos_ocultas"
 
 
@@ -144,14 +145,17 @@ class SolicitudInsumo(TemplateView):
         return context
 
 
-class LimpiarSolicitudesInsumoView(View):
+class LimpiarSolicitudes(View):
     """Oculta de la bandeja principal las solicitudes seleccionadas sin borrarlas de la BD."""
 
     def post(self, request, *args, **kwargs):
         try:
             payload = json.loads(request.body.decode("utf-8") or "{}")
         except (ValueError, UnicodeDecodeError):
-            payload = {"ids": request.POST.getlist("ids[]"), "accion": request.POST.get("accion", "limpiar")}
+            payload = {
+                "ids": request.POST.getlist("ids[]"),
+                "accion": request.POST.get("accion", "limpiar"),
+            }
 
         accion = (payload.get("accion") or "limpiar").strip().lower()
 
@@ -518,7 +522,6 @@ class KitHerramientasView(TemplateView):
             mat.save(update_fields=["precio_unitario"])
             return JsonResponse({"ok": True, "precio_unitario": f"{mat.precio_unitario:.2f}"})
 
-        # CAMBIADO: permite eliminar el material en pruebas eliminando primero sus movimientos asociados
         if accion == "eliminar_material":
             mat_id = request.POST.get("material_id")
             mat = get_object_or_404(Material, pk=mat_id)
@@ -634,7 +637,6 @@ class CrearKitView(TemplateView):
                     if cant <= 0:
                         continue
 
-                    # CAMBIADO: usa siempre el precio unitario registrado en el material
                     precio = mat.precio_unitario or Decimal("0")
                     items_validos.append((mat, cant, precio))
 
@@ -765,7 +767,6 @@ class EditarKitView(TemplateView):
             return JsonResponse({"ok": False, "error": "No se pudo actualizar el kit."}, status=500)
 
 
-# CAMBIADO: evita el 404 si el kit ya no existe en la base de datos
 class EliminarKitView(View):
     """Elimina un kit de herramientas."""
 
