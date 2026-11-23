@@ -1,0 +1,62 @@
+{% extends "base_admin.html" %}
+{% load static %}
+
+{% block page_title %}Editar Orden de Trabajo #OT-{{ orden.id|default:"" }}{% endblock %}
+
+{% block content %}
+<div class="card-custom p-4">
+    {% if orden %}
+    <form id="formEditarObra" data-obra-id="{{ orden.id }}">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label small fw-bold">Mandante / Cliente</label>
+                <input type="text" name="cliente_nombre" class="form-control form-control-sm" value="{{ orden.cliente.razon_social }}" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-bold">RUT Cliente</label>
+                <input type="text" name="rut_cliente" class="form-control form-control-sm" value="{{ orden.cliente.rut }}" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-bold">Contacto en Planta</label>
+                <input type="text" name="contacto_cliente" class="form-control form-control-sm" value="{{ orden.cliente.contacto }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-bold">Tipo de Servicio</label>
+                <input type="text" name="tipo_servicio" class="form-control form-control-sm" value="{{ orden.tipo_servicio }}" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-bold">Dirección Faena</label>
+                <input type="text" name="direccion_faena" class="form-control form-control-sm" value="{{ orden.direccion }}" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-bold">Fecha Programada</label>
+                <input type="date" name="fecha_programada" class="form-control form-control-sm" value="{{ orden.fecha_programada|date:'Y-m-d' }}" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small fw-bold">Técnico Asignado</label>
+                <select name="tecnico" class="form-select form-select-sm" required>
+                    <option value="">Seleccione técnico...</option>
+                    {% for t in tecnicos %}
+                        <option value="{{ t.id }}" {% if orden.tecnico_id == t.id %}selected{% endif %}>
+                            {{ t.get_full_name|default:t.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 text-end mt-4">
+                <a href="{% url 'obras:ver_obras' %}" class="btn btn-sm btn-secondary me-2">Cancelar</a>
+                <button type="submit" class="btn btn-sm btn-primary">Guardar Cambios</button>
+            </div>
+        </div>
+    </form>
+    {% else %}
+    <div class="alert alert-warning text-center py-4">
+        <i class="bi bi-exclamation-triangle fs-2 d-block mb-2"></i>
+        No se encontró la orden de trabajo a editar.
+    </div>
+    {% endif %}
+</div>
+
+<script src="{% static 'js/editar_obra.js' %}"></script>
+{% endblock %}

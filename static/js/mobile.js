@@ -103,20 +103,24 @@ document.addEventListener("DOMContentLoaded", function () {
 const btnLogout = document.getElementById("logout-btn");
 if (btnLogout) {
     btnLogout.addEventListener("click", function (e) {
-        // 1. Evitamos que el navegador navegue de inmediato al login
+        // 1. Evitamos que el formulario se envíe de inmediato
         e.preventDefault(); 
         
-        // 2. Guardamos la URL de destino que tenía el botón
-        const urlDestinoLogout = btnLogout.href;
+        // 2. Buscamos el formulario que envuelve al botón
+        const formLogout = btnLogout.closest("form");
 
-        // 3. Mostramos nuestro modal flotante móvil personalizado
+        // 3. Mostramos tu modal flotante móvil personalizado
         mostrarModalMovil(
             "Cerrar Sesión", 
             "¿Desea cerrar sesión en la aplicación móvil?", 
             true, // Activa el botón de Cancelar
             function() {
-                // Si el usuario hace clic en Aceptar, recién ahí lo mandamos al login
-                window.location.href = urlDestinoLogout;
+                // Si acepta, enviamos el formulario por POST (con su csrf_token)
+                if (formLogout) {
+                    formLogout.submit();
+                } else if (btnLogout.href) {
+                    window.location.href = btnLogout.href;
+                }
             }
         );
     });

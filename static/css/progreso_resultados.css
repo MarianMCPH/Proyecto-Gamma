@@ -1,0 +1,138 @@
+/* =================================================
+   Estilos - Progreso y Resultados de Obras (FYAG)
+   ================================================= */
+
+.kpi-progreso-card {
+    background: #ffffff;
+    border: 1px solid #e5e9f2;
+    border-radius: 14px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 2px 8px rgba(30, 41, 59, 0.04);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    cursor: pointer;
+    height: 100%;
+}
+
+.kpi-progreso-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(30, 41, 59, 0.08);
+    border-color: #cbd5e1;
+}
+
+.kpi-progreso-card.activo {
+    border: 2px solid #373b6e;
+    background-color: #f8f9fc;
+}
+
+.kpi-icon-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.kpi-icon-total { background-color: #e0edff; color: #2563eb; }
+.kpi-icon-finalizadas { background-color: #dcfce7; color: #16a34a; }
+.kpi-icon-ejecucion { background-color: #fef3c7; color: #d97706; }
+.kpi-icon-pendientes { background-color: #e2e8f0; color: #475569; }
+.kpi-icon-canceladas { background-color: #fee2e2; color: #dc2626; }
+
+.kpi-valor-principal {
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.1;
+}
+
+.kpi-etiqueta {
+    font-size: 0.78rem;
+    color: #64748b;
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+/* Barra segmentada horizontal de distribución */
+.barra-distribucion-segmentada {
+    height: 12px;
+    border-radius: 999px;
+    background-color: #e2e8f0;
+    overflow: hidden;
+    display: flex;
+    width: 100%;
+}
+
+.seg-finalizadas { background-color: #16a34a; transition: width 0.4s ease; }
+.seg-ejecucion { background-color: #2563eb; transition: width 0.4s ease; }
+.seg-pendientes { background-color: #eab308; transition: width 0.4s ease; }
+.seg-canceladas { background-color: #dc2626; transition: width 0.4s ease; }
+
+/* Contenedor central de la dona */
+.dona-wrapper {
+    position: relative;
+    width: 185px;
+    height: 185px;
+    margin: 0 auto;
+}
+
+.dona-centro-texto {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.leyenda-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/* Badges de estado en tabla inferior */
+.badge-estado-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-estado-finalizada { background-color: #dcfce7; color: #15803d; }
+.badge-estado-ejecucion { background-color: #fef3c7; color: #b45309; }
+.badge-estado-pendiente { background-color: #e0edff; color: #1d4ed8; }
+.badge-estado-cancelada { background-color: #fee2e2; color: #b91c1c; }
+
+/* Pestañas de estado de la tabla */
+.btn-tab-estado {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 5px 13px;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+}
+
+.btn-tab-estado:hover {
+    background: #f1f5f9;
+}
+
+.btn-tab-estado.active {
+    background: #373b6e;
+    border-color: #373b6e;
+    color: #ffffff;
+}

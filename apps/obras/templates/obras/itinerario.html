@@ -32,13 +32,18 @@
                 </div>
                 
                 <!-- Botón de cerrar sesión -->
-                <a href="{% url 'core:login' %}" id="logout-btn" class="btn btn-outline-light btn-sm rounded-pill px-3 py-1 logout-btn-custom">Cerrar sesión</a>
-            </div>
+                    <form action="{% url 'core:logout' %}" method="POST" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" id="logout-btn" class="btn btn-outline-light btn-sm rounded-pill px-3 py-1 logout-btn-custom">
+                            Cerrar sesión
+                        </button>
+                    </form>
+                </div>
             
             <!-- Datos de bienvenida, usuario y estado dinámico de conexión (Online/Offline) -->
             <div class="user-welcome mt-2">
                 <span class="d-block text-white-50 welcome-text">Bienvenido,</span>
-                <h5 class="fw-bold mb-2 username-text">Reinaldo Tapia</h5>
+                <h5 class="fw-bold mb-2 username-text">{{ request.user.get_full_name|default:request.user.username }}</h5>
                 
                 <!-- Indicador dinámico de estado en línea / sin conexión -->
                 <div id="network-status-badge" class="badge bg-success text-white px-2 py-1 online-badge ">

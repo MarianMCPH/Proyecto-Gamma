@@ -5,37 +5,56 @@
 
 {% block content %}
 
-        <!-- Estilos personalizados -->
+    <!-- Estilos personalizados -->
     <link rel="stylesheet" href="{% static 'css/gestion_obras.css' %}">
 
-    <!-- Filtros superiores (Pestañas de estado y búsqueda rápida) -->
+    <!-- Filtros superiores (Pestañas de estado, botón limpiar y búsqueda rápida) -->
     <div class="card-custom p-3 mb-4">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-            <div class="d-flex align-items-center flex-wrap gap-2">
-                <button type="button" class="btn btn-sm text-white px-3" style="background-color: #424571;">Todas <span class="badge bg-light text-dark ms-1">1</span></button>
-                <button type="button" class="btn btn-sm btn-outline-secondary px-3">En proceso <span class="badge bg-light text-dark ms-1">0</span></button>
-                <button type="button" class="btn btn-sm btn-outline-secondary px-3">Pendientes <span class="badge bg-light text-dark ms-1">1</span></button>
-                <button type="button" class="btn btn-sm btn-outline-secondary px-3">Aprobadas <span class="badge bg-light text-dark ms-1">0</span></button>
+            <div class="d-flex align-items-center flex-wrap gap-2" id="filtrosAuditoria">
+                <button type="button" data-filtro="todas" class="btn btn-sm text-white px-3 btn-filtro-auditoria" style="background-color: #424571;">
+                    Todas <span id="badgeTodas" class="badge bg-light text-dark ms-1">{{ total_todas }}</span>
+                </button>
+                <button type="button" data-filtro="en_proceso" class="btn btn-sm btn-outline-secondary px-3 btn-filtro-auditoria">
+                    En proceso <span id="badgeEnProceso" class="badge bg-light text-dark ms-1">{{ total_en_proceso }}</span>
+                </button>
+                <button type="button" data-filtro="pendientes" class="btn btn-sm btn-outline-secondary px-3 btn-filtro-auditoria">
+                    Pendientes <span id="badgePendientes" class="badge bg-light text-dark ms-1">{{ total_pendientes }}</span>
+                </button>
+                <button type="button" data-filtro="aprobadas" class="btn btn-sm btn-outline-secondary px-3 btn-filtro-auditoria">
+                    Aprobadas <span id="badgeAprobadas" class="badge bg-light text-dark ms-1">{{ total_aprobadas }}</span>
+                </button>
+            </div>
+
+            <!-- Botón Limpiar seleccionadas -->
+            <div>
+                <button type="button"
+                        id="btnLimpiarAuditoria"
+                        data-url-limpiar="{% url 'obras:limpiar_auditoria' %}"
+                        class="btn btn-sm btn-outline-secondary px-3">
+                    <i class="bi bi-eraser me-1"></i> Limpiar
+                </button>
             </div>
         </div>
 
+        <!-- Buscador rápido compacto -->
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4 col-lg-3">
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-                    <input type="text" class="form-control" placeholder="Búsqueda rápida...">
+                    <input type="text" id="buscadorAuditoria" class="form-control" placeholder="Búsqueda rápida...">
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Tabla de Auditoría (Sin ID, sin Fecha Cierre, sin Evidencias y sin Filtro desplegable) -->
+    <!-- Tabla de Auditoría -->
     <div class="card-custom p-4">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 small">
+            <table class="table table-hover align-middle mb-0 small" id="tablaAuditoria">
                 <thead class="table-light text-secondary">
                     <tr>
-                        <th style="width: 40px;"><input type="checkbox" class="form-check-input"></th>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAllAuditoria" class="form-check-input"></th>
                         <th>Cliente</th>
                         <th>Tipo de servicio</th>
                         <th>Técnico</th>
@@ -43,19 +62,69 @@
                         <th class="text-center">Acción</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr>
-                        <td><input type="checkbox" class="form-check-input"></td>
-                        <td class="fw-semibold">Agrícola y Packing San Nicolás SpA</td>
-                        <td>Mantención Preventiva</td>
-                        <td>Andrés Troncoso Rivas</td>
-                        <td><span class="badge bg-warning text-dark px-2 py-1">Pendiente</span></td>
+                <tbody id="tbodyAuditoria">
+                    {% for orden in ordenes_auditoria %}
+                    <tr class="fila-auditoria"
+                        data-orden-id="{{ orden.id }}"
+                        data-categoria="{{ orden.categoria }}"
+                        data-busqueda="{{ orden.cliente|lower }} {{ orden.tipo_servicio|lower }} {{ orden.tecnico|lower }} {{ orden.estado_label|lower }} {{ orden.estado_raw|lower }}">
+                        <td><input type="checkbox" class="form-check-input check-auditoria" value="{{ orden.id }}"></td>
+                        <td class="fw-semibold">{{ orden.cliente }}</td>
+                        <td>{{ orden.tipo_servicio }}</td>
+                        <td>{{ orden.tecnico }}</td>
+                        <td><span class="badge {{ orden.badge_clase }} px-2 py-1">{{ orden.estado_label }}</span></td>
                         <td class="text-center">
-                            <a href="{% url 'obras:auditar_obra' %}" class="btn btn-sm text-white px-3 py-1" style="background-color: #474b7e;">Auditar</a>
+                            <a href="{% url 'obras:auditar_obra' %}?id={{ orden.id }}" class="btn btn-sm text-white px-3 py-1" style="background-color: #474b7e;">Auditar</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    <tr id="filaSinResultadosAuditoria" {% if ordenes_auditoria %}style="display: none;"{% endif %}>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                            <span id="textoSinResultadosAuditoria">No hay obras registradas para auditar.</span>
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
+
+        <!-- Enlace inferior para alternar entre bandeja activa e historial completo -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 pt-3 border-top small">
+            <div class="text-muted">
+                {% if mostrando_historial %}
+                    Mostrando el <strong>historial completo</strong> ({{ total_historial }} obra{{ total_historial|pluralize:"s" }} registrada{{ total_historial|pluralize:"s" }} en la base de datos).
+                {% else %}
+                    {% if total_ocultas > 0 %}
+                        Hay <strong>{{ total_ocultas }}</strong> obra{{ total_ocultas|pluralize:"s" }} limpia{{ total_ocultas|pluralize:"s" }} de esta vista.
+                    {% else %}
+                        Mostrando todas las obras activas en auditoría.
+                    {% endif %}
+                {% endif %}
+            </div>
+
+            <div class="d-flex align-items-center gap-3">
+                {% if total_ocultas > 0 %}
+                    <button type="button"
+                            id="btnRestaurarAuditoria"
+                            data-url-restaurar="{% url 'obras:limpiar_auditoria' %}"
+                            class="btn btn-link btn-sm text-decoration-none p-0 text-secondary">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Restaurar limpiadas ({{ total_ocultas }})
+                    </button>
+                {% endif %}
+
+                {% if mostrando_historial %}
+                    <a href="{% url 'obras:auditoria' %}" class="text-decoration-none fw-semibold" style="color: #424571;">
+                        <i class="bi bi-funnel me-1"></i>Volver a vista filtrada
+                    </a>
+                {% else %}
+                    <a href="{% url 'obras:auditoria' %}?historial=1" class="text-decoration-none fw-semibold" style="color: #424571;">
+                        <i class="bi bi-clock-history me-1"></i>Ver historial completo de obras ({{ total_historial }})
+                    </a>
+                {% endif %}
+            </div>
+        </div>
     </div>
+
+    <script src="{% static 'js/auditoria_obras.js' %}"></script>
 {% endblock %}

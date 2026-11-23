@@ -1,0 +1,229 @@
+{% extends "base_admin.html" %}
+{% load static %}
+
+{% block page_title %}Detalle y Edición de Usuario{% endblock %}
+
+{% block content %}
+
+    <!-- Encabezado superior con botón de retroceso -->
+    <div class="d-flex align-items-center mb-4">
+        <a href="{% url 'usuarios:ver_usuarios' %}"
+           class="btn btn-outline-secondary btn-sm rounded-circle p-2 d-flex align-items-center justify-content-center me-3"
+           style="width: 38px; height: 38px;">
+            <i class="bi bi-arrow-left fs-5"></i>
+        </a>
+        <div>
+            <h5 class="mb-0 fw-bold text-dark">{{ nombre_completo }}</h5>
+            <span class="text-muted small">Visualización y edición de perfil de usuario</span>
+        </div>
+    </div>
+
+    <!-- Formulario de Edición de Usuario -->
+    <div class="card-custom p-4">
+
+        <form id="formEditarUsuario"
+              method="POST"
+              action="{% url 'usuarios:detalle_usuario' usuario_obj.id %}"
+              enctype="multipart/form-data"
+              data-url-volver="{% url 'usuarios:ver_usuarios' %}"
+              data-modo="edicion"
+              novalidate>
+
+            {% csrf_token %}
+            <input type="hidden" id="eliminarFotoActual" name="eliminar_foto" value="0">
+
+            <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">
+                Foto de Perfil y Datos Personales
+            </h6>
+
+            <!-- Foto de perfil actual y cambio -->
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <div id="previewFotoWrapper"
+                     class="rounded-circle border bg-light d-flex align-items-center justify-content-center overflow-hidden"
+                     style="width: 80px; height: 80px; flex-shrink: 0;">
+                    {% if perfil_obj and perfil_obj.foto_perfil %}
+                        <img id="previewFotoImg" src="{{ perfil_obj.foto_perfil.url }}" alt="Foto de perfil"
+                             style="width: 100%; height: 100%; object-fit: cover;">
+                        <i id="previewFotoIcon" class="bi bi-person-fill text-secondary fs-2" style="display: none;"></i>
+                    {% else %}
+                        <img id="previewFotoImg" src="" alt="Vista previa"
+                             style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                        <i id="previewFotoIcon" class="bi bi-person-fill text-secondary fs-2"></i>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="foto_perfil" class="form-label small fw-semibold mb-1">
+                        Cambiar Foto de Perfil <span class="text-muted fw-normal">(Opcional)</span>
+                    </label>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <input type="file" class="form-control form-control-sm" id="foto_perfil" name="foto_perfil" accept="image/*" style="max-width: 320px;">
+                        <button type="button"
+                                id="btnQuitarFoto"
+                                class="btn btn-outline-danger btn-sm"
+                                {% if not perfil_obj or not perfil_obj.foto_perfil %}style="display: none;"{% endif %}>
+                            <i class="bi bi-trash me-1"></i> Quitar foto
+                        </button>
+                    </div>
+                    <div class="text-muted mt-1" style="font-size: 11px;">Si no selecciona una nueva imagen ni la quita, se conservará la foto actual.</div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+
+                <div class="col-md-4">
+                    <label for="nombres" class="form-label small fw-semibold">
+                        Nombres y Apellidos <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control form-control-sm" id="nombres" name="nombres"
+                           value="{{ nombre_completo }}" required>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="rut" class="form-label small fw-semibold">
+                        RUT Trabajador <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control form-control-sm" id="rut" name="rut"
+                           value="{% if perfil_obj %}{{ perfil_obj.rut }}{% endif %}"
+                           placeholder="Ej: 23456789-0" maxlength="10" required>
+                    <div class="text-muted mt-1" style="font-size: 11px;">
+                        Ingrese sin puntos y con guión verificador (Ej: 23456789-0).
+                    </div>
+                    <div id="errorRut" class="text-danger mt-1" style="font-size: 11px; display: none;">
+                        Formato inválido. Debe ingresar el RUT sin puntos y con guión verificador (Ej: 23456789-0).
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="correo" class="form-label small fw-semibold">
+                        Correo Corporativo <span class="text-danger">*</span>
+                    </label>
+                    <input type="email" class="form-control form-control-sm bg-light" id="correo" name="correo"
+                           value="{{ usuario_obj.email|default:usuario_obj.username }}" readonly required>
+                    <div class="text-muted mt-1" style="font-size: 11px;">
+                        Se actualiza automáticamente según el nombre del usuario (@frioyagroindustria.cl).
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="telefono" class="form-label small fw-semibold">
+                        Número de Contacto <span class="text-muted fw-normal">(Opcional)</span>
+                    </label>
+                    <input type="text" class="form-control form-control-sm" id="telefono" name="telefono"
+                           value="{% if perfil_obj and perfil_obj.telefono %}{{ perfil_obj.telefono }}{% endif %}"
+                           placeholder="Ej: 9 7433 8345 o +56 9 7433 8345" maxlength="16">
+                    <div id="errorTelefono" class="text-danger mt-1" style="font-size: 11px; display: none;">
+                        Formato inválido. Use 9 7433 8345 (el +56 es opcional).
+                    </div>
+                </div>
+
+                <div class="col-md-8">
+                    <label for="direccion" class="form-label small fw-semibold">
+                        Dirección
+                    </label>
+                    <input type="text" class="form-control form-control-sm" id="direccion" name="direccion"
+                           value="{% if perfil_obj and perfil_obj.direccion %}{{ perfil_obj.direccion }}{% endif %}"
+                           placeholder="Opcional">
+                </div>
+
+            </div>
+
+            <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">
+                Perfil de Acceso y Seguridad
+            </h6>
+
+            <div class="row g-3 mb-4">
+
+                <div class="col-md-4">
+                    <label for="rol" class="form-label small fw-semibold">
+                        Rol Asignado <span class="text-danger">*</span>
+                    </label>
+
+                    <select class="form-select form-select-sm" id="rol" name="rol" required>
+                        <option value="Administrador General" {% if rol_actual == "Administrador General" or rol_actual == "Administrador" %}selected{% endif %}>Administrador General</option>
+                        <option value="Administrador Auditor" {% if rol_actual == "Administrador Auditor" %}selected{% endif %}>Administrador Auditor</option>
+                        <option value="Administrador Gestor" {% if rol_actual == "Administrador Gestor" %}selected{% endif %}>Administrador Gestor</option>
+                        <option value="Tecnico" {% if rol_actual == "Tecnico" %}selected{% endif %}>Técnico</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold d-block">
+                        Estado de la Cuenta
+                    </label>
+
+                    <div class="mt-2">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio"
+                                   name="estado_cuenta" id="estadoActivo"
+                                   value="Activo" {% if usuario_obj.is_active %}checked{% endif %}>
+                            <label class="form-check-label small" for="estadoActivo">
+                                Activo
+                            </label>
+                        </div>
+
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio"
+                                   name="estado_cuenta" id="estadoInactivo"
+                                   value="Inactivo" {% if not usuario_obj.is_active %}checked{% endif %}>
+                            <label class="form-check-label small" for="estadoInactivo">
+                                Inactivo
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4"></div>
+
+                <div class="col-md-4">
+                    <label for="password" class="form-label small fw-semibold">
+                        Nueva Contraseña <span class="text-muted fw-normal">(Opcional)</span>
+                    </label>
+                    <input type="password" class="form-control form-control-sm"
+                           id="password" name="password" minlength="8"
+                           placeholder="Dejar en blanco para mantener actual">
+                    <div id="ayudaPasswordSegura" class="text-muted mt-1" style="font-size: 11px;">
+                        Si no desea cambiar la contraseña, deje el espacio en blanco.
+                    </div>
+                    <div id="errorPasswordLongitud" class="text-danger mt-1" style="font-size: 11px; display: none;">
+                        La contraseña debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas y números, y no contener caracteres especiales.
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="confirmPassword" class="form-label small fw-semibold">
+                        Confirmar Nueva Contraseña
+                    </label>
+                    <input type="password" class="form-control form-control-sm"
+                           id="confirmPassword" name="confirm_password"
+                           placeholder="Repita solo si cambia contraseña">
+                    <div id="errorConfirmPassword" class="text-danger mt-1" style="font-size: 11px; display: none;">
+                        Las contraseñas no coinciden.
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="d-flex justify-content-end gap-2 border-top pt-3">
+
+                <a href="{% url 'usuarios:ver_usuarios' %}"
+                   class="btn btn-outline-secondary btn-sm px-4">
+                    Volver
+                </a>
+
+                <button type="submit"
+                        class="btn btn-sm px-4"
+                        style="background-color: #373b6e; color: white;">
+                    Guardar Cambios
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+    <!-- Reutiliza el mismo JS de validación y modales -->
+    <script src="{% static 'js/nuevo_usuario.js' %}"></script>
+
+{% endblock %}

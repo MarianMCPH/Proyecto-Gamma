@@ -4,93 +4,123 @@
 {% block page_title %}Dashboard General{% endblock %}
 
 {% block content %}
-    <!-- Estilos personalizados -->
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/gestion_obras.css' %}">
 
-    <!-- Tarjetas KPI (Indicadores Superiores) -->
-    <div class="row row-cols-1 row-cols-md-4 g-3 mb-4">
-        <div class="col">
-            <div class="kpi-card">
-                <span class="text-muted small">Obras hoy</span>
-                <h2 class="fw-bold text-dark mt-2 mb-0">0</h2>
-            </div>
+<!-- 1. TARJETAS SUPERIORES (KPIs con los números reales de la BD) -->
+<div class="row row-cols-1 row-cols-md-4 g-3 mb-4">
+    <div class="col">
+        <div class="kpi-card">
+            <span class="text-muted small">Obras hoy</span>
+            <h2 class="fw-bold text-dark mt-2 mb-0">{{ obras_hoy }}</h2>
         </div>
-        <div class="col">
-            <div class="kpi-card">
-                <span class="text-muted small">Servicios en ejecución</span>
-                <h2 class="fw-bold text-dark mt-2 mb-0">0</h2>
-            </div>
+    </div>
+    <div class="col">
+        <div class="kpi-card">
+            <span class="text-muted small">Servicios en ejecución</span>
+            <h2 class="fw-bold text-dark mt-2 mb-0">{{ servicios_ejecucion }}</h2>
         </div>
-        <div class="col">
-            <div class="kpi-card kpi-card-danger">
-                <span class="text-dark small">Emergencias activas</span>
-                <h2 class="fw-bold text-dark mt-2 mb-0">0</h2>
-            </div>
+    </div>
+    <div class="col">
+        <div class="kpi-card kpi-card-danger">
+            <span class="text-dark small">Emergencias activas</span>
+            <h2 class="fw-bold text-dark mt-2 mb-0">{{ emergencias_activas }}</h2>
         </div>
-        <div class="col">
-            <div class="kpi-card kpi-card-success">
-                <span class="text-dark small">Finalizados por auditar</span>
-                <h2 class="fw-bold text-dark mt-2 mb-0">0</h2>
+    </div>
+    <div class="col">
+        <div class="kpi-card kpi-card-success">
+            <span class="text-dark small">Finalizados por auditar</span>
+            <h2 class="fw-bold text-dark mt-2 mb-0">{{ finalizados_auditar }}</h2>
+        </div>
+    </div>
+</div>
+
+<!-- 2. TABLA DE OBRAS Y PANEL DE ALERTAS -->
+<div class="row g-4">
+    
+    <!-- Tabla de obras activas -->
+    <div class="col-lg-8">
+        <div class="card-custom p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold text-dark m-0">Órdenes de trabajo activas</h5>
+                <!-- Botón conservando su nombre y diseño original -->
+                <a href="{% url 'obras:nueva_obra' %}" id="btnNuevaObra" class="btn btn-institutional btn-sm px-3 py-2">
+                    <i class="bi bi-plus-lg me-1"></i> Nueva orden de trabajo
+                </a>
+            </div>
+
+            <!-- Buscador rápido -->
+            <div class="input-group input-group-sm mb-3" style="max-width: 250px;">
+                <span class="input-group-text bg-white text-muted"><i class="bi bi-search"></i></span>
+                <input type="text" id="buscador" class="form-control" placeholder="Búsqueda rápida">
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle mb-0">
+                    <thead class="table-light text-secondary small">
+                        <tr>
+                            <th style="width: 40px;"><input type="checkbox" id="checkTodos" class="form-check-input"></th>
+                            <th>Cliente</th>
+                            <th>Técnico</th>
+                            <th>Tipo de servicio</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaObras">
+                        {% for orden in ordenes_activas %}
+                        <tr>
+                            <td><input type="checkbox" class="form-check-input check-fila"></td>
+                            <td class="fw-medium text-dark">{{ orden.cliente.razon_social }}</td>
+                            <td>{{ orden.tecnico.username }}</td>
+                            <td>{{ orden.tipo_servicio }}</td>
+                            <td><span class="badge bg-primary">{{ orden.get_estado_display }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4 small">
+                                No hay órdenes de trabajo activas registradas en este momento.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
-    <!-- Sección Inferior: Tabla de Órdenes y Panel de Alertas -->
-    <div class="row g-4">
-        
-        <!-- Tabla principal de órdenes activas -->
-        <div class="col-lg-8">
-            <div class="card-custom p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold text-dark m-0">Órdenes de trabajo activas</h5>
-                    <button id="btnNuevaObra" class="btn btn-institutional btn-sm px-3 py-2">
-                        <i class="bi bi-plus-lg me-1"></i> Nueva orden de trabajo
-                    </button>
-                </div>
+    <!-- Panel de Alertas y Notificaciones -->
+    <div class="col-lg-4">
+        <div class="card-custom p-4 h-100">
+            <h5 class="fw-bold text-dark mb-3">Alertas y notificaciones</h5>
+            <div class="d-flex flex-column gap-3">
 
-                <!-- Barra de búsqueda (Filtro desplegable eliminado) -->
-                <div class="d-flex gap-2 mb-3">
-                    <div class="input-group input-group-sm" style="max-width: 250px;">
-                        <span class="input-group-text bg-white text-muted"><i class="bi bi-search"></i></span>
-                        <input type="text" class="form-control" placeholder="Búsqueda rápida">
-                    </div>
+                <!-- Alertas de stock mínimo -->
+                {% for prod in alertas_stock %}
+                <div class="p-3 border border-danger rounded-3 bg-light">
+                    <strong class="text-danger small d-block">Stock mínimo: {{ prod.nombre }}</strong>
+                    <span class="text-muted small">Quedan {{ prod.stock_actual }} {{ prod.unidad_medida }}</span>
                 </div>
+                {% endfor %}
 
-                <!-- Tabla sin la columna de ID -->
-                <div class="table-responsive">
-                    <table class="table table-bordered align-middle mb-0">
-                        <thead class="table-light text-secondary small">
-                            <tr>
-                                <th style="width: 40px;"><input type="checkbox" id="selectAll" class="form-check-input"></th>
-                                <th>Cliente</th>
-                                <th>Técnico</th>
-                                <th>Tipo de servicio</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><input type="checkbox" class="form-check-input"></td>
-                                <td colspan="4" class="text-center text-muted py-4 small">No hay órdenes de trabajo activas registradas en este momento.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- Solicitudes de técnicos -->
+                {% for sol in solicitudes_pendientes %}
+                <div class="p-3 border border-warning rounded-3 bg-light">
+                    <strong class="text-dark small d-block">Solicitud de {{ sol.usuario.username }}</strong>
+                    <span class="text-muted small">{{ sol.cantidad }} {{ sol.material.unidad_medida }} de {{ sol.material.nombre }}</span>
                 </div>
+                {% endfor %}
+
+                <!-- Mensaje si no hay nada -->
+                {% if not alertas_stock and not solicitudes_pendientes %}
+                <div class="p-3 border rounded-3 bg-light text-center text-muted small">
+                    <i class="bi bi-bell-slash fs-5 d-block mb-1"></i>
+                    No hay alertas ni notificaciones nuevas en terreno.
+                </div>
+                {% endif %}
+
             </div>
         </div>
-
-        <!-- Panel Lateral Derecho: Alertas y notificaciones -->
-        <div class="col-lg-4">
-            <div class="card-custom p-4 h-100">
-                <h5 class="fw-bold text-dark mb-3">Alertas y notificaciones</h5>
-                <div class="d-flex flex-column gap-3">
-                    <div class="p-3 border rounded-3 bg-light text-center text-muted small">
-                        <i class="bi bi-bell-slash fs-5 d-block mb-1"></i>
-                        No hay alertas ni notificaciones nuevas en terreno.
-                    </div>
-                </div>
-            </div>
-        </div>
-
     </div>
+    <script src="{% static 'js/dashboard.js' %}"></script>
+</div>
 {% endblock %}

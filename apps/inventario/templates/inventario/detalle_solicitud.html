@@ -1,0 +1,192 @@
+<!-- codigo agregado por Luciano -->
+
+{% extends 'base_admin.html' %}
+{% load static %}
+
+{% block title %}Detalle de Solicitud - Frío y Agroindustria SpA{% endblock %}
+
+{% block page_title %}
+<div class="d-flex align-items-center gap-3">
+    <a href="{% url 'inventario:solicitudes' %}" class="text-dark text-decoration-none fs-3" title="Volver a Solicitudes">
+        <i class="bi bi-arrow-left-circle-fill"></i>
+    </a>
+    <span>Detalle de Solicitud {% if solicitud %}{{ solicitud.codigo_sol }}{% endif %}</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/detalle_solicitud.css' %}">
+
+{% if solicitud %}
+<div id="detalleSolicitudWrapper"
+     data-solicitud-id="{{ solicitud.id }}"
+     data-url-endpoint="{% url 'inventario:detalle_solicitud' %}?id={{ solicitud.id }}"
+     data-url-volver="{% url 'inventario:solicitudes' %}">
+
+    {% csrf_token %}
+
+    <!-- RESUMEN DE LA SOLICITUD -->
+    <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fyag-section-title m-0">Datos de la Solicitud</div>
+            <span id="badgeEstadoSolicitud" class="{{ solicitud.estado_badge_clase }}">{{ solicitud.estado_badge_texto }}</span>
+        </div>
+        <div class="fyag-card">
+            <div class="row g-2 small">
+                <div class="col-md-4">
+                    <strong>Obra Asociada:</strong>
+                    {% if solicitud.orden_id %}
+                        <a href="{% url 'obras:detalle_obra' %}" class="fw-bold text-decoration-none" style="color:#2E358F;">{{ solicitud.obra_titulo }}</a>
+                    {% else %}
+                        <span class="fw-bold" style="color:#2E358F;">{{ solicitud.obra_titulo }}</span>
+                    {% endif %}
+                </div>
+                <div class="col-md-4"><strong>Técnico Solicitante:</strong> {{ solicitud.tecnico }}</div>
+                <div class="col-md-4"><strong>Fecha / Hora:</strong> {{ solicitud.fecha_hora }}</div>
+                <div class="col-md-4">
+                    <strong>Prioridad:</strong>
+                    {% if solicitud.es_urgente %}
+                        <span class="text-danger fw-bold">Alta (Urgente en faena)</span>
+                    {% else %}
+                        <span class="text-secondary fw-semibold">Normal</span>
+                    {% endif %}
+                </div>
+                <div class="col-md-8"><strong>Motivo indicado por terreno:</strong> {{ solicitud.motivo }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EVIDENCIA FOTOGRÁFICA EN TERRENO (ANTES Y DESPUÉS) -->
+    <div class="mb-4">
+        <div class="fyag-section-title">Evidencia Fotográfica Enviada desde Terreno</div>
+        <div class="fyag-card">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="small fw-semibold text-secondary mb-2">
+                        <i class="bi bi-camera me-1"></i>Registro Fotográfico - Antes
+                    </div>
+                    {% if solicitud.foto_antes_url %}
+                        <div class="evidencia-box con-imagen js-ver-evidencia"
+                             data-img-src="{{ solicitud.foto_antes_url }}"
+                             data-img-titulo="Evidencia Fotográfica - Antes ({{ solicitud.codigo_sol }})">
+                            <img src="{{ solicitud.foto_antes_url }}" alt="Evidencia antes" class="evidencia-img-preview">
+                            <div class="small text-primary fw-semibold mt-2">
+                                <i class="bi bi-zoom-in me-1"></i>Pinchar para ampliar imagen
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="evidencia-box">
+                            <div class="evidencia-placeholder">
+                                <i class="bi bi-image fs-2 mb-1"></i>
+                                <span class="small">Sin fotografía de "Antes" adjunta</span>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <div class="small fw-semibold text-secondary mb-2">
+                        <i class="bi bi-camera-fill me-1"></i>Registro Fotográfico - Después
+                    </div>
+                    {% if solicitud.foto_despues_url %}
+                        <div class="evidencia-box con-imagen js-ver-evidencia"
+                             data-img-src="{{ solicitud.foto_despues_url }}"
+                             data-img-titulo="Evidencia Fotográfica - Después ({{ solicitud.codigo_sol }})">
+                            <img src="{{ solicitud.foto_despues_url }}" alt="Evidencia después" class="evidencia-img-preview">
+                            <div class="small text-primary fw-semibold mt-2">
+                                <i class="bi bi-zoom-in me-1"></i>Pinchar para ampliar imagen
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="evidencia-box">
+                            <div class="evidencia-placeholder">
+                                <i class="bi bi-image fs-2 mb-1"></i>
+                                <span class="small">Sin fotografía de "Después" adjunta</span>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA DE INSUMOS SOLICITADOS VS STOCK BODEGA -->
+    <div class="mb-4">
+        <div class="fyag-section-title">Insumos y Repuestos Solicitados</div>
+        <div class="fyag-card">
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle fyag-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Artículo / Repuesto</th>
+                            <th class="text-center">Stock Bodega</th>
+                            <th class="text-center">Cant. Solicitada</th>
+                            <th class="text-center" style="width: 150px;">Cant. a Aprobar</th>
+                            <th class="text-center">Disponibilidad</th>
+                        </tr>
+                    </thead>
+                    <tbody class="small">
+                        {% for item in items_solicitud %}
+                        <tr>
+                            <td class="fw-semibold">{{ item.codigo }}</td>
+                            <td>{{ item.nombre }}</td>
+                            <td id="celdaStockBodega"
+                                data-unidad="{{ item.unidad }}"
+                                class="text-center fw-bold {% if item.disponibilidad != 'disponible' %}text-danger{% endif %}">
+                                {{ item.stock_actual }} {{ item.unidad }}
+                            </td>
+                            <td class="text-center">{{ item.cantidad_solicitada }} {{ item.unidad }}</td>
+                            <td class="text-center">
+                                <input type="number"
+                                       class="form-control form-control-sm text-center mx-auto input-cant-aprobar"
+                                       style="width: 85px;"
+                                       value="{{ item.cantidad_aprobar }}"
+                                       min="0"
+                                       max="{{ item.stock_max_input }}"
+                                       step="any">
+                            </td>
+                            <td class="text-center">
+                                {% if item.disponibilidad == "disponible" %}
+                                    <span class="text-success fw-semibold"><i class="bi bi-check-circle-fill"></i> Disponible</span>
+                                {% elif item.disponibilidad == "parcial" %}
+                                    <span class="text-warning fw-semibold"><i class="bi bi-exclamation-triangle-fill"></i> Stock parcial</span>
+                                {% else %}
+                                    <span class="text-danger fw-semibold"><i class="bi bi-x-circle-fill"></i> Sin stock</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESOLUCIÓN DEL ADMINISTRADOR -->
+    <div class="fyag-card">
+        <div class="fyag-section-title">Resolución y Despacho de Bodega</div>
+        <div class="mb-3">
+            <label for="observacionAdmin" class="form-label small fw-semibold">Observación para el técnico:</label>
+            <textarea id="observacionAdmin" class="form-control form-control-sm" rows="2" placeholder="Ej: Se aprueba entrega parcial de terminales eléctricos por quiebre de stock...">{{ solicitud.observacion_admin }}</textarea>
+        </div>
+        <div class="d-flex flex-wrap justify-content-end gap-2">
+            <button type="button" id="btnRechazar" class="btn btn-outline-danger btn-sm px-3">
+                <i class="bi bi-x-circle me-1"></i>Rechazar Solicitud
+            </button>
+            <button type="button" id="btnAprobar" class="btn btn-fyag btn-sm px-4">
+                <i class="bi bi-check2-circle me-1"></i>Aprobar y Rebajar Cardex
+            </button>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="fyag-card text-center py-5 text-muted">
+    No se encontró la solicitud de insumos solicitada.
+</div>
+{% endif %}
+
+<script src="{% static 'js/detalle_solicitud.js' %}"></script>
+{% endblock %}
+
+<!-- fin codigo agregado por Luciano -->
