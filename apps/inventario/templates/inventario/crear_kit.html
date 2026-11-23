@@ -79,7 +79,8 @@
                                     <input type="number" name="cantidad[]" class="form-control form-control-sm input-cantidad-kit" step="0.01" min="0.01" value="1.00" required>
                                 </td>
                                 <td>
-                                    <input type="number" name="precio_unitario[]" class="form-control form-control-sm input-precio-kit" step="0.01" min="0" value="0.00" required>
+                                    <!-- CAMBIADO: precio bloqueado (readonly) para que no se pueda modificar al crear el kit -->
+                                    <input type="number" name="precio_unitario[]" class="form-control form-control-sm bg-light input-precio-kit" step="0.01" min="0" value="0.00" readonly tabindex="-1">
                                 </td>
                                 <td class="fw-semibold text-end subtotal-kit">$0.00</td>
                                 <td class="text-end">
@@ -126,7 +127,8 @@
             <input type="number" name="cantidad[]" class="form-control form-control-sm input-cantidad-kit" step="0.01" min="0.01" value="1.00" required>
         </td>
         <td>
-            <input type="number" name="precio_unitario[]" class="form-control form-control-sm input-precio-kit" step="0.01" min="0" value="0.00" required>
+            <!-- CAMBIADO: precio bloqueado (readonly) también en filas nuevas -->
+            <input type="number" name="precio_unitario[]" class="form-control form-control-sm bg-light input-precio-kit" step="0.01" min="0" value="0.00" readonly tabindex="-1">
         </td>
         <td class="fw-semibold text-end subtotal-kit">$0.00</td>
         <td class="text-end">

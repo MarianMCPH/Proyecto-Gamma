@@ -471,6 +471,7 @@ class KitHerramientasView(TemplateView):
             mat.save(update_fields=["precio_unitario"])
             return JsonResponse({"ok": True, "precio_unitario": f"{mat.precio_unitario:.2f}"})
 
+        # CAMBIADO: permite eliminar el material en pruebas eliminando primero sus movimientos asociados
         if accion == "eliminar_material":
             mat_id = request.POST.get("material_id")
             mat = get_object_or_404(Material, pk=mat_id)
@@ -484,16 +485,10 @@ class KitHerramientasView(TemplateView):
                     status=400,
                 )
 
-            if MovimientoInventario.objects.filter(material=mat).exists():
-                return JsonResponse(
-                    {
-                        "ok": False,
-                        "error": "No se puede eliminar este material porque tiene movimientos de inventario registrados.",
-                    },
-                    status=400,
-                )
+            with transaction.atomic():
+                MovimientoInventario.objects.filter(material=mat).delete()
+                mat.delete()
 
-            mat.delete()
             return JsonResponse({"ok": True})
 
         return JsonResponse({"ok": False, "error": "Acción no válida."}, status=400)
@@ -564,7 +559,6 @@ class CrearKitView(TemplateView):
 
         material_ids = request.POST.getlist("material_id[]")
         cantidades = request.POST.getlist("cantidad[]")
-        precios = request.POST.getlist("precio_unitario[]")
 
         if not nombre_kit or not tipo_servicio:
             return JsonResponse(
@@ -589,21 +583,13 @@ class CrearKitView(TemplateView):
                         continue
 
                     cant_raw = str(cantidades[idx] if idx < len(cantidades) else "1").replace(",", ".").strip()
-                    precio_raw = str(precios[idx] if idx < len(precios) else "").replace(",", ".").strip()
-
                     cant = Decimal(cant_raw or "1")
                     if cant <= 0:
                         continue
 
-                    precio = (
-                        Decimal(precio_raw)
-                        if precio_raw != ""
-                        else (mat.precio_unitario or Decimal("0"))
-                    )
-                    if precio < 0:
-                        precio = Decimal("0")
-
-                    items_validos.append((mat, cant, precio, precio_raw != ""))
+                    # CAMBIADO: usa siempre el precio unitario registrado en el material
+                    precio = mat.precio_unitario or Decimal("0")
+                    items_validos.append((mat, cant, precio))
 
                 if not items_validos:
                     return JsonResponse(
@@ -617,11 +603,7 @@ class CrearKitView(TemplateView):
                     descripcion=descripcion,
                 )
 
-                for mat, cant, precio, actualizar_precio_base in items_validos:
-                    if actualizar_precio_base and mat.precio_unitario != precio:
-                        mat.precio_unitario = precio
-                        mat.save(update_fields=["precio_unitario"])
-
+                for mat, cant, precio in items_validos:
                     DetalleKitHerramienta.objects.update_or_create(
                         kit=kit,
                         material=mat,
@@ -637,7 +619,7 @@ class CrearKitView(TemplateView):
                 "listado_url": reverse("inventario:kits_herramientas"),
             })
         except InvalidOperation:
-            return JsonResponse({"ok": False, "error": "Revisa las cantidades y precios ingresados."}, status=400)
+            return JsonResponse({"ok": False, "error": "Revisa las cantidades ingresadas."}, status=400)
         except Exception:
             return JsonResponse({"ok": False, "error": "No se pudo guardar el nuevo kit."}, status=500)
 
@@ -736,12 +718,14 @@ class EditarKitView(TemplateView):
             return JsonResponse({"ok": False, "error": "No se pudo actualizar el kit."}, status=500)
 
 
+# CAMBIADO: evita el 404 si el kit ya no existe en la base de datos
 class EliminarKitView(View):
     """Elimina un kit de herramientas."""
 
     def post(self, request, *args, **kwargs):
-        kit = get_object_or_404(KitHerramientas, pk=kwargs.get("pk"))
-        kit.delete()
+        kit = KitHerramientas.objects.filter(pk=kwargs.get("pk")).first()
+        if kit:
+            kit.delete()
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({"ok": True})
         return redirect("inventario:kits_herramientas")

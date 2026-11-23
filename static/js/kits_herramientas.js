@@ -28,12 +28,13 @@ document.addEventListener('DOMContentLoaded', function () {
     function actualizarMontoFilaInventario(fila) {
         if (!fila) return;
         const unidadEl = fila.querySelector('.mat-unidad-texto');
-        const precioInput = fila.querySelector('.input-precio-inventario');
+        const precioEl = fila.querySelector('.mat-precio-texto');
         const montoCell = fila.querySelector('.mat-monto-texto');
         if (!montoCell) return;
 
         const factorUnidad = obtenerFactorUnidad(unidadEl ? unidadEl.textContent : 1);
-        const precio = aNumero(precioInput ? precioInput.value : 0);
+        const precioRaw = precioEl ? (precioEl.getAttribute('data-precio') || precioEl.textContent) : 0;
+        const precio = aNumero(precioRaw);
         const total = factorUnidad * precio;
         montoCell.textContent = '$' + total.toFixed(2);
     }
@@ -129,53 +130,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    document.querySelectorAll('.input-precio-inventario').forEach(input => {
-        input.addEventListener('input', function () {
-            actualizarMontoFilaInventario(this.closest('tr'));
-        });
-
-        input.addEventListener('change', function () {
-            const materialId = this.getAttribute('data-material-id');
-            const precioNormalizado = aNumero(this.value).toFixed(2);
-            this.value = precioNormalizado;
-            const fila = this.closest('tr');
-            actualizarMontoFilaInventario(fila);
-
-            const formData = new FormData();
-            formData.append('accion', 'actualizar_precio_material');
-            formData.append('material_id', materialId);
-            formData.append('precio_unitario', precioNormalizado);
-
-            fetch(window.location.href, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': obtenerCsrfToken(),
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: formData
-            })
-            .then(async res => {
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok || !data.ok) {
-                    alert(data.error || 'No se pudo actualizar el precio.');
-                    return;
-                }
-                this.value = data.precio_unitario;
-                if (fila) {
-                    fila.querySelectorAll('.btn-ver-material, .btn-editar-material').forEach(b => {
-                        b.setAttribute('data-precio', data.precio_unitario);
-                    });
-                    actualizarMontoFilaInventario(fila);
-                }
-                document.querySelectorAll(`.select-material-kit option[value="${materialId}"]`).forEach(opt => {
-                    opt.setAttribute('data-precio', data.precio_unitario);
-                });
-                recalcularTotales();
-            })
-            .catch(() => alert('Error de conexión al actualizar el precio.'));
-        });
-    });
-
     const modalVerMatEl = document.getElementById('modalVerMaterial');
     document.querySelectorAll('.btn-ver-material').forEach(btn => {
         btn.addEventListener('click', function () {
@@ -224,7 +178,6 @@ document.addEventListener('DOMContentLoaded', function () {
         editMatPrecioInput.addEventListener('change', recalcularTotalModalEditar);
     }
 
-    // Cambiar stock NO modifica el Total ($)
     document.querySelectorAll('.btn-editar-material').forEach(btn => {
         btn.addEventListener('click', function () {
             filaMaterialEnEdicion = this.closest('tr');
@@ -274,13 +227,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     const subEl = filaMaterialEnEdicion.querySelector('.mat-sub-texto');
                     const unidadEl = filaMaterialEnEdicion.querySelector('.mat-unidad-texto');
                     const stockEl = filaMaterialEnEdicion.querySelector('.mat-stock-texto');
-                    const precioInput = filaMaterialEnEdicion.querySelector('.input-precio-inventario');
+                    const precioEl = filaMaterialEnEdicion.querySelector('.mat-precio-texto');
 
                     if (nombreEl) nombreEl.textContent = mat.nombre;
                     if (subEl) subEl.textContent = mat.codigo;
                     if (unidadEl) unidadEl.textContent = mat.unidad_medida;
                     if (stockEl) stockEl.textContent = mat.stock_actual;
-                    if (precioInput) precioInput.value = mat.precio_unitario;
+                    if (precioEl) {
+                        precioEl.setAttribute('data-precio', mat.precio_unitario);
+                        precioEl.textContent = '$' + aNumero(mat.precio_unitario).toFixed(2);
+                    }
 
                     filaMaterialEnEdicion.querySelectorAll('.btn-ver-material, .btn-editar-material').forEach(b => {
                         b.setAttribute('data-codigo', mat.codigo);
@@ -516,10 +472,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // CAMBIADO: al eliminar un kit, elimina la fila o recarga la vista actual evitando rutas de detalle inexistentes
     document.querySelectorAll('.form-eliminar-kit').forEach(form => {
         form.addEventListener('submit', function (e) {
             e.preventDefault();
             if (!confirm('¿Deseas eliminar este kit?')) return;
+
+            const fila = this.closest('tr');
 
             fetch(form.action, {
                 method: 'POST',
@@ -530,11 +489,15 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .then(async res => {
                 const data = await res.json().catch(() => ({}));
-                if (!res.ok || !data.ok) {
-                    alert('No se pudo eliminar el kit.');
+                if (!res.ok || (data && data.ok === false)) {
+                    alert((data && data.error) || 'No se pudo eliminar el kit.');
                     return;
                 }
-                window.location.href = '/inventario/kits/';
+                if (fila) {
+                    fila.remove();
+                } else {
+                    window.location.reload();
+                }
             })
             .catch(() => alert('Error de conexión al eliminar el kit.'));
         });
