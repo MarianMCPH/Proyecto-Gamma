@@ -1,0 +1,257 @@
+{% extends "base_admin.html" %}
+{% load static %}
+
+{% block page_title %}Kit de Herramientas y Materiales{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- ===== MINI INVENTARIO DE MATERIALES ===== -->
+    <div class="col-12">
+        <div class="card-custom p-4">
+            <h5 class="fw-bold text-dark mb-3">
+                <i class="bi bi-box-seam me-2"></i>Mini Inventario de Materiales
+            </h5>
+
+            <div class="table-responsive mb-3" style="max-height: 440px; overflow-y: auto;">
+                <table class="table table-sm table-hover align-middle mb-0 small" id="tablaMiniInventario">
+                    <thead class="table-light text-muted">
+                        <tr>
+                            <th>Material</th>
+                            <th>Unidad</th>
+                            <th>Stock</th>
+                            <th>Precio Unit. ($)</th>
+                            <th>Total ($)</th>
+                            <th class="text-end" style="width: 120px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoMiniInventario">
+                        {% for m in materiales %}
+                        <tr data-fila-material-id="{{ m.id }}">
+                            <td>
+                                <div class="fw-semibold text-dark mat-nombre-texto">{{ m.nombre }}</div>
+                                <div class="text-muted mat-sub-texto" style="font-size: 0.75rem;">{{ m.codigo }}</div>
+                            </td>
+                            <td class="mat-unidad-texto">{{ m.unidad_medida }}</td>
+                            <td class="mat-stock-texto">{{ m.stock_actual|floatformat:2 }}</td>
+                            <!-- CAMBIADO: precio como texto (sin input number ni flechitas inline); se edita solo en el modal Editar -->
+                            <td class="fw-semibold text-dark mat-precio-texto" data-precio="{{ m.precio_unitario|stringformat:'.2f' }}">
+                                ${{ m.precio_unitario|floatformat:2 }}
+                            </td>
+                            <td class="fw-semibold text-success mat-monto-texto">$0.00</td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-1">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary py-0 px-2 btn-ver-material"
+                                            data-id="{{ m.id }}"
+                                            data-codigo="{{ m.codigo }}"
+                                            data-nombre="{{ m.nombre }}"
+                                            data-unidad="{{ m.unidad_medida }}"
+                                            data-stock="{{ m.stock_actual|stringformat:'.2f' }}"
+                                            data-stock-minimo="{{ m.stock_minimo|stringformat:'.2f' }}"
+                                            data-precio="{{ m.precio_unitario|stringformat:'.2f' }}"
+                                            title="Ver material">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary py-0 px-2 btn-editar-material"
+                                            data-id="{{ m.id }}"
+                                            data-codigo="{{ m.codigo }}"
+                                            data-nombre="{{ m.nombre }}"
+                                            data-unidad="{{ m.unidad_medida }}"
+                                            data-stock="{{ m.stock_actual|stringformat:'.2f' }}"
+                                            data-stock-minimo="{{ m.stock_minimo|stringformat:'.2f' }}"
+                                            data-precio="{{ m.precio_unitario|stringformat:'.2f' }}"
+                                            title="Editar material">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger py-0 px-2 btn-eliminar-material"
+                                            data-material-id="{{ m.id }}"
+                                            data-material-nombre="{{ m.nombre }}"
+                                            title="Eliminar material">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr id="filaSinMateriales">
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                Aún no se ha agregado ningún material.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex flex-wrap justify-content-end gap-2">
+                <a href="{% url 'inventario:nuevo_material' %}" class="btn btn-sm text-white fw-semibold px-3" style="background-color: #3f4270;">
+                    <i class="bi bi-plus-circle me-1"></i>Agregar nuevo material
+                </a>
+                <a href="{% url 'inventario:crear_kit' %}" class="btn btn-sm text-white fw-semibold px-3" style="background-color: #3f4270;">
+                    <i class="bi bi-plus-lg me-1"></i>Crear nuevo kit
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- AGREGADO: Listado de kits agregados debajo del mini inventario -->
+    <div class="col-12">
+        <div class="card-custom p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold text-dark mb-0">
+                    <i class="bi bi-tools me-2"></i>Kits de Herramientas Registrados
+                </h5>
+                <span class="badge bg-light text-dark border">{{ kits|length }} kit{{ kits|length|pluralize:"s" }}</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 small" id="tablaKitsRegistrados">
+                    <thead class="table-light text-muted">
+                        <tr>
+                            <th>Kit</th>
+                            <th>Tipo de Servicio</th>
+                            <th>Materiales</th>
+                            <th>Presupuesto Total ($)</th>
+                            <th class="text-end" style="width: 140px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for kit in kits %}
+                        <tr>
+                            <td>
+                                <div class="fw-semibold text-dark">{{ kit.nombre }}</div>
+                                {% if kit.descripcion %}
+                                    <div class="text-muted" style="font-size: 0.75rem;">{{ kit.descripcion }}</div>
+                                {% endif %}
+                            </td>
+                            <td>{{ kit.tipo_servicio }}</td>
+                            <td>{{ kit.cantidad_items }} ítem{{ kit.cantidad_items|pluralize:"s" }}</td>
+                            <td class="fw-semibold text-success">${{ kit.total_presupuesto|floatformat:2 }}</td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-1">
+                                    <a href="{% url 'inventario:detalle_kit' kit.id %}"
+                                       class="btn btn-sm btn-outline-primary py-0 px-2"
+                                       title="Ver detalle del kit">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{% url 'inventario:editar_kit' kit.id %}"
+                                       class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                       title="Editar kit">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+                                    <form method="post"
+                                          action="{% url 'inventario:eliminar_kit' kit.id %}"
+                                          class="d-inline form-eliminar-kit">
+                                        {% csrf_token %}
+                                        <button type="submit"
+                                                class="btn btn-sm btn-outline-danger py-0 px-2"
+                                                title="Eliminar kit">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">
+                                Aún no se ha creado ningún kit de herramientas.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ver Material -->
+<div class="modal fade" id="modalVerMaterial" tabindex="-1" aria-labelledby="modalVerMaterialLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" id="modalVerMaterialLabel">
+                    <i class="bi bi-eye me-2 text-primary"></i>Detalle del Material
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body small">
+                <div class="bg-light p-3 rounded">
+                    <div class="mb-1"><strong>Código:</strong> <span id="verMatCodigo">-</span></div>
+                    <div class="mb-1"><strong>Nombre:</strong> <span id="verMatNombre">-</span></div>
+                    <div class="mb-1"><strong>Unidad:</strong> <span id="verMatUnidad">-</span></div>
+                    <div class="mb-1"><strong>Stock actual:</strong> <span id="verMatStock">-</span></div>
+                    <div class="mb-1"><strong>Stock mínimo:</strong> <span id="verMatStockMinimo">-</span></div>
+                    <div class="mb-1"><strong>Precio unitario:</strong> <span id="verMatPrecio" class="fw-bold">$0.00</span></div>
+                    <div><strong>Total:</strong> <span id="verMatMonto" class="text-success fw-bold">$0.00</span></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Material -->
+<div class="modal fade" id="modalEditarMaterial" tabindex="-1" aria-labelledby="modalEditarMaterialLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" id="modalEditarMaterialLabel">
+                    <i class="bi bi-pencil-square me-2 text-secondary"></i>Editar Material
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form id="formEditarMaterial" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="editar_material">
+                <input type="hidden" id="editMatId" name="material_id">
+                <div class="modal-body small">
+                    <div class="row g-2">
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold">Código *</label>
+                            <input type="text" id="editMatCodigo" name="codigo" class="form-control form-control-sm" required>
+                        </div>
+                        <div class="col-md-7">
+                            <label class="form-label fw-semibold">Nombre *</label>
+                            <input type="text" id="editMatNombre" name="nombre" class="form-control form-control-sm" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Unidad *</label>
+                            <input type="text" id="editMatUnidad" name="unidad_medida" class="form-control form-control-sm" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Stock actual</label>
+                            <input type="number" id="editMatStock" name="stock_actual" class="form-control form-control-sm" step="0.01" min="0" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Stock mínimo</label>
+                            <input type="number" id="editMatStockMinimo" name="stock_minimo" class="form-control form-control-sm" step="0.01" min="0" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Precio unitario ($) *</label>
+                            <input type="number" id="editMatPrecio" name="precio_unitario" class="form-control form-control-sm" step="0.01" min="0" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Total ($)</label>
+                            <input type="text" id="editMatMontoCalculado" class="form-control form-control-sm bg-light fw-bold text-success" value="$0.00" readonly>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm text-white fw-semibold" style="background-color: #3f4270;">
+                        Guardar cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/kits_herramientas.js' %}"></script>
+{% endblock %}

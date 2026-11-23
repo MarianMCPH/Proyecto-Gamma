@@ -67,6 +67,7 @@ class OrdenTrabajo(models.Model):
     fecha_auditoria = models.DateTimeField(null=True, blank=True)
     observacion_auditoria = models.TextField(blank=True, null=True)
     inmutable = models.BooleanField(default=False)
+    desactivada_gestion = models.BooleanField(default=False)
 
     class Meta:
         db_table = "OrdenTrabajo"

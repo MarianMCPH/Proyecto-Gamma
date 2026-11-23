@@ -27,14 +27,8 @@
                 </button>
             </div>
             
-            <!-- Grupo de Botones de Acción -->
+            <!-- Botón Nueva Orden de Trabajo -->
             <div class="d-flex gap-2">
-                <!-- Botón Desactivar (creado) -->
-                <button id="btnDesactivarObras" class="btn btn-sm btn-outline-danger fw-semibold px-3 py-1.5 text-nowrap">
-                    <i class="bi bi-eye-slash me-1"></i> Desactivar
-                </button>
-
-                <!-- Botón Nueva Orden de Trabajo -->
                 <a href="{% url 'obras:nueva_obra' %}" class="btn btn-sm text-white fw-semibold shadow-sm px-3 py-1.5 text-nowrap text-decoration-none" style="background-color: #3f4270;">
                     <i class="bi bi-plus-lg me-1"></i> Nueva orden de trabajo
                 </a>
@@ -51,7 +45,6 @@
 
     <!-- Tabla de Obras / Servicios -->
     <div class="card-custom p-3">
-        <!-- Input CSRF oculto para que el JS lo lea de forma segura -->
         {% csrf_token %}
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0 small">
@@ -74,9 +67,20 @@
                         <td>{{ o.tecnico }}</td>
                         <td><span class="badge {{ o.badge_clase }}">{{ o.estado_label }}</span></td>
                         <td class="text-end">
-                            <a href="{% url 'obras:detalle_obra' %}?id={{ o.id }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="Ver detalles">
-                                <i class="bi bi-eye"></i>
-                            </a>
+                            <div class="d-inline-flex gap-1">
+                                <!-- 1. Ver obra (redirige a auditoría de esa obra) -->
+                                <a href="{% url 'obras:auditar_obra' %}?id={{ o.id }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="Ver obra / Ir a Auditoría">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <!-- 2. Editar obra -->
+                                <a href="{% url 'obras:editar_obra' %}?id={{ o.id }}" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Editar obra">
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
+                                <!-- 3. Desactivar obra -->
+                                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 btn-desactivar-obra" data-id="{{ o.id }}" title="Desactivar obra">
+                                    <i class="bi bi-eye-slash"></i>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     {% empty %}

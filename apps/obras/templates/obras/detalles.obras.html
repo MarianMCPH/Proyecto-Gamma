@@ -1,5 +1,3 @@
-<!-- codigo agregado por Luciano -->
- 
 {% extends 'base_admin.html' %}
 {% load static %}
 
@@ -60,10 +58,7 @@
         <span class="text-muted">Servicio: <strong>{{ orden.tipo_servicio }}</strong></span>
     </div>
     <div class="d-flex gap-2">
-        <a href="{% url 'obras:editar_obra' %}?id={{ orden.id }}" class="btn btn-outline-secondary btn-sm px-3">
-            <i class="bi bi-pencil-square me-1"></i>Editar Orden
-        </a>
-        <a href="{% url 'obras:auditoria' %}" class="btn btn-fyag btn-sm px-3">
+        <a href="{% url 'obras:auditar_obra' %}?id={{ orden.id }}" class="btn btn-fyag btn-sm px-3">
             <i class="bi bi-clipboard-check me-1"></i>Ir a Auditoría
         </a>
     </div>
@@ -126,5 +121,3 @@
 {% endif %}
 
 {% endblock %}
-
-<!-- fin codigo agregado por Luciano -->

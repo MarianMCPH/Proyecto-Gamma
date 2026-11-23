@@ -4,9 +4,9 @@
 {% block page_title %}Auditar Obra {% if orden_auditoria %}{{ orden_auditoria.codigo_ot }}{% endif %}{% endblock %}
 
 {% block content %}
-    <!-- Encabezado con botón de retroceso -->
+    <!-- Encabezado con botón de retroceso hacia Gestión de Obras -->
     <div class="d-flex align-items-center mb-4">
-        <a href="{% url 'obras:auditoria' %}" class="btn btn-outline-secondary btn-sm rounded-circle p-2 d-flex align-items-center justify-content-center me-3" style="width: 38px; height: 38px;">
+        <a href="{% url 'obras:ver_obras' %}" class="btn btn-outline-secondary btn-sm rounded-circle p-2 d-flex align-items-center justify-content-center me-3" style="width: 38px; height: 38px;" title="Volver a Gestión de Obras">
             <i class="bi bi-arrow-left fs-5"></i>
         </a>
     </div>
@@ -15,7 +15,7 @@
     <div id="auditarObraWrapper"
          data-orden-id="{{ orden_auditoria.id }}"
          data-url-aprobar="{% url 'obras:auditar_obra' %}?id={{ orden_auditoria.id }}"
-         data-url-volver="{% url 'obras:auditoria' %}">
+         data-url-volver="{% url 'obras:ver_obras' %}">
 
         {% csrf_token %}
 
@@ -144,7 +144,7 @@
         <div class="d-flex justify-content-end mb-4">
             <button id="btnAprobarObra"
                     type="button"
-                    data-url-volver="{% url 'obras:auditoria' %}"
+                    data-url-volver="{% url 'obras:ver_obras' %}"
                     class="btn text-white px-5 py-2 fw-semibold shadow-sm"
                     style="background-color: #363853;"
                     {% if orden_auditoria.es_aprobada %}disabled{% endif %}>

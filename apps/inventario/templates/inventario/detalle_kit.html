@@ -1,0 +1,72 @@
+{% extends "base_admin.html" %}
+{% load static %}
+
+{% block page_title %}Detalle del Kit: {{ kit.nombre }}{% endblock %}
+
+{% block content %}
+<div class="card-custom p-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+            <h4 class="fw-bold text-dark mb-1">{{ kit.nombre }}</h4>
+            <span class="badge bg-secondary">{{ kit.tipo_servicio }}</span>
+            {% if kit.descripcion %}
+                <p class="text-muted small mt-2 mb-0">{{ kit.descripcion }}</p>
+            {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'inventario:kits_herramientas' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Volver
+            </a>
+            <a href="{% url 'inventario:editar_kit' kit.id %}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-pencil-square me-1"></i>Editar Kit
+            </a>
+            <form action="{% url 'inventario:eliminar_kit' kit.id %}" method="post" class="d-inline form-eliminar-kit">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-trash me-1"></i>Eliminar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-responsive mb-4">
+        <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-light text-muted">
+                <tr>
+                    <th>Código</th>
+                    <th>Material</th>
+                    <th>Unidad</th>
+                    <th class="text-end">Cantidad</th>
+                    <th class="text-end">Precio Unitario</th>
+                    <th class="text-end">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.codigo }}</td>
+                    <td class="fw-semibold text-dark">{{ item.nombre }}</td>
+                    <td>{{ item.unidad }}</td>
+                    <td class="text-end">{{ item.cantidad|floatformat:2 }}</td>
+                    <td class="text-end">${{ item.precio_unitario|floatformat:2 }}</td>
+                    <td class="text-end fw-semibold">${{ item.subtotal|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">
+                        Este kit no tiene materiales asociados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="d-flex justify-content-end align-items-center bg-light p-3 rounded">
+        <span class="fw-semibold text-dark me-3">Total Presupuesto del Kit:</span>
+        <span class="fs-4 fw-bold text-success">${{ total_presupuesto|floatformat:2 }}</span>
+    </div>
+</div>
+
+<script src="{% static 'js/kits_herramientas.js' %}"></script>
+{% endblock %}
