@@ -30,9 +30,13 @@
         No hay una orden de trabajo activa. Abra esta pantalla desde la obra asignada
         (por ejemplo, agregando <code>?orden=ID</code> a la dirección).
     </div>
+{% elif faena.cancelada %}
+    <div class="alert alert-danger small" role="alert">
+        <i class="bi bi-x-circle-fill me-1" aria-hidden="true"></i>{{ faena.motivo_bloqueo }}
+    </div>
 {% elif faena.bloqueada %}
     <div class="alert alert-info small" role="alert">
-        La orden #{{ orden.pk }} ya fue aprobada por administración y no admite cambios.
+        {{ faena.motivo_bloqueo }}
     </div>
 {% endif %}
 <script src="{% static 'js/faena_store.js' %}"></script>

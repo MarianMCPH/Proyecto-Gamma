@@ -31,7 +31,7 @@ class Insumos(TemplateView):
 # =====================================================================
 
 CLAVE_SESION_ORDEN = "pwa_orden_actual"
-ESTADOS_BLOQUEADOS = {"aprobada", "facturada"}
+ESTADOS_BLOQUEADOS = {"aprobada", "facturada", "cancelada"}
 MAX_FOTO_KB = 500            # requisito: fotos bajo 500 KB (la PWA las comprime antes de enviar)
 PREFIJO_SOLICITUD = "Solicitud desde terreno"       # marca los MovimientoInventario que son solicitudes
 PREFIJO_NO_CATALOGADO = "Insumo no catalogado"      # marca los Presupuesto creados desde la PWA
@@ -92,11 +92,28 @@ def datos_faena(orden):
         "cliente": orden.cliente.razon_social if orden.cliente else "Sin cliente",
         "tecnico": nombre_usuario(orden.tecnico),
         "bloqueada": orden_bloqueada(orden),
+        "cancelada": orden_cancelada(orden),
+        "motivo_bloqueo": motivo_bloqueo(orden),
     }
+
+
+def orden_cancelada(orden):
+    return (orden.estado or "").strip().lower() == "cancelada"
 
 
 def orden_bloqueada(orden):
     return orden.inmutable or (orden.estado or "").strip().lower() in ESTADOS_BLOQUEADOS
+
+
+def motivo_bloqueo(orden):
+    """Texto para el técnico de por qué la orden ya no admite cambios ('' si no está bloqueada)."""
+    if orden_cancelada(orden):
+        # razon_cancelacion lo agrega el módulo de Obras Canceladas (puede no existir en ramas antiguas)
+        razon = (getattr(orden, "razon_cancelacion", "") or "").strip()
+        return f"La obra #{orden.pk} fue cancelada" + (f" (motivo: {razon})" if razon else "") + " y no admite cambios."
+    if orden_bloqueada(orden):
+        return f"La orden #{orden.pk} ya fue aprobada por administración y no admite cambios."
+    return ""
 
 
 class OrdenPWAMixin:
@@ -210,7 +227,7 @@ def tipo_evidencia(evidencia):
 
 def verificar_orden(orden):
     """Revisión previa al cierre: checklist, materiales, fotos y firma registrados en la base de datos."""
-    # Checklist de la orden
+    # Checklist técnico de la orden
     checklist = (Checklist.objects.filter(orden=orden).prefetch_related("detalles")
                  .order_by("-id").first())
     if checklist is None:
@@ -292,7 +309,7 @@ def orden_para_envio(payload):
     except (TypeError, ValueError, OrdenTrabajo.DoesNotExist):
         raise ErrorEnvio("La orden de trabajo no existe.", status=404)
     if orden_bloqueada(orden):
-        raise ErrorEnvio("La orden ya fue aprobada y no admite cambios.", status=409)
+        raise ErrorEnvio(motivo_bloqueo(orden), status=409)
     return orden
 
 
@@ -429,7 +446,7 @@ class ApiCancelarSolicitud(EnvioPWAView):
         if slug != "pendiente":
             raise ErrorEnvio(f"La solicitud ya fue {label.lower()} por Bodega y no se puede cancelar.", status=409)
         if registro.orden and orden_bloqueada(registro.orden):
-            raise ErrorEnvio("La orden ya fue aprobada y no admite cambios.", status=409)
+            raise ErrorEnvio(motivo_bloqueo(registro.orden), status=409)
         for ev in EvidenciaFotografica.objects.filter(uuid_sync__startswith=f"{uuid_sync[:58]}-f"):
             ev.url_imagen.delete(save=False)
             ev.delete()
