@@ -115,3 +115,76 @@ body {
     font-weight: 600;
     color: #555555;
 }
+
+/* =================================================
+   PERSONALIZACIÓN: TAMAÑO DE LETRA Y MODO OSCURO
+   ================================================= */
+
+/* Tamaños de letra */
+html.letra-pequena {
+    font-size: 14px;
+}
+
+html.letra-normal {
+    font-size: 16px;
+}
+
+html.letra-grande {
+    font-size: 18px;
+}
+
+html.letra-pequena main,
+html.letra-pequena .card-custom,
+html.letra-pequena .table,
+html.letra-pequena .form-control,
+html.letra-pequena .form-select,
+html.letra-pequena .btn {
+    font-size: 0.875rem !important;
+}
+
+html.letra-grande main,
+html.letra-grande .card-custom,
+html.letra-grande .table,
+html.letra-grande .form-control,
+html.letra-grande .form-select,
+html.letra-grande .btn {
+    font-size: 1.125rem !important;
+}
+
+html.modo-oscuro,
+html.modo-oscuro body,
+html.modo-oscuro main {
+    background-color: #12161f !important;
+    color: #e2e8f0 !important;
+}
+
+html.modo-oscuro .card-custom {
+    background-color: #1e2433 !important;
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
+}
+
+html.modo-oscuro main h2,
+html.modo-oscuro main .text-dark {
+    color: #f1f5f9 !important;
+}
+
+html.modo-oscuro main .text-muted {
+    color: #94a3b8 !important;
+}
+
+html.modo-oscuro .table,
+html.modo-oscuro .table td,
+html.modo-oscuro .table th {
+    background-color: #1e2433 !important;
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
+}
+
+html.modo-oscuro .form-control,
+html.modo-oscuro .form-select,
+html.modo-oscuro .input-group-text {
+    background-color: #161b26 !important;
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+}
