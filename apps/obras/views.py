@@ -918,3 +918,169 @@ class VerReporteHTMLView(View):
     def get(self, request, pk, *args, **kwargs):
         rep = get_object_or_404(ReporteGenerado, pk=pk)
         return JsonResponse({"ok": True, "titulo": rep.titulo, "html": rep.contenido_html})
+
+# ==============================================================================
+# MÓDULO DE OBRAS CANCELADAS (Agregado por Luciano)
+# ==============================================================================
+import csv
+from decimal import Decimal
+from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.paginator import Paginator
+from django.db import transaction
+from django.db.models import Q, Sum
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.utils import timezone
+from django.views import View
+from django.views.generic import TemplateView
+
+from .models import OrdenTrabajo
+from apps.inventario.models import MovimientoInventario
+
+
+class ObrasCanceladasListView(LoginRequiredMixin, TemplateView):
+    """Listado historial de obras canceladas con filtros, materiales y paginación."""
+    template_name = "obras/obras_canceladas.html"
+
+    def get_queryset_filtrado(self):
+        qs = (
+            OrdenTrabajo.objects.filter(estado="cancelada")
+            .select_related("cliente", "tecnico")
+            .prefetch_related("movimientos_inventario__material")
+            .order_by("-fecha_cancelacion", "-id")
+        )
+
+        busqueda = self.request.GET.get("q", "").strip()
+        razon = self.request.GET.get("razon", "").strip()
+
+        if busqueda:
+            id_limpio = busqueda.upper().replace("OBR-", "").lstrip("0")
+            filtro_q = (
+                Q(cliente__razon_social__icontains=busqueda)
+                | Q(tipo_servicio__icontains=busqueda)
+                | Q(tecnico__first_name__icontains=busqueda)
+                | Q(tecnico__last_name__icontains=busqueda)
+                | Q(tecnico__username__icontains=busqueda)
+            )
+            if id_limpio.isdigit():
+                filtro_q |= Q(id=int(id_limpio))
+            qs = qs.filter(filtro_q)
+
+        if razon:
+            qs = qs.filter(razon_cancelacion=razon)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        qs = self.get_queryset_filtrado()
+
+        razones_bd = list(
+            OrdenTrabajo.objects.filter(estado="cancelada")
+            .exclude(razon_cancelacion__isnull=True)
+            .exclude(razon_cancelacion="")
+            .values_list("razon_cancelacion", flat=True)
+            .distinct()
+        )
+        razones_base = ["Problemas de terreno", "Falta de presupuesto", "Cliente desistió"]
+        razones_opciones = list(dict.fromkeys(razones_base + razones_bd))
+
+        paginator = Paginator(qs, 10)
+        page_number = self.request.GET.get("page", 1)
+        page_obj = paginator.get_page(page_number)
+
+        obras_data = []
+        for obra in page_obj:
+            consumos = (
+                MovimientoInventario.objects.filter(orden=obra, tipo_mov="consumo")
+                .values("material__id", "material__codigo", "material__nombre", "material__unidad_medida")
+                .annotate(total_cantidad=Sum("cantidad"))
+            )
+            obras_data.append({
+                "obra": obra,
+                "codigo_display": f"OBR-{obra.id:04d}",
+                "materiales": list(consumos),
+            })
+
+        context.update({
+            "page_obj": page_obj,
+            "obras_data": obras_data,
+            "razones_opciones": razones_opciones,
+            "busqueda_actual": self.request.GET.get("q", ""),
+            "razon_actual": self.request.GET.get("razon", ""),
+        })
+        return context
+
+
+class RestaurarMaterialesObraView(LoginRequiredMixin, View):
+    """Devuelve al stock de bodega los materiales consumidos en una obra cancelada."""
+
+    def post(self, request, pk):
+        obra = get_object_or_404(OrdenTrabajo, pk=pk, estado="cancelada")
+
+        if obra.materiales_restaurados:
+            messages.warning(request, f"Los materiales de la obra OBR-{obra.id:04d} ya fueron restaurados previamente.")
+            return redirect("obras:obras_canceladas")
+
+        consumos = (
+            MovimientoInventario.objects.filter(orden=obra, tipo_mov="consumo")
+            .select_related("material")
+        )
+
+        with transaction.atomic():
+            if consumos.exists():
+                for mov in consumos:
+                    material = mov.material
+                    material.stock_actual = (material.stock_actual or Decimal("0")) + mov.cantidad
+                    material.save(update_fields=["stock_actual"])
+
+                    MovimientoInventario.objects.create(
+                        material=material,
+                        orden=obra,
+                        usuario=request.user,
+                        tipo_mov="reversa",
+                        cantidad=mov.cantidad,
+                        motivo=f"Restauración de materiales por cancelación de OBR-{obra.id:04d}",
+                        estado_validacion="aprobado",
+                    )
+
+            obra.materiales_restaurados = True
+            obra.save(update_fields=["materiales_restaurados"])
+
+        messages.success(
+            request,
+            f"Materiales de OBR-{obra.id:04d} restaurados correctamente al inventario."
+        )
+        return redirect("obras:obras_canceladas")
+
+
+class ExportarObrasCanceladasCSVView(LoginRequiredMixin, View):
+    """Exporta a CSV (compatible con Excel) el historial filtrado de obras canceladas."""
+
+    def get(self, request):
+        vista_lista = ObrasCanceladasListView()
+        vista_lista.request = request
+        qs = vista_lista.get_queryset_filtrado()
+
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="obras_canceladas_{timezone.now().strftime("%Y%m%d")}.csv"'
+        response.write("\ufeff")
+
+        writer = csv.writer(response, delimiter=";")
+        writer.writerow(["ID Obra", "Nombre de la Obra", "Cliente", "Fecha de Cancelación", "Técnico", "Razón", "Materiales Restaurados"])
+
+        for obra in qs:
+            tecnico_nombre = obra.tecnico.get_full_name() or obra.tecnico.username
+            fecha_str = obra.fecha_cancelacion.strftime("%d/%m/%Y") if obra.fecha_cancelacion else obra.fecha_programada.strftime("%d/%m/%Y")
+            writer.writerow([
+                f"OBR-{obra.id:04d}",
+                obra.tipo_servicio,
+                obra.cliente.razon_social,
+                fecha_str,
+                tecnico_nombre,
+                obra.razon_cancelacion or "Sin especificar",
+                "Sí" if obra.materiales_restaurados else "Pendiente",
+            ])
+
+        return response
