@@ -46,6 +46,11 @@ class OrdenTrabajo(models.Model):
     direccion = models.CharField(max_length=255)
     estado = models.CharField(max_length=30, choices=ESTADOS, default="programada")
 
+        # Campos agregados por Luciano para el módulo de Obras Canceladas
+    fecha_cancelacion = models.DateTimeField(null=True, blank=True)
+    razon_cancelacion = models.CharField(max_length=150, blank=True, null=True)
+    materiales_restaurados = models.BooleanField(default=False)
+
     # Respaldo para inicio de faena con GPS en PWA y control de auditoría/cierre
     latitud_inicio = models.DecimalField(
         max_digits=9, decimal_places=6, null=True, blank=True
