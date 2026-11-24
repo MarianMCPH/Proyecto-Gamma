@@ -28,6 +28,7 @@ class OrdenTrabajo(models.Model):
         ("aprobada", "Aprobada"),
         ("observada", "Observada"),
         ("facturada", "Facturada"),
+        ("cancelada", "Cancelada"),
     ]
 
     # Relaciones principales del diagrama (solicita -> Cliente, asignado a -> técnico/usuario)
@@ -45,8 +46,8 @@ class OrdenTrabajo(models.Model):
     fecha_programada = models.DateField()
     direccion = models.CharField(max_length=255)
     estado = models.CharField(max_length=30, choices=ESTADOS, default="programada")
-
-        # Campos agregados por Luciano para el módulo de Obras Canceladas
+    
+    # Campos agregados por Luciano para el módulo de Obras Canceladas
     fecha_cancelacion = models.DateTimeField(null=True, blank=True)
     razon_cancelacion = models.CharField(max_length=150, blank=True, null=True)
     materiales_restaurados = models.BooleanField(default=False)

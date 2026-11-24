@@ -1,0 +1,143 @@
+{% extends 'base_admin.html' %}
+{% load static %}
+
+{% block title %}Obras Canceladas - Frío y Agroindustria SpA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/obras_canceladas.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 px-4 canceladas-wrapper">
+    <!-- Encabezado -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="icono-canceladas-header">
+                <i class="bi bi-x-circle"></i>
+            </div>
+            <div>
+                <h2 class="fw-bold mb-0 titulo-canceladas">Obras Canceladas</h2>
+                <p class="text-muted mb-0 subtitulo-canceladas">Historial de obras canceladas y gestión de materiales</p>
+            </div>
+        </div>
+        <button id="btnExportarCanceladas" type="button" class="btn btn-naranja-fyag px-3 py-2 fw-semibold">
+            <i class="bi bi-download me-2"></i>Exportar Reporte
+        </button>
+    </div>
+
+    <!-- Tarjeta principal con filtros y tabla -->
+    <div class="card border-0 shadow-sm card-canceladas-main">
+        <div class="card-body p-4">
+            <!-- Barra de búsqueda y filtro -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-5 col-lg-4">
+                    <div class="input-group input-buscar-fyag">
+                        <span class="input-group-text bg-white border-end-0 text-muted">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="buscarObraCancelada" class="form-control border-start-0 ps-0" placeholder="Buscar por nombre, ID o técnico...">
+                    </div>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <select id="filtroRazon" class="form-select select-razon-fyag">
+                        <option value="">Todas las razones</option>
+                        <option value="Problemas de terreno">Problemas de terreno</option>
+                        <option value="Falta de presupuesto">Falta de presupuesto</option>
+                        <option value="Cliente desistió">Cliente desistió</option>
+                        <option value="Solicitud del cliente">Solicitud del cliente</option>
+                        <option value="Falta de insumos">Falta de insumos</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tabla de Obras Canceladas -->
+            <div class="table-responsive">
+                <table class="table align-middle mb-0 tabla-canceladas-fyag" id="tablaObrasCanceladas">
+                    <thead>
+                        <tr>
+                            <th>ID Obra</th>
+                            <th>Nombre de la Obra</th>
+                            <th>Fecha de<br>Cancelación</th>
+                            <th>Técnico</th>
+                            <th>Razón</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for obra in obras_canceladas %}
+                        <tr class="fila-obra" data-razon="{{ obra.razon_cancelacion|default:'' }}">
+                            <td class="fw-bold text-dark">{{ obra.codigo|default:obra.id }}</td>
+                            <td class="fw-semibold text-dark">{{ obra.nombre|default:obra.titulo }}</td>
+                            <td class="text-secondary">{{ obra.fecha_cancelacion|date:"d/m/Y"|default:"--" }}</td>
+                            <td class="text-secondary">
+                                {% if obra.tecnico_asignado %}
+                                    {{ obra.tecnico_asignado.get_full_name|default:obra.tecnico_asignado.username }}
+                                {% elif obra.jefe_obra %}
+                                    {{ obra.jefe_obra.get_full_name|default:obra.jefe_obra.username }}
+                                {% else %}
+                                    Sin asignar
+                                {% endif %}
+                            </td>
+                            <td class="text-secondary">{{ obra.razon_cancelacion|default:"Sin especificar" }}</td>
+                            <td class="text-center">
+                                <div class="d-inline-flex align-items-center gap-2">
+                                    {% if not obra.materiales_restaurados %}
+                                    <form method="post" action="{% url 'obras:restaurar_materiales_obra' obra.id %}" class="d-inline form-restaurar">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-restaurar-suave fw-semibold">
+                                            Restaurar Materiales
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <span class="badge bg-light text-muted border px-3 py-2">Materiales Restaurados</span>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-sm btn-link text-secondary p-1 btn-toggle-detalle" data-target="detalle-{{ obra.id }}" title="Ver detalle">
+                                        <i class="bi bi-chevron-down"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr id="detalle-{{ obra.id }}" class="fila-detalle d-none bg-light">
+                            <td colspan="6" class="px-4 py-3 text-muted small">
+                                <strong>Cliente:</strong> {{ obra.cliente|default:"No registrado" }} &nbsp;|&nbsp;
+                                <strong>Observación:</strong> {{ obra.descripcion|default:"Sin detalles adicionales." }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                No hay obras canceladas registradas.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pie de tabla y paginación -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center mt-4 pt-2 border-top">
+                <span class="text-muted small" id="contadorRegistros">
+                    Mostrando {% if obras_canceladas %}1{% else %}0{% endif %} - {{ obras_canceladas|length }} de {{ obras_canceladas|length }} registros
+                </span>
+                <nav aria-label="Paginación obras canceladas">
+                    <ul class="pagination pagination-sm mb-0 paginacion-fyag">
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1"><i class="bi bi-chevron-left"></i></a>
+                        </li>
+                        <li class="page-item active">
+                            <a class="page-link" href="#">1</a>
+                        </li>
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/obras_canceladas.js' %}"></script>
+{% endblock %}
