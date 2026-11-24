@@ -343,3 +343,84 @@ html.modo-oscuro ::placeholder {
     color: #94a3b8 !important;
     opacity: 1;
 }
+
+/* =================================================
+   ESTADO DE AVANCE EN AUDITORÍA DE OBRA
+   ================================================= */
+
+.avance-barra-track {
+    height: 8px;
+    background-color: #e2e8f0;
+    border-radius: 999px;
+}
+
+.avance-barra-fill {
+    background-color: #3b429f;
+    border-radius: 999px;
+    transition: width 0.3s ease;
+}
+
+.etapa-avance-item {
+    border: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+    transition: all 0.2s ease;
+}
+
+.etapa-icono {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    background-color: #e2e8f0;
+    color: #64748b;
+}
+
+.etapa-avance-item.etapa-completada {
+    border-color: #bbf7d0;
+    background-color: #f0fdf4;
+}
+
+.etapa-avance-item.etapa-completada .etapa-icono {
+    background-color: #dcfce7;
+    color: #16a34a;
+}
+
+.etapa-avance-item.etapa-actual {
+    border-color: #93c5fd;
+    background-color: #eff6ff;
+}
+
+.etapa-avance-item.etapa-actual .etapa-icono {
+    background-color: #3b429f;
+    color: #ffffff;
+}
+
+.etapa-avance-item.etapa-pendiente {
+    opacity: 0.75;
+}
+
+html.modo-oscuro .avance-barra-track {
+    background-color: #334155 !important;
+}
+
+html.modo-oscuro .etapa-avance-item {
+    background-color: #161b26 !important;
+    border-color: #334155 !important;
+}
+
+html.modo-oscuro .etapa-avance-item.etapa-completada {
+    background-color: #132a1e !important;
+    border-color: #166534 !important;
+}
+
+html.modo-oscuro .etapa-avance-item.etapa-actual {
+    background-color: #1b2845 !important;
+    border-color: #3b82f6 !important;
+}
+
+html.modo-oscuro .etapa-titulo {
+    color: #f1f5f9 !important;
+}

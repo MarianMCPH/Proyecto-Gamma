@@ -19,6 +19,37 @@
 
         {% csrf_token %}
 
+        <!-- Estado de Avance del Proyecto -->
+        <div class="card-custom p-4 mb-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
+                <h6 class="fw-bold text-uppercase text-secondary mb-0 small">Estado de Avance de la Obra</h6>
+                <span class="badge bg-primary-subtle text-primary px-3 py-1">{{ orden_auditoria.porcentaje_avance }}% completado</span>
+            </div>
+
+            <div class="progress avance-barra-track mb-4">
+                <div class="progress-bar avance-barra-fill"
+                     role="progressbar"
+                     style="width: {{ orden_auditoria.porcentaje_avance }}%;"
+                     aria-valuenow="{{ orden_auditoria.porcentaje_avance }}"
+                     aria-valuemin="0"
+                     aria-valuemax="100"></div>
+            </div>
+
+            <div class="row g-3 text-center">
+                {% for etapa in orden_auditoria.etapas_avance %}
+                <div class="col-6 col-md-3">
+                    <div class="etapa-avance-item etapa-{{ etapa.estado }} p-3 rounded-3 h-100">
+                        <div class="etapa-icono mx-auto mb-2">
+                            <i class="bi {{ etapa.icono }}"></i>
+                        </div>
+                        <div class="fw-semibold small etapa-titulo">{{ etapa.titulo }}</div>
+                        <div class="text-muted mt-1" style="font-size: 0.75rem;">{{ etapa.detalle }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
         <!-- Resumen Operativo (Sin presupuesto) -->
         <div class="card-custom p-4 mb-4">
             <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">Resumen Operativo</h6>

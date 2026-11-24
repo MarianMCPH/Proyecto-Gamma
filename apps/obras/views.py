@@ -464,15 +464,22 @@ class AuditarObraEspecifica(TemplateView):
             return context
 
         estado_raw = (orden.estado or "").strip().lower()
-        if estado_raw in {"aprobada", "aprobadas", "validada", "validadas", "auditada", "auditadas"}:
+        if estado_raw in {"aprobada", "aprobadas", "validada", "validadas", "auditada", "auditadas", "facturada", "finalizada", "finalizadas"}:
             estado_label = "Aprobada"
             es_aprobada = True
-        elif estado_raw in {"en_proceso", "en proceso", "en_curso", "en curso"}:
+            paso_actual = 4
+        elif estado_raw in {"en_proceso", "en proceso", "en_curso", "en curso", "ejecucion", "en_ejecucion"}:
             estado_label = "En proceso"
             es_aprobada = False
+            paso_actual = 2
+        elif estado_raw in {"pendiente_auditoria", "pendiente de auditoria", "pendiente de auditoría", "en_revision", "en revision", "revision", "revisión"}:
+            estado_label = "En revisión"
+            es_aprobada = False
+            paso_actual = 3
         else:
             estado_label = "Pendiente de Aprobación"
             es_aprobada = False
+            paso_actual = 3
 
         cliente = getattr(orden, "cliente", None)
         mandante = cliente.razon_social if cliente else "Sin mandante"
@@ -492,8 +499,8 @@ class AuditarObraEspecifica(TemplateView):
         else:
             fecha_cierre = "Pendiente de cierre"
 
-        lat = getattr(orden, "latitud", None) or getattr(orden, "gps_lat", None)
-        lng = getattr(orden, "longitud", None) or getattr(orden, "gps_lng", None)
+        lat = getattr(orden, "latitud_inicio", None) or getattr(orden, "latitud", None) or getattr(orden, "gps_lat", None)
+        lng = getattr(orden, "longitud_inicio", None) or getattr(orden, "longitud", None) or getattr(orden, "gps_lng", None)
         if lat and lng:
             gps_faena = f"{lat}, {lng}"
         else:
@@ -541,6 +548,50 @@ class AuditarObraEspecifica(TemplateView):
             else fecha_cierre
         )
 
+        fecha_prog_str = orden.fecha_programada.strftime("%d/%m/%Y") if orden.fecha_programada else "Sin fecha"
+        fecha_inicio_dt = getattr(orden, "fecha_inicio_faena", None)
+        fecha_inicio_str = (
+            fecha_inicio_dt.strftime("%d/%m/%Y %H:%M")
+            if (fecha_inicio_dt and hasattr(fecha_inicio_dt, "strftime"))
+            else ("En curso" if paso_actual >= 2 else "Pendiente")
+        )
+        fecha_revision_str = (
+            fecha_cierre_dt.strftime("%d/%m/%Y %H:%M")
+            if (fecha_cierre_dt and hasattr(fecha_cierre_dt, "strftime"))
+            else ("En auditoría" if paso_actual >= 3 else "Pendiente")
+        )
+        fecha_auditoria_dt = getattr(orden, "fecha_auditoria", None)
+        fecha_final_str = (
+            fecha_auditoria_dt.strftime("%d/%m/%Y %H:%M")
+            if (fecha_auditoria_dt and hasattr(fecha_auditoria_dt, "strftime"))
+            else ("Aprobada" if paso_actual >= 4 else "Pendiente")
+        )
+
+        etapas_definidas = [
+            (1, "Programada", "bi-calendar-check", fecha_prog_str),
+            (2, "En proceso", "bi-tools", fecha_inicio_str),
+            (3, "En revisión", "bi-clipboard-check", fecha_revision_str),
+            (4, "Finalizada", "bi-patch-check-fill", fecha_final_str),
+        ]
+
+        etapas_avance = []
+        for num, titulo, icono, detalle in etapas_definidas:
+            if num < paso_actual:
+                estado_etapa = "completada"
+            elif num == paso_actual:
+                estado_etapa = "actual"
+            else:
+                estado_etapa = "pendiente"
+            etapas_avance.append({
+                "numero": num,
+                "titulo": titulo,
+                "icono": icono,
+                "detalle": detalle,
+                "estado": estado_etapa,
+            })
+
+        porcentaje_avance = int(((paso_actual - 1) / 3) * 100)
+
         context["orden_auditoria"] = {
             "id": orden.id,
             "codigo_ot": f"#OT-{orden.id}",
@@ -562,6 +613,8 @@ class AuditarObraEspecifica(TemplateView):
             "firmante_cargo": firmante_cargo,
             "firmante_fecha": firmante_fecha,
             "firma_url": firma_url,
+            "etapas_avance": etapas_avance,
+            "porcentaje_avance": porcentaje_avance,
         }
         return context
 
