@@ -1,5 +1,5 @@
 /* =================================================
-   Validación, Confirmación y Modales - Pantalla Nueva Orden
+   Validación, Confirmación, Presupuesto y Modales - Pantalla Nueva Orden
    ================================================= */
 
 function crearOverlayBase(id) {
@@ -108,7 +108,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const inputContacto = document.getElementById("contactoPlanta");
     const inputDireccion = document.getElementById("direccionFaena");
 
-    // Autocompleta contacto y dirección desde el cliente seleccionado si están vacíos
     if (selectCliente) {
         selectCliente.addEventListener("change", function () {
             const opcion = this.options[this.selectedIndex];
@@ -124,6 +123,78 @@ document.addEventListener("DOMContentLoaded", function () {
                 inputDireccion.value = direccionCliente;
             }
         });
+    }
+
+    // Cálculo automático de presupuesto (Kit del servicio + $500.000 extra)
+    const COSTO_EXTRA_OBRA = 500000;
+    const selectTipoServicio = document.getElementById("tipoServicio");
+    const mensajeSinKit = document.getElementById("mensajeSinKit");
+    const detalleKitPresupuesto = document.getElementById("detalleKitPresupuesto");
+    const valorPresupuestoFinal = document.getElementById("valorPresupuestoFinal");
+    const presupuestoFinalInput = document.getElementById("presupuestoFinalInput");
+    const kitIdInput = document.getElementById("kitIdInput");
+    const btnGuardarOrden = document.getElementById("btnGuardarNuevaOrden");
+
+    let kitsPorServicio = {};
+    const scriptKits = document.getElementById("datos-kits-servicio");
+    if (scriptKits) {
+        try {
+            kitsPorServicio = JSON.parse(scriptKits.textContent || "{}");
+        } catch (_) {
+            kitsPorServicio = {};
+        }
+    }
+
+    function formatearPesos(monto) {
+        return "$" + Math.round(Number(monto) || 0).toLocaleString("es-CL");
+    }
+
+    function actualizarPresupuestoServicio() {
+        if (!selectTipoServicio) return;
+        const servicioSeleccionado = (selectTipoServicio.value || "").trim().toLowerCase();
+
+        if (!servicioSeleccionado) {
+            if (mensajeSinKit) mensajeSinKit.classList.add("d-none");
+            if (valorPresupuestoFinal) valorPresupuestoFinal.textContent = "$0";
+            if (presupuestoFinalInput) presupuestoFinalInput.value = "0";
+            if (kitIdInput) kitIdInput.value = "";
+            if (btnGuardarOrden) btnGuardarOrden.disabled = false;
+            return;
+        }
+
+        const kitInfo = kitsPorServicio[servicioSeleccionado];
+
+        if (!kitInfo) {
+            if (mensajeSinKit) {
+                mensajeSinKit.textContent = "No hay kits disponibles";
+                mensajeSinKit.classList.remove("d-none");
+            }
+            if (detalleKitPresupuesto) {
+                detalleKitPresupuesto.textContent = "Debe registrar un kit activo para este tipo de servicio antes de crear la obra.";
+            }
+            if (valorPresupuestoFinal) valorPresupuestoFinal.textContent = "$0";
+            if (presupuestoFinalInput) presupuestoFinalInput.value = "0";
+            if (kitIdInput) kitIdInput.value = "";
+            if (btnGuardarOrden) btnGuardarOrden.disabled = true;
+            return;
+        }
+
+        const totalKit = Number(kitInfo.total_kit) || 0;
+        const presupuestoTotal = totalKit + COSTO_EXTRA_OBRA;
+
+        if (mensajeSinKit) mensajeSinKit.classList.add("d-none");
+        if (detalleKitPresupuesto) {
+            detalleKitPresupuesto.textContent =
+                `Kit "${kitInfo.nombre}" (${formatearPesos(totalKit)}) + Extra respaldo (${formatearPesos(COSTO_EXTRA_OBRA)})`;
+        }
+        if (valorPresupuestoFinal) valorPresupuestoFinal.textContent = formatearPesos(presupuestoTotal);
+        if (presupuestoFinalInput) presupuestoFinalInput.value = String(presupuestoTotal);
+        if (kitIdInput) kitIdInput.value = String(kitInfo.id);
+        if (btnGuardarOrden) btnGuardarOrden.disabled = false;
+    }
+
+    if (selectTipoServicio) {
+        selectTipoServicio.addEventListener("change", actualizarPresupuestoServicio);
     }
 
     form.addEventListener("submit", function (e) {
@@ -142,6 +213,17 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
         if (!formularioValido) return;
+
+        if (selectTipoServicio) {
+            const servicioSel = (selectTipoServicio.value || "").trim().toLowerCase();
+            if (!kitsPorServicio[servicioSel]) {
+                if (mensajeSinKit) {
+                    mensajeSinKit.textContent = "No hay kits disponibles";
+                    mensajeSinKit.classList.remove("d-none");
+                }
+                return;
+            }
+        }
 
         mostrarModalConfirmacion(function () {
             const urlDestino = form.getAttribute("data-url-volver");
@@ -173,7 +255,6 @@ document.addEventListener("DOMContentLoaded", function () {
                     mostrarModalExito(urlDestino);
                 })
                 .catch((error) => {
-                    // No se limpia el formulario para conservar lo que escribió el administrador
                     mostrarModalError(error.message || "Algo ocurrió con la conexión. Vuelva a intentarlo.");
                 });
         });

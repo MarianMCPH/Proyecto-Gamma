@@ -38,6 +38,10 @@
                 <input class="form-check-input check-opcion-reporte" type="checkbox" id="chkTotalObras" value="total_obras" checked>
                 <span>Total de obras</span>
             </label>
+            <label class="item-check-reporte" for="chkGanancias">
+                <input class="form-check-input check-opcion-reporte" type="checkbox" id="chkGanancias" value="ganancias" checked>
+                <span>Ganancias totales (obras finalizadas) y presupuesto por obra</span>
+            </label>
             <label class="item-check-reporte" for="chkFinalizadas">
                 <input class="form-check-input check-opcion-reporte" type="checkbox" id="chkFinalizadas" value="finalizadas" checked>
                 <span>Obras finalizadas</span>
@@ -86,8 +90,8 @@
              role="button"
              data-url-ver="{% url 'obras:ver_reporte_html' rep.id %}">
             <div>
-                <div class="fw-semibold text-dark">{{ rep.titulo }}</div>
-                <div class="small text-muted">
+                <div class="fw-semibold titulo-historial-reporte">{{ rep.titulo }}</div>
+                <div class="small subtitulo-historial-reporte">
                     Generado el {{ rep.fecha_generacion }} · {{ rep.formato }}
                     {% if rep.secciones %} · {{ rep.secciones|join:", " }}{% endif %}
                 </div>
