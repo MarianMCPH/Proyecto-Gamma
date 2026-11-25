@@ -47,7 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function validar() {
         let ok = true;
         const campos = ['repuesto_solicitado', 'cantidad_solicitada', 'justificacion'];
-        if (esOtro()) campos.splice(1, 0, 'material_otro');
         campos.forEach(id => {
             const el = document.getElementById(id);
             const malo = !el.value.trim() || (id === 'cantidad_solicitada' && !(Number(el.value) > 0));
@@ -63,15 +62,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (err) err.classList.remove('visible');
     });
 
-    // Unidad de medida junto a "Cantidad" y campo para un insumo que no está en la lista
+    // Unidad de medida junto a "Cantidad" (solo materiales del kit del servicio)
     const selMaterial = document.getElementById('repuesto_solicitado');
-    const grupoOtro = document.getElementById('grupo-otro');
-    function esOtro() { return selMaterial.value === '__otro__'; }
     selMaterial.addEventListener('change', () => {
         const op = selMaterial.options[selMaterial.selectedIndex];
         document.getElementById('unidad-cantidad').textContent = op && op.dataset.unidad ? `(${op.dataset.unidad})` : '';
-        grupoOtro.classList.toggle('d-none', !esOtro());
-        if (esOtro()) document.getElementById('material_otro').focus();
     });
 
     // Cancelar: descarta lo escrito y vuelve a Consumo de Insumos
@@ -102,9 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!FaenaStore.FAENA || !validar()) return;
         const payload = {
             orden: FaenaStore.FAENA.id,
-            material: esOtro() ? null : Number(selMaterial.value),
-            material_otro: esOtro() ? document.getElementById('material_otro').value.trim() : '',
-            unidad_otro: esOtro() ? document.getElementById('unidad_otro').value.trim() : '',
+            material: Number(selMaterial.value),
             cantidad: document.getElementById('cantidad_solicitada').value,
             justificacion: textarea.value.trim(),
             fotos: fotos.map(f => f.dataUrl)
@@ -137,7 +130,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function limpiarFormulario() {
         form.reset();
         fotos = []; pintarFotos();
-        grupoOtro.classList.add('d-none');
         document.getElementById('unidad-cantidad').textContent = '';
         textarea.style.height = 'auto';
     }
@@ -172,13 +164,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!FaenaStore.FAENA) return;
         FaenaStore.pendientesDe(FaenaStore.FAENA.id).filter(i => i.tipo === 'solicitud').forEach(i => {
             const p = i.payload;
-            let articulo = p.material_otro ? `${p.material_otro} (no catalogado)` : '';
-            let unidad = p.unidad_otro || '';
-            if (!articulo) {
-                const op = selMaterial.querySelector(`option[value="${p.material}"]`);
-                articulo = op ? op.textContent.split(' (stock')[0] : 'Artículo';
-                unidad = op ? (op.dataset.unidad || '') : '';
-            }
+            const op = selMaterial.querySelector(`option[value="${p.material}"]`);
+            const articulo = op ? op.textContent.split(' (stock')[0] : 'Artículo';
+            const unidad = op ? (op.dataset.unidad || '') : '';
             const li = document.createElement('li');
             li.className = 'fila-solicitud local';
             li.dataset.uuid = i.uuid_sync;

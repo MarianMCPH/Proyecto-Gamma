@@ -14,7 +14,13 @@ from django.views.generic import TemplateView
 from PIL import Image
 
 from apps.inventario.models import Material, MovimientoInventario
-from apps.obras.models import Checklist, EvidenciaFotografica, FirmaDigital, OrdenTrabajo, Presupuesto
+
+try:
+    # Kits de materiales por tipo de servicio (módulo Kits de Herramientas de inventario)
+    from apps.inventario.models import KitHerramientas
+except ImportError:          # rama que todavía no tiene el modelo de kits
+    KitHerramientas = None
+from apps.obras.models import Checklist, EvidenciaFotografica, FirmaDigital, OrdenTrabajo
 
 
 class Formulario(TemplateView):
@@ -34,7 +40,6 @@ CLAVE_SESION_ORDEN = "pwa_orden_actual"
 ESTADOS_BLOQUEADOS = {"aprobada", "facturada", "cancelada"}
 MAX_FOTO_KB = 500            # requisito: fotos bajo 500 KB (la PWA las comprime antes de enviar)
 PREFIJO_SOLICITUD = "Solicitud desde terreno"       # marca los MovimientoInventario que son solicitudes
-PREFIJO_NO_CATALOGADO = "Insumo no catalogado"      # marca los Presupuesto creados desde la PWA
 
 PASOS_FAENA = [
     (1, "Formulario"),
@@ -150,7 +155,7 @@ def estado_solicitud(valor):
 
 
 def solicitudes_de_orden(orden):
-    """Solicitudes hechas desde la PWA para una orden: del catálogo (MovimientoInventario) y no catalogadas (Presupuesto)."""
+    """Solicitudes hechas desde la PWA para una orden (MovimientoInventario marcados como solicitud)."""
     if orden is None:
         return []
     filas = []
@@ -166,22 +171,25 @@ def solicitudes_de_orden(orden):
             "estado": slug, "estado_label": label,
             "fecha": m.fecha,
         })
-    for p in Presupuesto.objects.filter(orden=orden, descripcion__startswith=PREFIJO_NO_CATALOGADO):
-        slug, label = estado_solicitud(p.estado)
-        nombre = p.descripcion.split("·", 1)[0].replace(PREFIJO_NO_CATALOGADO + ":", "").strip()
-        cantidad = ""
-        for parte in p.descripcion.split("·"):
-            if parte.strip().startswith("Cantidad:"):
-                cantidad = parte.split(":", 1)[1].strip()
-        filas.append({
-            "uuid_sync": p.uuid_sync or "",
-            "codigo": f"#PRE-{p.pk}",
-            "articulo": f"{nombre} (no catalogado)",
-            "cantidad": cantidad,
-            "estado": slug, "estado_label": label,
-            "fecha": None,
-        })
     return filas
+
+
+def kits_de_orden(orden):
+    """Kits activos cuyo tipo de servicio coincide con el de la orden (sin importar mayúsculas)."""
+    if KitHerramientas is None:
+        return []
+    if orden is None:
+        return KitHerramientas.objects.none()
+    return KitHerramientas.objects.filter(activo=True, tipo_servicio__iexact=(orden.tipo_servicio or "").strip())
+
+
+def materiales_del_kit(orden):
+    """Materiales que el técnico puede pedir o consumir en esta orden: los de su(s) kit(s).
+    También sirve para la pantalla de Consumo de Insumos (Paso 2)."""
+    kits = kits_de_orden(orden)
+    if not kits:
+        return Material.objects.none()
+    return Material.objects.filter(detalles_kit__kit__in=kits).distinct().order_by("nombre")
 
 
 class Solicitudes(OrdenPWAMixin, TemplateView):
@@ -192,8 +200,11 @@ class Solicitudes(OrdenPWAMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["materiales"] = Material.objects.order_by("nombre")
-        context["mis_solicitudes"] = solicitudes_de_orden(context["orden"])
+        orden = context["orden"]
+        context["kits_disponibles"] = KitHerramientas is not None
+        context["kits"] = list(kits_de_orden(orden))
+        context["materiales"] = materiales_del_kit(orden)
+        context["mis_solicitudes"] = solicitudes_de_orden(orden)
         return context
 
 
@@ -361,15 +372,12 @@ class EnvioPWAView(View):
 
 
 class ApiSolicitud(EnvioPWAView):
-    """Solicitud desde terreno.
-    - Artículo del catálogo -> MovimientoInventario pendiente (la ve Bodega en inventario/).
-    - Insumo que no está en el catálogo -> Presupuesto pendiente (requerimiento adicional de la orden).
-    """
+    """Solicitud desde terreno de un material del kit del servicio -> MovimientoInventario pendiente
+    (la ve Bodega en inventario/)."""
 
     def procesar(self, request, payload):
         uuid_sync = uuid_valido(payload.get("uuid_sync"))
-        existente = (MovimientoInventario.objects.filter(uuid_sync=uuid_sync).first()
-                     or Presupuesto.objects.filter(uuid_sync=uuid_sync).first())
+        existente = MovimientoInventario.objects.filter(uuid_sync=uuid_sync).first()
         if existente:
             return {"id": existente.pk, "duplicado": True}
 
@@ -387,37 +395,27 @@ class ApiSolicitud(EnvioPWAView):
         if len(fotos) > 2:
             raise ErrorEnvio("Se permiten hasta 2 fotos por solicitud.")
 
-        nombre_otro = (payload.get("material_otro") or "").strip()
-        if nombre_otro:
-            unidad = (payload.get("unidad_otro") or "un").strip()[:20]
-            registro = Presupuesto.objects.create(
-                orden=orden,
-                uuid_sync=uuid_sync,
-                descripcion=(f"{PREFIJO_NO_CATALOGADO}: {nombre_otro[:120]} · Cantidad: {formato_cantidad(cantidad)} {unidad}"
-                             f" · Justificación: {justificacion}"),
-                monto_estimado=Decimal("0"),
-                estado="pendiente",
-            )
-            codigo = f"PRE-{registro.pk}"
-        else:
-            try:
-                material = Material.objects.get(pk=int(payload.get("material")))
-            except (TypeError, ValueError, Material.DoesNotExist):
-                raise ErrorEnvio("El artículo solicitado no existe en el catálogo.")
-            usuario = request.user if request.user.is_authenticated else orden.tecnico
-            if usuario is None:
-                raise ErrorEnvio("La orden no tiene técnico asignado.")
-            registro = MovimientoInventario.objects.create(
-                material=material,
-                orden=orden,
-                usuario=usuario,
-                uuid_sync=uuid_sync,
-                tipo_mov="consumo",
-                cantidad=cantidad,
-                motivo=f"{PREFIJO_SOLICITUD}: {justificacion}"[:255],
-                estado_validacion="pendiente",
-            )
-            codigo = f"SOL-{registro.pk}"
+        try:
+            material = Material.objects.get(pk=int(payload.get("material")))
+        except (TypeError, ValueError, Material.DoesNotExist):
+            raise ErrorEnvio("El artículo solicitado no existe en el catálogo.")
+        if not materiales_del_kit(orden).filter(pk=material.pk).exists():
+            raise ErrorEnvio(f"«{material.nombre}» no pertenece al kit del servicio «{orden.tipo_servicio}».")
+
+        usuario = request.user if request.user.is_authenticated else orden.tecnico
+        if usuario is None:
+            raise ErrorEnvio("La orden no tiene técnico asignado.")
+        registro = MovimientoInventario.objects.create(
+            material=material,
+            orden=orden,
+            usuario=usuario,
+            uuid_sync=uuid_sync,
+            tipo_mov="consumo",
+            cantidad=cantidad,
+            motivo=f"{PREFIJO_SOLICITUD}: {justificacion}"[:255],
+            estado_validacion="pendiente",
+        )
+        codigo = f"SOL-{registro.pk}"
 
         # Fotos de la falla: quedan como evidencia de la orden (archivo con prefijo "falla_<codigo>")
         for i, foto in enumerate(fotos, start=1):
@@ -437,12 +435,10 @@ class ApiCancelarSolicitud(EnvioPWAView):
 
     def procesar(self, request, payload):
         uuid_sync = uuid_valido(payload.get("uuid_sync"))
-        registro = (MovimientoInventario.objects.filter(uuid_sync=uuid_sync, motivo__startswith=PREFIJO_SOLICITUD).first()
-                    or Presupuesto.objects.filter(uuid_sync=uuid_sync, descripcion__startswith=PREFIJO_NO_CATALOGADO).first())
+        registro = MovimientoInventario.objects.filter(uuid_sync=uuid_sync, motivo__startswith=PREFIJO_SOLICITUD).first()
         if registro is None:
             return {"cancelada": True, "ya_no_existia": True}
-        estado = registro.estado_validacion if isinstance(registro, MovimientoInventario) else registro.estado
-        slug, label = estado_solicitud(estado)
+        slug, label = estado_solicitud(registro.estado_validacion)
         if slug != "pendiente":
             raise ErrorEnvio(f"La solicitud ya fue {label.lower()} por Bodega y no se puede cancelar.", status=409)
         if registro.orden and orden_bloqueada(registro.orden):

@@ -20,31 +20,32 @@
             <h3 class="texto-centrado">DETALLE DEL REPUESTO REQUERIDO</h3>
         </div>
 
+        <!-- Kit del servicio: solo se pueden pedir sus materiales -->
+        {% if kits %}
+            <p class="nota-kit">
+                <i class="bi bi-box-seam" aria-hidden="true"></i>
+                Kit del servicio: <strong>{% for k in kits %}{{ k.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}</strong>
+            </p>
+        {% elif orden %}
+            <div class="alert alert-warning small" role="alert" id="aviso-sin-kit">
+                {% if kits_disponibles %}
+                    El servicio «{{ orden.tipo_servicio }}» no tiene un kit de materiales activo.
+                    Pida a administración que lo configure en Inventario → Kits.
+                {% else %}
+                    El módulo de kits de materiales todavía no está disponible.
+                {% endif %}
+            </div>
+        {% endif %}
+
         <div class="grupo-input">
-            <label for="repuesto_solicitado" class="label-campo">Artículo / Repuesto</label>
-            <select id="repuesto_solicitado" name="repuesto_solicitado" class="select-tactil" required>
+            <label for="repuesto_solicitado" class="label-campo">Artículo / Repuesto del kit</label>
+            <select id="repuesto_solicitado" name="repuesto_solicitado" class="select-tactil" required {% if not materiales %}disabled{% endif %}>
                 <option value="" disabled selected>Seleccionar opción</option>
                 {% for m in materiales %}
                     <option value="{{ m.pk }}" data-unidad="{{ m.unidad_medida }}">{{ m.codigo }} · {{ m.nombre }} (stock {{ m.stock_actual|floatformat:"-2" }} {{ m.unidad_medida }})</option>
                 {% endfor %}
-                <option value="__otro__">Otro (no está en la lista)</option>
             </select>
             <div class="error-campo" data-error-de="repuesto_solicitado">Seleccione el artículo requerido.</div>
-        </div>
-
-        <!-- Insumo que no está en el catálogo -->
-        <div id="grupo-otro" class="d-none">
-            <div class="grupo-input">
-                <label for="material_otro" class="label-campo">Nombre del insumo requerido</label>
-                <input type="text" id="material_otro" name="material_otro" class="select-tactil input-numero" maxlength="120"
-                       placeholder="Ej: Sensor de temperatura NTC 10K">
-                <div class="error-campo" data-error-de="material_otro">Escriba el nombre del insumo.</div>
-            </div>
-            <div class="grupo-input">
-                <label for="unidad_otro" class="label-campo">Unidad de medida</label>
-                <input type="text" id="unidad_otro" name="unidad_otro" class="select-tactil input-numero" maxlength="20"
-                       placeholder="un, kg, m, lt...">
-            </div>
         </div>
 
         <div class="grupo-input">
@@ -95,7 +96,7 @@
     <!-- Botones: enviar o cancelar la solicitud -->
     <div class="contenedor-submit">
         <button type="button" id="btn-cancelar" class="btn-cancelar-solicitud">Cancelar</button>
-        <button type="submit" class="btn-enviar-solicitud" {% if not orden or faena.bloqueada %}disabled{% endif %}>Enviar Solicitud</button>
+        <button type="submit" class="btn-enviar-solicitud" {% if not orden or faena.bloqueada or not materiales %}disabled{% endif %}>Enviar Solicitud</button>
     </div>
 </form>
 
