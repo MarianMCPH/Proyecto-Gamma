@@ -11,6 +11,9 @@ from apps.obras.models import OrdenTrabajo
 from apps.inventario.models import Material, MovimientoInventario
 
 
+class InicioEmpresaView(TemplateView):
+    template_name = 'core/pagina_inicio.html'  # o 'core/inicio.html' si la guardaste ahí
+
 class PWALoginView(View):
     template_name = 'core/login_pwa.html'
 

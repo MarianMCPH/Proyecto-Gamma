@@ -1,0 +1,169 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frío y Agroindustria SpA — FYAG</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="{% static 'css/inicio.css' %}">
+</head>
+<body class="inicio-fyag-body">
+
+    <!-- Barra superior -->
+    <nav class="navbar navbar-expand-lg navbar-fyag sticky-top">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center gap-2 fw-bold marca-fyag" href="#inicio">
+                <img src="{% static 'img/logo.png' %}" alt="Frío y Agroindustria SpA" class="logo-fyag">
+                <span>Frío y Agroindustria SpA</span>
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menuPrincipal">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="menuPrincipal">
+                <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-3">
+                    <li class="nav-item"><a class="nav-link fw-medium" href="https://frioyagroindustria.cl/servicio-tecnico/">Servicios Técnicos</a></li>
+                    <li class="nav-item"><a class="nav-link fw-medium" href="https://frioyagroindustria.cl/">Proyectos</a></li>
+                    <li class="nav-item"><a class="nav-link fw-medium" href="https://frioyagroindustria.cl/contacto/">Contacto</a></li>
+                    <li class="nav-item"><a class="nav-link fw-medium" href="https://frioyagroindustria.cl/nosotros/">Nosotros</a></li>
+                    <li class="nav-item">
+                        <a class="btn btn-sm btn-fyag px-4 py-2 fw-medium" href="#paneles">
+                            Ir a Paneles
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Portada institucional -->
+    <header id="inicio" class="hero-fyag">
+        <div class="container">
+            <div class="row align-items-center g-4">
+                <div class="col-lg-8">
+                    <span class="badge rounded-pill text-bg-light text-dark mb-3 px-3 py-2">
+                        Soluciones Técnicas e Industriales · FYAG
+                    </span>
+                    <h1 class="display-5 fw-bold mb-3">
+                        Frío y Agroindustria SpA
+                    </h1>
+                    <p class="lead hero-subtitulo mb-4">
+                        Soporte técnico, mantención, climatización y gestión operativa de obras con trazabilidad en terreno y administración centralizada.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Servicios principales -->
+    <section id="servicios" class="py-5">
+        <div class="container">
+            <div class="mb-4">
+                <h2 class="h3 fw-bold mb-1 titulo-seccion-fyag">Áreas de Operación</h2>
+                <p class="text-muted mb-0">Respaldo técnico para plantas, cámaras, equipos y faenas agroindustriales.</p>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card card-fyag p-4 h-100">
+                        <div class="icono-panel mb-3"><i class="bi bi-snow"></i></div>
+                        <h3 class="h5 fw-bold titulo-tarjeta-fyag">Refrigeración y Climatización</h3>
+                        <p class="text-muted small mb-0">
+                            Mantención preventiva y correctiva de sistemas de frío, túneles y control térmico industrial.
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card card-fyag p-4 h-100">
+                        <div class="icono-panel mb-3"><i class="bi bi-lightning-charge"></i></div>
+                        <h3 class="h5 fw-bold titulo-tarjeta-fyag">Proyectos Eléctricos y Soporte</h3>
+                        <p class="text-muted small mb-0">
+                            Ejecución de órdenes de trabajo, inspección en faena y atención de emergencias operativas.
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card card-fyag p-4 h-100">
+                        <div class="icono-panel mb-3"><i class="bi bi-clipboard-check"></i></div>
+                        <h3 class="h5 fw-bold titulo-tarjeta-fyag">Control y Auditoría de Obras</h3>
+                        <p class="text-muted small mb-0">
+                            Registro de avances, materiales, presupuestos, reportes y seguimiento de resultados.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Módulo de acceso a paneles -->
+    <section id="paneles" class="py-5 seccion-paneles-fyag border-top border-bottom">
+        <div class="container">
+            <div class="mb-4">
+                <h2 class="h3 fw-bold mb-1 titulo-seccion-fyag">Módulo de Acceso a Paneles</h2>
+                <p class="text-muted mb-0">Selecciona el entorno según tu rol dentro de la empresa.</p>
+            </div>
+
+            <div class="row g-4">
+                <!-- Panel Administrativo -->
+                <div class="col-md-6">
+                    <div class="card card-fyag p-4 h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <span class="icono-panel"><i class="bi bi-speedometer2"></i></span>
+                                <span class="badge bg-primary-subtle text-primary px-3 py-2">Gestión Web</span>
+                            </div>
+                            <h3 class="h5 fw-bold titulo-tarjeta-fyag">Portal Administrativo</h3>
+                            <p class="text-muted small">
+                                Gestión de obras, auditoría, inventario y kits, reportes, progreso y resultados, y administración de usuarios.
+                            </p>
+                        </div>
+                        <div class="pt-3">
+                            <!-- Conecta aquí tu ruta real de login o panel administrativo -->
+                            <a href="{%url 'core:login' %}" class="btn btn-fyag w-100 py-2 fw-medium">
+                                Ingresar al Portal Administrativo
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Portal de Terreno (PWA) -->
+                <div class="col-md-6">
+                    <div class="card card-fyag p-4 h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <span class="icono-panel"><i class="bi bi-phone"></i></span>
+                                <span class="badge bg-success-subtle text-success px-3 py-2">Terreno / PWA</span>
+                            </div>
+                            <h3 class="h5 fw-bold titulo-tarjeta-fyag">Portal de Terreno</h3>
+                            <p class="text-muted small">
+                                Acceso para técnicos en faena: consulta de itinerario, ejecución de órdenes y registro en terreno.
+                            </p>
+                        </div>
+                        <div class="pt-3">
+     
+                            <a href="{%url 'core:login' %}" class="btn btn-outline-secondary w-100 py-2 fw-medium rounded-pill">
+                                Ingresar al Portal de Terreno
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pie de página -->
+    <footer class="py-4 footer-fyag">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2 small text-muted">
+            <span>© 2026 Frío y Agroindustria SpA (FYAG)</span>
+            <a href="https://frioyagroindustria.cl/" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
+                frioyagroindustria.cl
+            </a>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
