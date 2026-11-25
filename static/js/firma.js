@@ -1,115 +1,124 @@
-/* =================================================
-   JS Exclusivo - Pantalla 4: Firma del Mandante (Validación Visual)
-   ================================================= */
-
 document.addEventListener('DOMContentLoaded', () => {
-    const canvas = document.getElementById('lienzo-firma');
-    const ctx = canvas.getContext('2d');
-    const contenedorLienzo = document.querySelector('.contenedor-lienzo');
-    let dibujando = false;
-    let haFirmado = false;
+    const formularios = document.querySelectorAll('form#form-firma');
 
-    function ajustarCanvas() {
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width;
-        canvas.height = rect.height;
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2.5;
-        ctx.lineCap = 'round';
-    }
-    ajustarCanvas();
+    formularios.forEach((formFirma) => {
+        const canvas = formFirma.querySelector('canvas');
+        if (!canvas) return;
 
-    function obtenerPosicion(e) {
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-        return {
-            x: clientX - rect.left,
-            y: clientY - rect.top
-        };
-    }
+        const ctx = canvas.getContext('2d');
+        const contenedorLienzo = formFirma.querySelector('.contenedor-lienzo');
+        const btnLimpiar = formFirma.querySelector('#btn-limpiar-firma');
+        const inputFirma = formFirma.querySelector('input[name="firma_base64"]');
 
-    canvas.addEventListener('mousedown', (e) => {
-        dibujando = true;
-        haFirmado = true;
-        if (contenedorLienzo) contenedorLienzo.style.borderColor = '#D1D5DB';
-        const pos = obtenerPosicion(e);
-        ctx.beginPath();
-        ctx.moveTo(pos.x, pos.y);
-    });
+        let dibujando = false;
+        let haFirmado = false;
 
-    canvas.addEventListener('mousemove', (e) => {
-        if (!dibujando) return;
-        const pos = obtenerPosicion(e);
-        ctx.lineTo(pos.x, pos.y);
-        ctx.stroke();
-    });
+        canvas.style.touchAction = 'none';
+        canvas.style.cursor = 'crosshair';
 
-    canvas.addEventListener('mouseup', () => { dibujando = false; });
-    canvas.addEventListener('mouseleave', () => { dibujando = false; });
+        function ajustarCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                canvas.width = Math.round(rect.width);
+                canvas.height = Math.round(rect.height);
+            }
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
 
-    canvas.addEventListener('touchstart', (e) => {
-        dibujando = true;
-        haFirmado = true;
-        if (contenedorLienzo) contenedorLienzo.style.borderColor = '#D1D5DB';
-        const pos = obtenerPosicion(e);
-        ctx.beginPath();
-        ctx.moveTo(pos.x, pos.y);
-        e.preventDefault();
-    });
+        ajustarCanvas();
 
-    canvas.addEventListener('touchmove', (e) => {
-        if (!dibujando) return;
-        const pos = obtenerPosicion(e);
-        ctx.lineTo(pos.x, pos.y);
-        ctx.stroke();
-        e.preventDefault();
-    });
+        function obtenerPosicion(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / (rect.width || canvas.width);
+            const scaleY = canvas.height / (rect.height || canvas.height);
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY,
+            };
+        }
 
-    canvas.addEventListener('touchend', () => { dibujando = false; });
+        canvas.addEventListener('pointerdown', (e) => {
+            if (!haFirmado) {
+                const rect = canvas.getBoundingClientRect();
+                if (rect.width > 0 && Math.abs(canvas.width - rect.width) > 2) {
+                    ajustarCanvas();
+                }
+            }
+            dibujando = true;
+            haFirmado = true;
+            if (contenedorLienzo) contenedorLienzo.style.borderColor = '#D1D5DB';
 
-    const btnLimpiar = document.getElementById('btn-limpiar-firma');
-    if (btnLimpiar) {
-        btnLimpiar.addEventListener('click', () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            haFirmado = false;
+            canvas.setPointerCapture(e.pointerId);
+            const pos = obtenerPosicion(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            e.preventDefault();
         });
-    }
 
-    const btnSincronizar = document.getElementById('btn-sincronizar');
-    if (btnSincronizar) {
-        btnSincronizar.addEventListener('click', () => {
-            const inputRut = document.getElementById('rut_mandante');
-            const inputNombre = document.getElementById('nombre_completo');
-            const inputCargo = document.getElementById('cargo_planta');
+        canvas.addEventListener('pointermove', (e) => {
+            if (!dibujando) return;
+            const pos = obtenerPosicion(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            e.preventDefault();
+        });
 
-            const rut = inputRut.value.trim();
-            const nombre = inputNombre.value.trim();
-            const cargo = inputCargo.value.trim();
+        const terminarTrazo = (e) => {
+            if (!dibujando) return;
+            dibujando = false;
+            if (e.pointerId !== undefined && canvas.hasPointerCapture(e.pointerId)) {
+                canvas.releasePointerCapture(e.pointerId);
+            }
+        };
+
+        canvas.addEventListener('pointerup', terminarTrazo);
+        canvas.addEventListener('pointercancel', terminarTrazo);
+
+        if (btnLimpiar) {
+            btnLimpiar.addEventListener('click', () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                haFirmado = false;
+            });
+        }
+
+        formFirma.addEventListener('submit', (e) => {
+            const inputRut = formFirma.querySelector('input[name="rut_mandante"]');
+            const inputNombre = formFirma.querySelector('input[name="nombre_completo"]');
+            const inputCargo = formFirma.querySelector('input[name="cargo_planta"]');
+
+            const rut = inputRut ? inputRut.value.trim() : '';
+            const nombre = inputNombre ? inputNombre.value.trim() : '';
+            const cargo = inputCargo ? inputCargo.value.trim() : '';
 
             let valido = true;
 
-            // Validación visual de campos de texto
-            if (!rut) { inputRut.style.borderColor = '#EF4444'; valido = false; } else { inputRut.style.borderColor = '#D1D5DB'; }
-            if (!nombre) { inputNombre.style.borderColor = '#EF4444'; valido = false; } else { inputNombre.style.borderColor = '#D1D5DB'; }
-            if (!cargo) { inputCargo.style.borderColor = '#EF4444'; valido = false; } else { inputCargo.style.borderColor = '#D1D5DB'; }
+            if (!rut) { if (inputRut) inputRut.style.borderColor = '#EF4444'; valido = false; }
+            else { inputRut.style.borderColor = '#D1D5DB'; }
 
-            // Validación visual del lienzo de firma
+            if (!nombre) { if (inputNombre) inputNombre.style.borderColor = '#EF4444'; valido = false; }
+            else { inputNombre.style.borderColor = '#D1D5DB'; }
+
+            if (!cargo) { if (inputCargo) inputCargo.style.borderColor = '#EF4444'; valido = false; }
+            else { inputCargo.style.borderColor = '#D1D5DB'; }
+
             if (!haFirmado) {
-                if (contenedorLienzo) contenedorLienzo.style.borderColor = '#EF4444'; // Marco rojo en el lienzo si falta firma
+                if (contenedorLienzo) contenedorLienzo.style.borderColor = '#EF4444';
                 valido = false;
-            } else {
-                if (contenedorLienzo) contenedorLienzo.style.borderColor = '#D1D5DB';
+            } else if (contenedorLienzo) {
+                contenedorLienzo.style.borderColor = '#D1D5DB';
             }
 
             if (!valido) {
-                return; // Detiene la acción visualmente sin ventanas emergentes
+                e.preventDefault();
+                return;
             }
 
-            const firmaBase64 = canvas.toDataURL('image/png');
-            document.getElementById('firma_base64').value = firmaBase64;
-
-            window.location.href = '/pwa/sincronizacion/';
+            if (inputFirma) {
+                inputFirma.value = canvas.toDataURL('image/png');
+            }
         });
-    }
+    });
 });

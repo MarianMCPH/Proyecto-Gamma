@@ -1,7 +1,3 @@
-/* =================================================
-   JS Exclusivo - Pantalla 3: Evidencia Fotográfica (Validación Visual)
-   ================================================= */
-
 document.addEventListener('DOMContentLoaded', () => {
     const textarea = document.getElementById('observacion_evidencia');
     if (textarea) {
@@ -86,35 +82,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const botonesNavegacion = document.querySelectorAll('a.btn');
-    botonesNavegacion.forEach(btn => {
-        if (btn.textContent.includes('Siguiente') || btn.textContent.includes('Firma')) {
-            btn.addEventListener('click', (e) => {
-                const inputAntes = document.getElementById('foto_antes');
-                const inputDespues = document.getElementById('foto_despues');
-                const labelAntes = document.getElementById('label-antes');
-                const labelDespues = document.getElementById('label-despues');
+    const formEvidencias = document.getElementById('form-evidencias');
+    if (formEvidencias) {
+        formEvidencias.addEventListener('submit', (e) => {
+            const tienePrevias = formEvidencias.dataset.tienePrevias === '1';
+            if (tienePrevias) return;
 
-                let valido = true;
+            const inputAntes = document.getElementById('foto_antes');
+            const inputDespues = document.getElementById('foto_despues');
+            const labelAntes = document.getElementById('label-antes');
+            const labelDespues = document.getElementById('label-despues');
 
-                if (!inputAntes.files || inputAntes.files.length === 0) {
-                    valido = false;
-                    labelAntes.style.borderColor = '#EF4444'; // Marco rojo si falta
-                } else {
-                    labelAntes.style.borderColor = '#9CA3AF';
-                }
+            let valido = true;
 
-                if (!inputDespues.files || inputDespues.files.length === 0) {
-                    valido = false;
-                    labelDespues.style.borderColor = '#EF4444'; // Marco rojo si falta
-                } else {
-                    labelDespues.style.borderColor = '#9CA3AF';
-                }
+            if (!inputAntes.files || inputAntes.files.length === 0) {
+                valido = false;
+                labelAntes.style.borderColor = '#EF4444';
+            } else {
+                labelAntes.style.borderColor = '#9CA3AF';
+            }
 
-                if (!valido) {
-                    e.preventDefault();
-                }
-            });
-        }
-    });
+            if (!inputDespues.files || inputDespues.files.length === 0) {
+                valido = false;
+                labelDespues.style.borderColor = '#EF4444';
+            } else {
+                labelDespues.style.borderColor = '#9CA3AF';
+            }
+
+            if (!valido) {
+                e.preventDefault();
+            }
+        });
+    }
 });

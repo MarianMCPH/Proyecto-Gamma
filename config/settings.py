@@ -102,6 +102,9 @@ DATABASES = {
     }
 }
 
+os.environ.setdefault("AWS_REQUEST_CHECKSUM_CALCULATION", "when_required")
+os.environ.setdefault("AWS_RESPONSE_CHECKSUM_VALIDATION", "when_required")
+
 # Configuración de Object Storage (Clever Cloud Cellar) para evidencias y firmas
 STORAGES = {
     "default": {

@@ -38,6 +38,31 @@ class ObraListView(TemplateView):
 
     template_name = "obras/itinerario.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        qs = OrdenTrabajo.objects.select_related("cliente", "tecnico").order_by("-id")
+
+        if self.request.user.is_authenticated and not self.request.user.is_superuser:
+            qs = qs.filter(tecnico=self.request.user)
+
+        estados_cerrados = ["pendiente_auditoria", "aprobada", "rechazada", "cerrada"]
+        faenas_activas = qs.exclude(estado__in=estados_cerrados).filter(inmutable=False)
+        faenas_completadas = qs.filter(estado__in=estados_cerrados)[:5]
+
+        faena_prioritaria = None
+        if hasattr(OrdenTrabajo, "prioridad"):
+            faena_prioritaria = faenas_activas.filter(prioridad__iexact="urgente").first()
+        elif hasattr(OrdenTrabajo, "es_emergencia"):
+            faena_prioritaria = faenas_activas.filter(es_emergencia=True).first()
+
+        if faena_prioritaria:
+            faenas_activas = faenas_activas.exclude(pk=faena_prioritaria.pk)
+
+        context["faena_prioritaria"] = faena_prioritaria
+        context["faenas_asignadas"] = faenas_activas
+        context["faenas_completadas"] = faenas_completadas
+        return context
+
 
 class ObraDetailView(TemplateView):
     """Vista para ver el detalle completo de una obra específica desde la base de datos."""
