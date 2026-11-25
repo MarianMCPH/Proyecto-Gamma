@@ -1,5 +1,5 @@
 /* =================================================
-   Script para Auditoría de Obra (Zoom, Guardado BD y Modal Éxito)
+   Script para Auditoría de Obra (Barra Avance, Zoom, Guardado BD y Modal Éxito)
    ================================================= */
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -10,6 +10,12 @@ document.addEventListener("DOMContentLoaded", function () {
             window.location.reload();
         }
     });
+
+    // --- 0. Aplicar porcentaje de avance desde data-attribute ---
+    const barraAvance = document.querySelector(".avance-barra-fill");
+    if (barraAvance && barraAvance.dataset.avance) {
+        barraAvance.style.width = `${barraAvance.dataset.avance}%`;
+    }
 
     // --- 1. Funcionalidad de Zoom para Imágenes de Evidencia y Firma ---
     const imagenes = document.querySelectorAll(".img-zoomable");

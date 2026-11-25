@@ -29,7 +29,7 @@
             <div class="progress avance-barra-track mb-4">
                 <div class="progress-bar avance-barra-fill"
                      role="progressbar"
-                     style="width: {{ orden_auditoria.porcentaje_avance }}%;"
+                     data-avance="{{ orden_auditoria.porcentaje_avance }}"
                      aria-valuenow="{{ orden_auditoria.porcentaje_avance }}"
                      aria-valuemin="0"
                      aria-valuemax="100"></div>
@@ -50,7 +50,7 @@
             </div>
         </div>
 
-        <!-- Resumen Operativo (Sin presupuesto) -->
+        <!-- Resumen Operativo -->
         <div class="card-custom p-4 mb-4">
             <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">Resumen Operativo</h6>
             <div class="row g-3 small text-secondary">
@@ -67,6 +67,12 @@
                 <div class="col-md-6"><strong>Técnico Responsable:</strong> {{ orden_auditoria.tecnico }}</div>
                 <div class="col-md-6"><strong>Fecha/Hora de Cierre:</strong> {{ orden_auditoria.fecha_cierre }}</div>
                 <div class="col-md-6"><strong>GPS Faena:</strong> {{ orden_auditoria.gps_faena }}</div>
+                <div class="col-md-6">
+                    <strong>Presupuesto Final de la Obra:</strong>
+                    <span class="badge bg-success-subtle text-success fs-6 fw-bold ms-1">
+                        {{ orden_auditoria.presupuesto_formateado }}
+                    </span>
+                </div>
             </div>
         </div>
 
@@ -118,7 +124,6 @@
 
         <!-- Evidencia Multimedia y Conformidad del Mandante -->
         <div class="row g-4 mb-4">
-            <!-- Evidencia Multimedia con zoom al hacer clic -->
             <div class="col-lg-6">
                 <div class="card-custom p-4 h-100">
                     <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">Evidencia Multimedia</h6>
@@ -145,7 +150,6 @@
                 </div>
             </div>
 
-            <!-- Conformidad del Mandante (Con datos y firma al lado) -->
             <div class="col-lg-6">
                 <div class="card-custom p-4 h-100">
                     <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">Conformidad del Mandante</h6>
@@ -189,6 +193,5 @@
     </div>
     {% endif %}
 
-    <!-- Script para el Zoom de imágenes y el Modal de Éxito -->
     <script src="{% static 'js/auditoria_detalle.js' %}"></script>
 {% endblock %}

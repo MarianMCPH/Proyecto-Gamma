@@ -45,6 +45,30 @@
                         <option value="Garantía">Garantía</option>
                         <option value="Emergencia">Emergencia</option>
                     </select>
+                    <small id="mensajeSinKit" class="text-danger fw-semibold d-none mt-1">
+                        No hay kits disponibles
+                    </small>
+                </div>
+
+                <!-- Apartado de Presupuesto Final Automático -->
+                <div class="col-12">
+                    <div id="cajaPresupuestoObra" class="border rounded-3 p-3 bg-light">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <div>
+                                <div class="small fw-bold text-uppercase text-secondary">
+                                    Presupuesto Final de la Obra (Total a pagar por el cliente)
+                                </div>
+                                <div id="detalleKitPresupuesto" class="small text-muted">
+                                    Seleccione un tipo de servicio para calcular automáticamente el kit + $500.000 de respaldo operativo.
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <span id="valorPresupuestoFinal" class="fs-5 fw-bold text-primary">$0</span>
+                                <input type="hidden" id="presupuestoFinalInput" name="presupuesto_final" value="0">
+                                <input type="hidden" id="kitIdInput" name="kit_id" value="">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -98,12 +122,12 @@
             <!-- Botones de Acción -->
             <div class="d-flex justify-content-end gap-2 border-top pt-3">
                 <a href="{% url 'obras:ver_obras' %}" class="btn btn-outline-secondary btn-sm px-4">Cancelar</a>
-                <button type="submit" class="btn btn-institutional btn-sm px-4" style="background-color: #3b429f; color: white;">Guardar Orden</button>
+                <button type="submit" id="btnGuardarNuevaOrden" class="btn btn-institutional btn-sm px-4" style="background-color: #3b429f; color: white;">Guardar Orden</button>
             </div>
 
         </form>
     </div>
 
-    <!-- Enlace al archivo JavaScript independiente de validación y guardado -->
+    {{ kits_por_servicio_json|json_script:"datos-kits-servicio" }}
     <script src="{% static 'js/ver_obras.js' %}"></script>
 {% endblock %}

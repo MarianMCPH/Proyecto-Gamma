@@ -6,7 +6,7 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/progreso_resultados.css' %}">
 
-<!-- Barra superior de subtítulo, filtro temporal (Semana / Mes / Año) y botón Actualizar -->
+<!-- Barra superior de subtítulo, filtro temporal (Semana / Mes / Año / Historial) y botón Actualizar -->
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
         <p class="text-muted small mb-0">
@@ -138,7 +138,7 @@
     </div>
 </div>
 
-<!-- DOS GRÁFICOS CENTRALES (Dona de Distribución + Barras por Periodo) -->
+<!-- DOS GRÁFICOS CENTRALES (Dona de Distribución + Barras de Ganancias por Periodo) -->
 <div class="row g-4 mb-4">
     <div class="col-lg-6">
         <div class="card-custom p-4 h-100">
@@ -183,10 +183,15 @@
 
     <div class="col-lg-6">
         <div class="card-custom p-4 h-100">
-            <h6 class="fw-bold text-dark mb-3">
-                <i class="bi bi-bar-chart-fill me-2" style="color: #2563eb;"></i>
-                {{ titulo_barras }}
-            </h6>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <h6 class="fw-bold text-dark mb-0">
+                    <i class="bi bi-cash-coin me-2 text-success"></i>
+                    {{ titulo_barras }}
+                </h6>
+                <span class="badge bg-success-subtle text-success fs-6 fw-bold px-3 py-1">
+                    Total: {{ total_ganancias_periodo }}
+                </span>
+            </div>
             <div style="height: 195px;">
                 <canvas id="graficoBarrasPeriodo"
                         data-labels="{{ barras_labels_json }}"
@@ -196,7 +201,7 @@
     </div>
 </div>
 
-<!-- LISTADO DE OBRAS POR ESTADO (Sin columna de ID de obra) -->
+<!-- LISTADO DE OBRAS POR ESTADO -->
 <div class="card-custom p-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
         <h6 class="fw-bold text-dark mb-0">
@@ -235,6 +240,7 @@
                     <th>Tipo de servicio</th>
                     <th>Técnico</th>
                     <th>Fecha</th>
+                    <th>Presupuesto</th>
                     <th>Estado</th>
                 </tr>
             </thead>
@@ -247,6 +253,7 @@
                     <td>{{ obra.tipo_servicio }}</td>
                     <td>{{ obra.tecnico }}</td>
                     <td>{{ obra.fecha }}</td>
+                    <td class="fw-semibold">{{ obra.presupuesto }}</td>
                     <td>
                         <span class="badge-estado-pill {{ obra.badge_clase }}">
                             <i class="bi {{ obra.icono }}"></i> {{ obra.estado_label }}
@@ -256,7 +263,7 @@
                 {% endfor %}
 
                 <tr id="filaSinResultadosProgreso" {% if obras_progreso %}style="display: none;"{% endif %}>
-                    <td colspan="5" class="text-center py-4 text-muted">
+                    <td colspan="6" class="text-center py-4 text-muted">
                         No hay obras registradas para el filtro seleccionado.
                     </td>
                 </tr>
@@ -288,7 +295,6 @@
     </div>
 </div>
 
-<!-- Chart.js CDN + Script del módulo -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="{% static 'js/progreso_resultados.js' %}"></script>
 {% endblock %}
