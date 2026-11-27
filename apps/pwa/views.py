@@ -175,11 +175,16 @@ def solicitudes_de_orden(orden):
 
 
 def kits_de_orden(orden):
-    """Kits activos cuyo tipo de servicio coincide con el de la orden (sin importar mayúsculas)."""
+    """Kit(s) de la orden.
+    1) El kit asignado a la obra al crearla (OrdenTrabajo.kit).
+    2) Si no tiene uno, los kits activos de su tipo de servicio (sin importar mayúsculas)."""
     if KitHerramientas is None:
         return []
     if orden is None:
         return KitHerramientas.objects.none()
+    kit_id = getattr(orden, "kit_id", None)
+    if kit_id:
+        return KitHerramientas.objects.filter(pk=kit_id)
     return KitHerramientas.objects.filter(activo=True, tipo_servicio__iexact=(orden.tipo_servicio or "").strip())
 
 
