@@ -1,80 +1,102 @@
-<!-- Esto es para que se guíen de lo que deberia llevar cada pantalla. 
-Este archivo NO SE USA ni como base, ni como nada, solo es un ejemplo -->
-
-{% extends "base_pwa.html" %} 
+{% extends "base_pwa.html" %}
 {% load static %}
 
-{% block header_title %}Paso 2: Consumo de Insumos{% endblock %} <!-- Paso específico de cada pantalla -->
+{% block header_title %}Paso 2: Consumo de Insumos{% endblock %}
+
+{% block work_id %}
+    {% if orden %}
+        ID: #{{ orden.id }} - {{ orden.tipo_servicio }}
+    {% else %}
+        Sin orden asignada
+    {% endif %}
+{% endblock %}
 
 {% block mobile_content %}
+<link rel="stylesheet" href="{% static 'css/insumos.css' %}">
 
-    <!-- Estilos específicos para el login móvil -->
-    <link rel="stylesheet" href="{% static 'css/insumos.css' %}">
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-danger py-2 px-3 small mb-2">{{ message }}</div>
+    {% endfor %}
+{% endif %}
 
-<!-- Contenedor donde se agrupan todos los cuadros de insumos -->
-<div id="contenedor-insumos">
-    
-    <!-- Tarjeta individual de insumo (esta estructura se clona al presionar "+ Agregar Material") -->
-    <div class="card-insumo">
-        <div class="card-header-insumo">
-            <h3>REBAJA DE MATERIALES Y REPUESTOS</h3>
-        </div>
-        
-        <div class="grupo-input">
-            <label class="label-campo">Artículo / Repuesto</label>
-            <select name="articulo[]" class="select-tactil" required>
-                <option value="" disabled selected>Seleccionar opción</option>
-                <!-- TODO BD: Iterar inventario de bodega móvil -->
-                <option value="1">Gas Refrigerante R-404A (Kg)</option>
-                <option value="2">Filtro Secador DCL 1/2"</option>
-                <option value="3">Aceite Sintético POE 68 (L)</option>
-            </select>
-        </div>
+{% if consumos_previos %}
+    <div class="alert alert-success py-2 px-3 small mb-3">
+        <strong>Insumos ya rebajados en esta OT:</strong>
+        <ul class="mb-0 ps-3 mt-1">
+            {% for mov in consumos_previos %}
+                <li>{{ mov.material.nombre }}: {{ mov.cantidad }} {{ mov.material.unidad_medida }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
 
-        <div class="grupo-input">
-            <label class="label-campo">Cantidad Usada</label>
-            <select name="cantidad[]" class="select-tactil" required>
-                <option value="" disabled selected>Seleccionar opción</option>
-                <!-- TODO BD: Validar stock máximo disponible según el artículo seleccionado -->
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="5">5</option>
-            </select>
-        </div>
+<form id="form-paso2" method="post" action="">
+    {% csrf_token %}
+    {% if orden %}
+        <input type="hidden" name="orden_id" value="{{ orden.id }}">
+    {% endif %}
 
-        <div class="footer-card-insumo">
-            <div class="estado-cardex">
-                <span class="label-cardex">Estado Cardex</span>
-                <span class="badge-rebajado">✔ Rebajado de Stock</span>
+    <div id="contenedor-insumos">
+        <div class="card-insumo">
+            <div class="card-header-insumo">
+                <h3>REBAJA DE MATERIALES Y REPUESTOS</h3>
             </div>
-            <!-- Botón basurero para eliminar este cuadro -->
-            <button type="button" class="btn-eliminar-insumo" title="Eliminar insumo" aria-label="Eliminar insumo">
-                🗑️
-            </button>
+
+            <div class="grupo-input">
+                <label class="label-campo">Artículo / Repuesto</label>
+                <select name="articulo[]" class="select-tactil" required>
+                    <option value="" disabled selected>Seleccionar opción</option>
+                    {% for mat in materiales %}
+                        <option value="{{ mat.id }}" data-stock="{{ mat.stock_actual }}" {% if mat.stock_actual <= 0 %}disabled{% endif %}>
+                            {{ mat.nombre }} ({{ mat.unidad_medida }} - Stock: {{ mat.stock_actual }})
+                        </option>
+                    {% empty %}
+                        <option value="" disabled>No hay materiales registrados en inventario</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="grupo-input">
+                <label class="label-campo">Cantidad Usada</label>
+                <select name="cantidad[]" class="select-tactil" required>
+                    <option value="" disabled selected>Seleccionar opción</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                </select>
+            </div>
+
+            <div class="footer-card-insumo">
+                <div class="estado-cardex">
+                    <span class="label-cardex">Estado Cardex</span>
+                    <span class="badge-rebajado">✔ Rebajado de Stock</span>
+                </div>
+                <button type="button" class="btn-eliminar-insumo" title="Eliminar insumo" aria-label="Eliminar insumo">
+                    🗑️
+                </button>
+            </div>
         </div>
     </div>
+</form>
 
-</div>
-
-<!-- Botones de acción centrales -->
 <div class="acciones-insumos">
     <button type="button" id="btn-agregar-material" class="btn-accion-secundario">
         <span>+</span> Agregar Material
     </button>
-    
-    <!-- TODO DJANGO: Cambiar el href por  -->
-    <a href="{% url 'pwa:solicitudes' %}" class="btn-accion-secundario">
+
+    <a href="{% url 'pwa:solicitudes' %}{% if orden %}?orden_id={{ orden.id }}{% endif %}" class="btn-accion-secundario">
         <span>⚠️</span> Solicitar Insumos
     </a>
 </div>
 
-        <!-- Lógica JS  -->
-    <script src="{% static 'js/insumos.js' %}"></script>
-
+<script src="{% static 'js/insumos.js' %}"></script>
 {% endblock %}
 
-{% block navigation_buttons %} <!-- Botones específicos de cada pantalla -->
-    <a class="btn btn-sm px-3" href="{% url 'pwa:formulario' %}" style="background-color: #4b4f76; color: #fff;">Atrás: Formulario</a>
-    <a class="btn btn-sm px-3 text-white" href="{% url 'pwa:evidencias' %}" type="submit" style="background-color: #4b4f76;">Siguiente: Evidencia Fotográfica</a>
+{% block navigation_buttons %}
+    <a class="btn btn-sm px-3" href="{% url 'pwa:formulario' %}{% if orden %}?orden_id={{ orden.id }}{% endif %}" style="background-color: #4b4f76; color: #fff;">Atrás: Formulario</a>
+    <button type="submit" form="form-paso2" class="btn btn-sm px-3 text-white" style="background-color: #4b4f76; border: none;">Siguiente: Evidencia Fotográfica</button>
 {% endblock %}

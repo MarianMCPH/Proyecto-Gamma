@@ -1,7 +1,15 @@
-{% extends "base_pwa.html" %} 
+{% extends "base_pwa.html" %}
 {% load static %}
 
 {% block header_title %}Confirmación y Sincronización{% endblock %}
+
+{% block work_id %}
+    {% if orden %}
+        ID: #{{ orden.id }} - {{ orden.tipo_servicio }}
+    {% else %}
+        Sin orden asignada
+    {% endif %}
+{% endblock %}
 
 {% block mobile_content %}
     <link rel="stylesheet" href="{% static 'css/sincronizacion.css' %}">
@@ -15,12 +23,20 @@
             <h3 class="texto-centrado">¡Servicio Finalizado con Éxito!</h3>
         </div>
 
-        <!-- TODO BD: Datos dinámicos de la faena sincronizada -->
         <div class="detalle-resumen">
-            <p><strong>Cliente:</strong> Agroindustrial El Peumo de Bulnes SpA</p>
-            <p><strong>Tipo de Servicio:</strong> Climatización</p>
-            <p><strong>Técnico:</strong> Reinaldo Tapia</p>
-            <p><strong>Finalizado:</strong> 09 de Octubre, 17:20</p>
+            {% if orden %}
+                <p><strong>Orden:</strong> #{{ orden.pk }}</p>
+                <p><strong>Cliente:</strong> {{ orden.cliente.razon_social }}</p>
+                <p><strong>Tipo de Servicio:</strong> {{ orden.tipo_servicio }}</p>
+                <p><strong>Técnico:</strong> {{ orden.tecnico.get_full_name|default:orden.tecnico.username }}</p>
+                <p><strong>Finalizado:</strong> {{ orden.fecha_cierre|date:"d/m/Y H:i"|default:"Ahora" }}</p>
+                <p><strong>Respaldo:</strong> {{ consumos_count }} insumo(s) · {{ evidencias_count }} evidencia(s) en Cellar</p>
+                {% if firma %}
+                    <p><strong>Receptor:</strong> {{ firma.nombre_firmante }} ({{ firma.rut_firmante }})</p>
+                {% endif %}
+            {% else %}
+                <p><strong>Estado:</strong> Orden sincronizada correctamente.</p>
+            {% endif %}
         </div>
 
         <div class="estado-sincronizado">
@@ -28,15 +44,11 @@
         </div>
     </div>
 
-    <!-- Botón Volver al Inicio -->
     <div class="contenedor-submit">
-        <!-- TODO DJANGO: Usar  -->
         <a href="{% url 'obras:itinerario' %}" class="btn-volver-inicio">Volver al Inicio</a>
     </div>
 
     <script src="{% static 'js/sincronizacion.js' %}"></script>
 {% endblock %}
 
-{% block navigation_buttons %}
-    <!-- Sin botones de navegación inferiores en esta pantalla final -->
-{% endblock %}
+{% block navigation_buttons %}{% endblock %}
