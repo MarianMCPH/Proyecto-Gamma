@@ -1,0 +1,300 @@
+{% extends "base_admin.html" %}
+{% load static %}
+
+{% block page_title %}Progreso y Resultados de Obras{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/progreso_resultados.css' %}">
+
+<!-- Barra superior de subtítulo, filtro temporal (Semana / Mes / Año / Historial) y botón Actualizar -->
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <p class="text-muted small mb-0">
+            Resumen general de la actividad operativa · <strong>{{ periodo_label }}</strong>
+        </p>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="btn-group btn-group-sm shadow-sm" role="group" aria-label="Filtro temporal">
+            <a href="?periodo=semana"
+               class="btn {% if periodo_actual == 'semana' %}text-white{% else %}btn-outline-secondary bg-white{% endif %}"
+               {% if periodo_actual == 'semana' %}style="background-color: #373b6e; border-color: #373b6e;"{% endif %}>
+                Semana
+            </a>
+            <a href="?periodo=mes"
+               class="btn {% if periodo_actual == 'mes' %}text-white{% else %}btn-outline-secondary bg-white{% endif %}"
+               {% if periodo_actual == 'mes' %}style="background-color: #373b6e; border-color: #373b6e;"{% endif %}>
+                Mes
+            </a>
+            <a href="?periodo=anio"
+               class="btn {% if periodo_actual == 'anio' %}text-white{% else %}btn-outline-secondary bg-white{% endif %}"
+               {% if periodo_actual == 'anio' %}style="background-color: #373b6e; border-color: #373b6e;"{% endif %}>
+                Año
+            </a>
+            <a href="?historial=1"
+               class="btn {% if mostrando_historial %}text-white{% else %}btn-outline-secondary bg-white{% endif %}"
+               {% if mostrando_historial %}style="background-color: #373b6e; border-color: #373b6e;"{% endif %}>
+                Historial completo
+            </a>
+        </div>
+
+        <button type="button"
+                id="btnActualizarProgreso"
+                class="btn btn-sm text-white px-3 shadow-sm"
+                style="background-color: #2563eb;">
+            <i class="bi bi-arrow-clockwise me-1"></i> Actualizar
+        </button>
+    </div>
+</div>
+
+<!-- 5 TARJETAS KPI SUPERIORES (clicables para filtrar la tabla por estado) -->
+<div class="row row-cols-1 row-cols-sm-2 row-cols-lg-5 g-3 mb-4">
+    <div class="col">
+        <div class="kpi-progreso-card activo" data-filtro-estado="todas" title="Ver todas las obras">
+            <div class="kpi-icon-circle kpi-icon-total">
+                <i class="bi bi-clipboard2-data-fill"></i>
+            </div>
+            <div>
+                <div class="kpi-valor-principal">{{ total_obras }}</div>
+                <div class="kpi-etiqueta">Total de obras</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="kpi-progreso-card" data-filtro-estado="finalizadas" title="Filtrar obras finalizadas">
+            <div class="kpi-icon-circle kpi-icon-finalizadas">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div>
+                <div class="kpi-valor-principal">{{ total_finalizadas }}</div>
+                <div class="kpi-etiqueta">Finalizadas ({{ pct_finalizadas }}%)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="kpi-progreso-card" data-filtro-estado="en_ejecucion" title="Filtrar obras en ejecución">
+            <div class="kpi-icon-circle kpi-icon-ejecucion">
+                <i class="bi bi-play-circle-fill"></i>
+            </div>
+            <div>
+                <div class="kpi-valor-principal">{{ total_en_ejecucion }}</div>
+                <div class="kpi-etiqueta">En ejecución</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="kpi-progreso-card" data-filtro-estado="pendientes" title="Filtrar obras pendientes o programadas">
+            <div class="kpi-icon-circle kpi-icon-pendientes">
+                <i class="bi bi-clock-fill"></i>
+            </div>
+            <div>
+                <div class="kpi-valor-principal">{{ total_pendientes }}</div>
+                <div class="kpi-etiqueta">Pendientes</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="kpi-progreso-card" data-filtro-estado="canceladas" title="Filtrar obras canceladas">
+            <div class="kpi-icon-circle kpi-icon-canceladas">
+                <i class="bi bi-x-circle-fill"></i>
+            </div>
+            <div>
+                <div class="kpi-valor-principal">{{ total_canceladas }}</div>
+                <div class="kpi-etiqueta">Canceladas</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BARRA DE AVANCE GENERAL / DISTRIBUCIÓN LINEAL -->
+<div class="card-custom p-3 mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <span class="small fw-bold text-secondary">
+            <i class="bi bi-bar-chart-steps me-1 text-primary"></i>
+            Porcentaje de cumplimiento general:
+            <span class="text-success fs-6 ms-1">{{ pct_finalizadas }}%</span>
+            <span class="text-muted fw-normal">({{ total_finalizadas }} de {{ total_obras }} obras finalizadas)</span>
+        </span>
+        <div class="d-flex flex-wrap gap-3 small text-muted">
+            <span><span class="leyenda-dot me-1" style="background:#16a34a;"></span>Finalizadas</span>
+            <span><span class="leyenda-dot me-1" style="background:#2563eb;"></span>En ejecución</span>
+            <span><span class="leyenda-dot me-1" style="background:#eab308;"></span>Pendientes</span>
+            <span><span class="leyenda-dot me-1" style="background:#dc2626;"></span>Canceladas</span>
+        </div>
+    </div>
+    <div class="barra-distribucion-segmentada"
+         data-pct-finalizadas="{{ pct_finalizadas|stringformat:'f' }}"
+         data-pct-ejecucion="{{ pct_ejecucion|stringformat:'f' }}"
+         data-pct-pendientes="{{ pct_pendientes|stringformat:'f' }}"
+         data-pct-canceladas="{{ pct_canceladas|stringformat:'f' }}">
+        <div class="seg-finalizadas" title="Finalizadas: {{ pct_finalizadas }}%"></div>
+        <div class="seg-ejecucion" title="En ejecución: {{ pct_ejecucion }}%"></div>
+        <div class="seg-pendientes" title="Pendientes: {{ pct_pendientes }}%"></div>
+        <div class="seg-canceladas" title="Canceladas: {{ pct_canceladas }}%"></div>
+    </div>
+</div>
+
+<!-- DOS GRÁFICOS CENTRALES (Dona de Distribución + Barras de Ganancias por Periodo) -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card-custom p-4 h-100">
+            <h6 class="fw-bold text-dark mb-3">
+                <i class="bi bi-pie-chart-fill me-2" style="color: #2563eb;"></i>
+                Distribución de obras por estado
+            </h6>
+            <div class="row align-items-center g-3">
+                <div class="col-sm-6">
+                    <div class="dona-wrapper">
+                        <canvas id="graficoDonaEstados"
+                                data-valores="{{ dona_valores_json }}"></canvas>
+                        <div class="dona-centro-texto">
+                            <span class="fs-4 fw-bold text-dark lh-1">{{ total_obras }}</span>
+                            <span class="small text-muted">Total</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <ul class="list-unstyled small d-flex flex-column gap-2 mb-0">
+                        <li class="d-flex align-items-center justify-content-between">
+                            <span><span class="leyenda-dot me-2" style="background:#2563eb;"></span>Finalizadas</span>
+                            <strong class="text-dark">{{ total_finalizadas }} ({{ pct_finalizadas }}%)</strong>
+                        </li>
+                        <li class="d-flex align-items-center justify-content-between">
+                            <span><span class="leyenda-dot me-2" style="background:#16a34a;"></span>En ejecución</span>
+                            <strong class="text-dark">{{ total_en_ejecucion }} ({{ pct_ejecucion }}%)</strong>
+                        </li>
+                        <li class="d-flex align-items-center justify-content-between">
+                            <span><span class="leyenda-dot me-2" style="background:#eab308;"></span>Pendientes</span>
+                            <strong class="text-dark">{{ total_pendientes }} ({{ pct_pendientes }}%)</strong>
+                        </li>
+                        <li class="d-flex align-items-center justify-content-between">
+                            <span><span class="leyenda-dot me-2" style="background:#dc2626;"></span>Canceladas</span>
+                            <strong class="text-dark">{{ total_canceladas }} ({{ pct_canceladas }}%)</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card-custom p-4 h-100">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <h6 class="fw-bold text-dark mb-0">
+                    <i class="bi bi-cash-coin me-2 text-success"></i>
+                    {{ titulo_barras }}
+                </h6>
+                <span class="badge bg-success-subtle text-success fs-6 fw-bold px-3 py-1">
+                    Total: {{ total_ganancias_periodo }}
+                </span>
+            </div>
+            <div style="height: 195px;">
+                <canvas id="graficoBarrasPeriodo"
+                        data-labels="{{ barras_labels_json }}"
+                        data-valores="{{ barras_valores_json }}"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LISTADO DE OBRAS POR ESTADO -->
+<div class="card-custom p-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+        <h6 class="fw-bold text-dark mb-0">
+            <i class="bi bi-list-ul me-2" style="color: #2563eb;"></i>
+            Obras registradas por estado
+        </h6>
+
+        <a href="{% url 'obras:ver_obras' %}" class="btn btn-sm btn-outline-primary px-3">
+            Ver gestión de obras <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+    </div>
+
+    <!-- Pestañas de filtro por estado + buscador rápido -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div class="d-flex flex-wrap gap-2" id="tabsEstadoProgreso">
+            <button type="button" class="btn-tab-estado active" data-estado="todas">Todas ({{ total_obras }})</button>
+            <button type="button" class="btn-tab-estado" data-estado="finalizadas">Finalizadas ({{ total_finalizadas }})</button>
+            <button type="button" class="btn-tab-estado" data-estado="en_ejecucion">En ejecución ({{ total_en_ejecucion }})</button>
+            <button type="button" class="btn-tab-estado" data-estado="pendientes">Pendientes ({{ total_pendientes }})</button>
+            <button type="button" class="btn-tab-estado" data-estado="canceladas">Canceladas ({{ total_canceladas }})</button>
+        </div>
+
+        <div style="min-width: 240px;">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white text-muted"><i class="bi bi-search"></i></span>
+                <input type="text" id="buscadorProgresoObras" class="form-control" placeholder="Buscar cliente, servicio o técnico...">
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small" id="tablaProgresoObras">
+            <thead class="table-light text-secondary">
+                <tr>
+                    <th>Cliente</th>
+                    <th>Tipo de servicio</th>
+                    <th>Técnico</th>
+                    <th>Fecha</th>
+                    <th>Presupuesto</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for obra in obras_progreso %}
+                <tr class="fila-obra-progreso"
+                    data-estado="{{ obra.categoria }}"
+                    data-busqueda="{{ obra.busqueda }}">
+                    <td class="fw-semibold text-dark">{{ obra.cliente }}</td>
+                    <td>{{ obra.tipo_servicio }}</td>
+                    <td>{{ obra.tecnico }}</td>
+                    <td>{{ obra.fecha }}</td>
+                    <td class="fw-semibold">{{ obra.presupuesto }}</td>
+                    <td>
+                        <span class="badge-estado-pill {{ obra.badge_clase }}">
+                            <i class="bi {{ obra.icono }}"></i> {{ obra.estado_label }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+
+                <tr id="filaSinResultadosProgreso" {% if obras_progreso %}style="display: none;"{% endif %}>
+                    <td colspan="6" class="text-center py-4 text-muted">
+                        No hay obras registradas para el filtro seleccionado.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pie inferior con acceso al historial completo de obras -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 pt-3 border-top small">
+        <div class="text-muted">
+            {% if mostrando_historial %}
+                Mostrando el <strong>historial completo</strong> ({{ total_historico }} obra{{ total_historico|pluralize:"s" }} registrada{{ total_historico|pluralize:"s" }} en total).
+            {% else %}
+                Mostrando <strong>{{ total_obras }}</strong> obra{{ total_obras|pluralize:"s" }} en el periodo <strong>{{ periodo_label }}</strong> ({{ total_historico }} en historial total).
+            {% endif %}
+        </div>
+
+        <div>
+            {% if mostrando_historial %}
+                <a href="{% url 'obras:progreso_resultados' %}?periodo=anio" class="text-decoration-none fw-semibold" style="color: #373b6e;">
+                    <i class="bi bi-calendar3 me-1"></i>Volver a vista por periodo
+                </a>
+            {% else %}
+                <a href="{% url 'obras:progreso_resultados' %}?historial=1" class="text-decoration-none fw-semibold" style="color: #373b6e;">
+                    <i class="bi bi-clock-history me-1"></i>Ver historial completo de obras ({{ total_historico }})
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/progreso_resultados.js' %}"></script>
+{% endblock %}

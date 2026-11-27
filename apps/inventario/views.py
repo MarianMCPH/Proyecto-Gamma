@@ -3,10 +3,41 @@ import json
 
 from django.db import transaction
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
+from django.views import View
 from django.views.generic import TemplateView
 
-from .models import Material, MovimientoInventario
+from apps.obras.models import OrdenTrabajo
+from .models import DetalleKitHerramienta, KitHerramientas, Material, MovimientoInventario
+
+
+def _obtener_tipos_servicio():
+    """Obtiene tipos de servicio reales desde OrdenTrabajo junto con opciones base."""
+    base = [
+        "Climatización",
+        "Proyecto eléctrico",
+        "Mantención preventiva",
+        "Emergencia en terreno",
+    ]
+    desde_bd = list(
+        OrdenTrabajo.objects.exclude(tipo_servicio__isnull=True)
+        .exclude(tipo_servicio__exact="")
+        .values_list("tipo_servicio", flat=True)
+        .distinct()
+    )
+    combinados = []
+    vistos = set()
+    for item in base + desde_bd:
+        limpio = item.strip()
+        clave = limpio.lower()
+        if limpio and clave not in vistos:
+            vistos.add(clave)
+            combinados.append(limpio)
+    return combinados
+
+
+CLAVE_SESION_SOLICITUDES_OCULTAS = "solicitudes_insumos_ocultas"
 
 
 class SolicitudInsumo(TemplateView):
@@ -16,16 +47,21 @@ class SolicitudInsumo(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        mostrando_historial = self.request.GET.get("historial") == "1"
+        ids_ocultos = set(self.request.session.get(CLAVE_SESION_SOLICITUDES_OCULTAS, []))
 
-        movimientos = (
-            MovimientoInventario.objects.select_related(
-                "material",
-                "orden",
-                "orden__cliente",
-                "usuario",
-            )
-            .order_by("-fecha", "-id")
-        )
+        qs_base = MovimientoInventario.objects.select_related(
+            "material",
+            "orden",
+            "orden__cliente",
+            "usuario",
+        ).order_by("-fecha", "-id")
+
+        total_historial = qs_base.count()
+        if mostrando_historial:
+            movimientos = qs_base
+        else:
+            movimientos = qs_base.exclude(id__in=ids_ocultos)
 
         solicitudes = []
         pendientes_count = 0
@@ -103,7 +139,50 @@ class SolicitudInsumo(TemplateView):
         context["total_pendientes"] = pendientes_count
         context["total_urgentes_sin_stock"] = urgentes_sin_stock_count
         context["total_aprobadas"] = aprobadas_count
+        context["mostrando_historial"] = mostrando_historial
+        context["total_historial"] = total_historial
+        context["total_ocultas"] = len(ids_ocultos)
         return context
+
+
+class LimpiarSolicitudes(View):
+    """Oculta de la bandeja principal las solicitudes seleccionadas sin borrarlas de la BD."""
+
+    def post(self, request, *args, **kwargs):
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except (ValueError, UnicodeDecodeError):
+            payload = {
+                "ids": request.POST.getlist("ids[]"),
+                "accion": request.POST.get("accion", "limpiar"),
+            }
+
+        accion = (payload.get("accion") or "limpiar").strip().lower()
+
+        if accion == "restaurar":
+            request.session[CLAVE_SESION_SOLICITUDES_OCULTAS] = []
+            request.session.modified = True
+            return JsonResponse({"ok": True})
+
+        ids_nuevos = []
+        for raw_id in payload.get("ids", []):
+            try:
+                ids_nuevos.append(int(raw_id))
+            except (TypeError, ValueError):
+                continue
+
+        if not ids_nuevos:
+            return JsonResponse(
+                {"ok": False, "error": "Para limpiar la pantalla primero debe seleccionar al menos una solicitud."},
+                status=400,
+            )
+
+        actuales = set(request.session.get(CLAVE_SESION_SOLICITUDES_OCULTAS, []))
+        actuales.update(ids_nuevos)
+        request.session[CLAVE_SESION_SOLICITUDES_OCULTAS] = list(actuales)
+        request.session.modified = True
+
+        return JsonResponse({"ok": True, "actualizadas": len(ids_nuevos)})
 
 
 class DetalleSolicitudView(TemplateView):
@@ -306,7 +385,6 @@ class DetalleSolicitudView(TemplateView):
                             status=400,
                         )
 
-                    # Rebajar stock en Cardex solo si aún no estaba aprobada
                     if (mov_locked.estado_validacion or "").strip().lower() not in {"aprobada", "despachada"}:
                         material_locked.stock_actual = (material_locked.stock_actual or Decimal("0")) - cant_aprobar
                         material_locked.save(update_fields=["stock_actual"])
@@ -329,7 +407,6 @@ class DetalleSolicitudView(TemplateView):
                         "stock_actualizado": f"{material_locked.stock_actual:g}",
                     })
 
-                # Acción: rechazar
                 mov_locked.estado_validacion = "rechazada"
                 mov_locked.motivo = (
                     f"{base_motivo} | Obs. Admin: {observacion}"
@@ -350,3 +427,353 @@ class DetalleSolicitudView(TemplateView):
                 {"ok": False, "error": "Ocurrió un problema al actualizar la solicitud. Intente nuevamente."},
                 status=500,
             )
+
+
+class KitHerramientasView(TemplateView):
+    """Pantalla 1: Mini inventario de materiales + listado de kits creados con sus acciones."""
+
+    template_name = "inventario/kits_herramientas.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        kits = KitHerramientas.objects.prefetch_related("detalles__material").all()
+        materiales = Material.objects.order_by("nombre")
+
+        kits_data = []
+        for kit in kits:
+            kits_data.append({
+                "id": kit.id,
+                "nombre": kit.nombre,
+                "tipo_servicio": kit.tipo_servicio,
+                "descripcion": kit.descripcion or "",
+                "cantidad_items": kit.detalles.count(),
+                "total_presupuesto": kit.total_presupuesto,
+            })
+
+        context["kits"] = kits_data
+        context["materiales"] = materiales
+        return context
+
+    def post(self, request, *args, **kwargs):
+        accion = (request.POST.get("accion") or "").strip()
+
+        if accion == "editar_material":
+            mat_id = request.POST.get("material_id")
+            mat = get_object_or_404(Material, pk=mat_id)
+
+            codigo = (request.POST.get("codigo") or "").strip()
+            nombre = (request.POST.get("nombre") or "").strip()
+            unidad = (request.POST.get("unidad_medida") or "un").strip()
+            try:
+                stock_actual = Decimal(str(request.POST.get("stock_actual") or "0").replace(",", "."))
+                stock_minimo = Decimal(str(request.POST.get("stock_minimo") or "0").replace(",", "."))
+                precio_unitario = Decimal(str(request.POST.get("precio_unitario") or "0").replace(",", "."))
+            except InvalidOperation:
+                return JsonResponse({"ok": False, "error": "Valores numéricos inválidos."}, status=400)
+
+            if not codigo or not nombre:
+                return JsonResponse({"ok": False, "error": "Código y nombre son obligatorios."}, status=400)
+
+            if stock_actual < 0 or stock_minimo < 0 or precio_unitario < 0:
+                return JsonResponse({"ok": False, "error": "Los valores numéricos no pueden ser negativos."}, status=400)
+
+            if Material.objects.filter(codigo__iexact=codigo).exclude(pk=mat.pk).exists():
+                return JsonResponse({"ok": False, "error": "Ya existe otro material con ese código."}, status=400)
+
+            mat.codigo = codigo
+            mat.nombre = nombre
+            mat.unidad_medida = unidad
+            mat.stock_actual = stock_actual
+            mat.stock_minimo = stock_minimo
+            mat.precio_unitario = precio_unitario
+            mat.save(update_fields=[
+                "codigo",
+                "nombre",
+                "unidad_medida",
+                "stock_actual",
+                "stock_minimo",
+                "precio_unitario",
+            ])
+
+            return JsonResponse({
+                "ok": True,
+                "material": {
+                    "id": mat.id,
+                    "codigo": mat.codigo,
+                    "nombre": mat.nombre,
+                    "unidad_medida": mat.unidad_medida,
+                    "stock_actual": f"{mat.stock_actual:.2f}",
+                    "stock_minimo": f"{mat.stock_minimo:.2f}",
+                    "precio_unitario": f"{mat.precio_unitario:.2f}",
+                },
+            })
+
+        if accion == "actualizar_precio_material":
+            mat_id = request.POST.get("material_id")
+            try:
+                nuevo_precio = Decimal(str(request.POST.get("precio_unitario") or "0").replace(",", "."))
+                if nuevo_precio < 0:
+                    raise InvalidOperation
+            except InvalidOperation:
+                return JsonResponse({"ok": False, "error": "Precio inválido."}, status=400)
+
+            mat = get_object_or_404(Material, pk=mat_id)
+            mat.precio_unitario = nuevo_precio
+            mat.save(update_fields=["precio_unitario"])
+            return JsonResponse({"ok": True, "precio_unitario": f"{mat.precio_unitario:.2f}"})
+
+        if accion == "eliminar_material":
+            mat_id = request.POST.get("material_id")
+            mat = get_object_or_404(Material, pk=mat_id)
+
+            if DetalleKitHerramienta.objects.filter(material=mat).exists():
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "error": "No se puede eliminar este material porque está asociado a uno o más kits.",
+                    },
+                    status=400,
+                )
+
+            with transaction.atomic():
+                MovimientoInventario.objects.filter(material=mat).delete()
+                mat.delete()
+
+            return JsonResponse({"ok": True})
+
+        return JsonResponse({"ok": False, "error": "Acción no válida."}, status=400)
+
+
+class NuevoMaterialView(TemplateView):
+    """Pantalla 2A: Pantalla dedicada para ingresar un nuevo material al inventario."""
+
+    template_name = "inventario/nuevo_material.html"
+
+    def post(self, request, *args, **kwargs):
+        codigo = (request.POST.get("codigo") or "").strip()
+        nombre = (request.POST.get("nombre") or "").strip()
+        unidad = (request.POST.get("unidad_medida") or "un").strip()
+        try:
+            stock_actual = Decimal(str(request.POST.get("stock_actual") or "0").replace(",", "."))
+            stock_minimo = Decimal(str(request.POST.get("stock_minimo") or "0").replace(",", "."))
+            precio_unitario = Decimal(str(request.POST.get("precio_unitario") or "0").replace(",", "."))
+        except InvalidOperation:
+            return JsonResponse({"ok": False, "error": "Valores numéricos inválidos."}, status=400)
+
+        if not codigo or not nombre:
+            return JsonResponse({"ok": False, "error": "Código y nombre son obligatorios."}, status=400)
+
+        if stock_actual < 0 or stock_minimo < 0 or precio_unitario < 0:
+            return JsonResponse({"ok": False, "error": "Los valores numéricos no pueden ser negativos."}, status=400)
+
+        if Material.objects.filter(codigo__iexact=codigo).exists():
+            return JsonResponse({"ok": False, "error": "Ya existe un material con ese código."}, status=400)
+
+        mat = Material.objects.create(
+            codigo=codigo,
+            nombre=nombre,
+            unidad_medida=unidad,
+            stock_actual=stock_actual,
+            stock_minimo=stock_minimo,
+            precio_unitario=precio_unitario,
+        )
+        return JsonResponse({
+            "ok": True,
+            "material": {
+                "id": mat.id,
+                "codigo": mat.codigo,
+                "nombre": mat.nombre,
+                "unidad_medida": mat.unidad_medida,
+                "stock_actual": f"{mat.stock_actual:.2f}",
+                "precio_unitario": f"{mat.precio_unitario:.2f}",
+            },
+            "redirect_url": reverse("inventario:kits_herramientas"),
+        })
+
+
+class CrearKitView(TemplateView):
+    """Pantalla 2B: Formulario dedicado para crear un nuevo kit de herramientas."""
+
+    template_name = "inventario/crear_kit.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["materiales"] = Material.objects.order_by("nombre")
+        context["tipos_servicio"] = _obtener_tipos_servicio()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        nombre_kit = (request.POST.get("nombre") or "").strip()
+        tipo_servicio = (request.POST.get("tipo_servicio") or "").strip()
+        descripcion = (request.POST.get("descripcion") or "").strip()
+
+        material_ids = request.POST.getlist("material_id[]")
+        cantidades = request.POST.getlist("cantidad[]")
+
+        if not nombre_kit or not tipo_servicio:
+            return JsonResponse(
+                {"ok": False, "error": "Indica el nombre del kit y el tipo de servicio."},
+                status=400,
+            )
+
+        if not material_ids:
+            return JsonResponse(
+                {"ok": False, "error": "Debes agregar al menos un material al kit."},
+                status=400,
+            )
+
+        try:
+            with transaction.atomic():
+                items_validos = []
+                for idx, mat_id in enumerate(material_ids):
+                    if not str(mat_id).isdigit():
+                        continue
+                    mat = Material.objects.filter(pk=int(mat_id)).first()
+                    if not mat:
+                        continue
+
+                    cant_raw = str(cantidades[idx] if idx < len(cantidades) else "1").replace(",", ".").strip()
+                    cant = Decimal(cant_raw or "1")
+                    if cant <= 0:
+                        continue
+
+                    precio = mat.precio_unitario or Decimal("0")
+                    items_validos.append((mat, cant, precio))
+
+                if not items_validos:
+                    return JsonResponse(
+                        {"ok": False, "error": "Selecciona al menos un material válido con cantidad mayor a 0."},
+                        status=400,
+                    )
+
+                kit = KitHerramientas.objects.create(
+                    nombre=nombre_kit,
+                    tipo_servicio=tipo_servicio,
+                    descripcion=descripcion,
+                )
+
+                for mat, cant, precio in items_validos:
+                    DetalleKitHerramienta.objects.update_or_create(
+                        kit=kit,
+                        material=mat,
+                        defaults={"cantidad": cant, "precio_unitario": precio},
+                    )
+
+            return JsonResponse({
+                "ok": True,
+                "kit_id": kit.id,
+                "kit_nombre": kit.nombre,
+                "total_presupuesto": f"{kit.total_presupuesto:.2f}",
+                "detalle_url": reverse("inventario:detalle_kit", args=[kit.id]),
+                "listado_url": reverse("inventario:kits_herramientas"),
+            })
+        except InvalidOperation:
+            return JsonResponse({"ok": False, "error": "Revisa las cantidades ingresadas."}, status=400)
+        except Exception:
+            return JsonResponse({"ok": False, "error": "No se pudo guardar el nuevo kit."}, status=500)
+
+
+class DetalleKitView(TemplateView):
+    """Pantalla 3: Visualiza un kit con sus materiales, precios y presupuesto total calculado."""
+
+    template_name = "inventario/detalle_kit.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        kit = get_object_or_404(
+            KitHerramientas.objects.prefetch_related("detalles__material"),
+            pk=kwargs.get("pk"),
+        )
+        items = []
+        for det in kit.detalles.all():
+            items.append({
+                "id": det.id,
+                "codigo": det.material.codigo,
+                "nombre": det.material.nombre,
+                "unidad": det.material.unidad_medida,
+                "cantidad": det.cantidad,
+                "precio_unitario": det.precio_unitario,
+                "subtotal": det.subtotal,
+            })
+
+        context["kit"] = kit
+        context["items"] = items
+        context["total_presupuesto"] = kit.total_presupuesto
+        return context
+
+
+class EditarKitView(TemplateView):
+    """Permite editar el kit, sus materiales, cantidades y precios."""
+
+    template_name = "inventario/editar_kit.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        kit = get_object_or_404(
+            KitHerramientas.objects.prefetch_related("detalles__material"),
+            pk=kwargs.get("pk"),
+        )
+        context["kit"] = kit
+        context["detalles"] = list(kit.detalles.select_related("material").all())
+        context["materiales"] = Material.objects.order_by("nombre")
+        context["tipos_servicio"] = _obtener_tipos_servicio()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        kit = get_object_or_404(KitHerramientas, pk=kwargs.get("pk"))
+        nombre_kit = (request.POST.get("nombre") or "").strip()
+        tipo_servicio = (request.POST.get("tipo_servicio") or "").strip()
+        descripcion = (request.POST.get("descripcion") or "").strip()
+
+        material_ids = request.POST.getlist("material_id[]")
+        cantidades = request.POST.getlist("cantidad[]")
+        precios = request.POST.getlist("precio_unitario[]")
+
+        if not nombre_kit or not tipo_servicio:
+            return JsonResponse({"ok": False, "error": "Nombre y tipo de servicio son obligatorios."}, status=400)
+
+        try:
+            with transaction.atomic():
+                kit.nombre = nombre_kit
+                kit.tipo_servicio = tipo_servicio
+                kit.descripcion = descripcion
+                kit.save(update_fields=["nombre", "tipo_servicio", "descripcion"])
+
+                kit.detalles.all().delete()
+                for idx, mat_id in enumerate(material_ids):
+                    if not str(mat_id).isdigit():
+                        continue
+                    mat = Material.objects.filter(pk=int(mat_id)).first()
+                    if not mat:
+                        continue
+                    cant = Decimal(str(cantidades[idx] if idx < len(cantidades) else "1").replace(",", "."))
+                    if cant <= 0:
+                        continue
+                    precio_raw = str(precios[idx] if idx < len(precios) else "").replace(",", ".").strip()
+                    precio = (
+                        Decimal(precio_raw)
+                        if precio_raw != ""
+                        else (mat.precio_unitario or Decimal("0"))
+                    )
+                    DetalleKitHerramienta.objects.create(
+                        kit=kit,
+                        material=mat,
+                        cantidad=cant,
+                        precio_unitario=precio,
+                    )
+
+            return JsonResponse({"ok": True, "redirect_url": reverse("inventario:detalle_kit", args=[kit.id])})
+        except Exception:
+            return JsonResponse({"ok": False, "error": "No se pudo actualizar el kit."}, status=500)
+
+
+class EliminarKitView(View):
+    """Elimina un kit de herramientas."""
+
+    def post(self, request, *args, **kwargs):
+        kit = KitHerramientas.objects.filter(pk=kwargs.get("pk")).first()
+        if kit:
+            kit.delete()
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"ok": True})
+        return redirect("inventario:kits_herramientas")

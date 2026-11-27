@@ -1,0 +1,128 @@
+{% extends "base_admin.html" %}
+{% load static %}
+
+{% block page_title %}Generación de Reportes{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/reportes_obras.css' %}">
+
+<div class="card-custom p-4 mb-4">
+    {% csrf_token %}
+    <div class="mb-3">
+        <h5 class="fw-bold text-dark mb-1">Generar reporte de obras</h5>
+        <p class="text-muted small mb-0">Seleccione el rango de fechas y qué información incluir en el reporte.</p>
+    </div>
+
+    <div class="mb-4">
+        <label class="form-label fw-bold text-dark small mb-2">Período del reporte</label>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="caja-fecha-reporte">
+                    <label for="reporteFechaDesde" class="form-label small text-muted mb-1">Desde</label>
+                    <input type="date" id="reporteFechaDesde" class="form-control form-control-sm border-0 p-0 fw-semibold" value="{{ fecha_desde_default }}">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="caja-fecha-reporte">
+                    <label for="reporteFechaHasta" class="form-label small text-muted mb-1">Hasta</label>
+                    <input type="date" id="reporteFechaHasta" class="form-control form-control-sm border-0 p-0 fw-semibold" value="{{ fecha_hasta_default }}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label class="form-label fw-bold text-dark small mb-2">Información incluida</label>
+        <div class="d-flex flex-column gap-2">
+            <label class="item-check-reporte" for="chkTotalObras">
+                <input class="form-check-input check-opcion-reporte" type="checkbox" id="chkTotalObras" value="total_obras" checked>
+                <span>Total de obras</span>
+            </label>
+            <label class="item-check-reporte" for="chkGanancias">
+                <input class="form-check-input check-opcion-reporte" type="checkbox" id="chkGanancias" value="ganancias" checked>
+                <span>Ganancias totales (obras finalizadas) y presupuesto por obra</span>
+            </label>
+            <label class="item-check-reporte" for="chkFinalizadas">
+                <input class="form-check-input check-opcion-reporte" type="checkbox" id="chkFinalizadas" value="finalizadas" checked>
+                <span>Obras finalizadas</span>
+            </label>
+            <label class="item-check-reporte" for="chkEnEjecucion">
+                <input class="form-check-input check-opcion-reporte" type="checkbox" id="chkEnEjecucion" value="en_ejecucion" checked>
+                <span>Obras en ejecución</span>
+            </label>
+            <label class="item-check-reporte" for="chkCanceladas">
+                <input class="form-check-input check-opcion-reporte" type="checkbox" id="chkCanceladas" value="canceladas" checked>
+                <span>Obras canceladas y sus motivos</span>
+            </label>
+            <label class="item-check-reporte" for="chkGraficos">
+                <input class="form-check-input check-opcion-reporte" type="checkbox" id="chkGraficos" value="graficos" checked>
+                <span>Gráficos de resultados</span>
+            </label>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <div class="caja-formato-reporte d-flex justify-content-between align-items-center">
+            <span class="fw-semibold text-dark small">Formato</span>
+            <span class="badge bg-secondary-subtle text-dark border px-3 py-1">PDF</span>
+        </div>
+    </div>
+
+    <button type="button"
+            id="btnGenerarReportePDF"
+            data-url-generar="{% url 'obras:generar_reporte_pdf' %}"
+            class="btn w-100 text-white fw-semibold py-2 shadow-sm"
+            style="background-color: #2563eb; border-radius: 10px;">
+        <i class="bi bi-file-earmark-arrow-down me-2"></i> Generar reporte
+    </button>
+</div>
+
+<!-- Historial de reportes generados -->
+<div class="card-custom p-4">
+    <h6 class="fw-bold text-dark mb-3">
+        <i class="bi bi-clock-history me-2" style="color: #373b6e;"></i>
+        Historial de reportes generados
+    </h6>
+
+    <div class="list-group list-group-flush" id="listaHistorialReportes">
+        {% for rep in historial_reportes %}
+        <div class="list-group-item list-group-item-action px-3 py-3 d-flex justify-content-between align-items-center gap-3 item-historial-reporte"
+             role="button"
+             data-url-ver="{% url 'obras:ver_reporte_html' rep.id %}">
+            <div>
+                <div class="fw-semibold titulo-historial-reporte">{{ rep.titulo }}</div>
+                <div class="small subtitulo-historial-reporte">
+                    Generado el {{ rep.fecha_generacion }} · {{ rep.formato }}
+                    {% if rep.secciones %} · {{ rep.secciones|join:", " }}{% endif %}
+                </div>
+            </div>
+            <span class="btn btn-sm btn-outline-primary">Ver reporte</span>
+        </div>
+        {% empty %}
+        <div class="text-center py-4 text-muted small">
+            Aún no hay reportes generados.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Visor en pantalla grande con Descargar (Guardar como PDF) y X para cerrar -->
+<div id="visorReporteModal" class="visor-reporte-overlay" style="display: none;">
+    <div class="visor-reporte-contenedor">
+        <div class="visor-reporte-header no-print">
+            <span id="visorReporteTitulo" class="fw-bold text-dark text-truncate">Reporte</span>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" id="btnDescargarReporteModal" class="btn btn-sm text-white px-3" style="background-color: #2563eb;" title="Descargar / Guardar como PDF">
+                    <i class="bi bi-download me-1"></i> Descargar PDF
+                </button>
+                <button type="button" id="btnCerrarVisorReporte" class="btn btn-sm btn-outline-secondary" title="Cerrar" aria-label="Cerrar">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </div>
+        <div id="visorReporteContenido" class="visor-reporte-body"></div>
+    </div>
+</div>
+
+<script src="{% static 'js/reportes_obras.js' %}"></script>
+{% endblock %}
