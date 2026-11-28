@@ -1,0 +1,42 @@
+{% load static %}
+{% comment %}
+  Parte común de las pantallas de solicitudes, evidencias, firma y sincronización:
+  - muestra en qué etapa (paso) del servicio está el técnico
+  - entrega al JS los datos de la orden actual (id, cliente, técnico, tipo)
+  - deja la cookie CSRF lista para los envíos por fetch
+  - avisa si no hay orden activa o si ya fue aprobada
+{% endcomment %}
+<link rel="stylesheet" href="{% static 'css/pasos_faena.css' %}">
+
+{% if paso_actual %}
+<nav class="pasos-faena" aria-label="Etapas del servicio">
+    <ol>
+        {% for numero, nombre in pasos %}
+            <li class="{% if numero < paso_actual %}hecho{% elif numero == paso_actual %}actual{% endif %}"
+                {% if numero == paso_actual %}aria-current="step"{% endif %}>
+                <span class="num">{% if numero < paso_actual %}<i class="bi bi-check-lg" aria-hidden="true"></i>{% else %}{{ numero }}{% endif %}</span>
+                <span class="txt">{{ nombre }}</span>
+            </li>
+        {% endfor %}
+    </ol>
+    <p class="pasos-texto">Etapa actual: <strong>Paso {{ paso_actual }} de {{ pasos|length }} · {{ nombre_paso }}</strong>{% if detalle_paso %} ({{ detalle_paso }}){% endif %}</p>
+</nav>
+{% endif %}
+
+<div hidden>{% csrf_token %}</div>
+{{ faena|json_script:"datos-faena" }}
+{% if not orden %}
+    <div class="alert alert-warning small" role="alert">
+        No hay una orden de trabajo activa. Abra esta pantalla desde la obra asignada
+        (por ejemplo, agregando <code>?orden=ID</code> a la dirección).
+    </div>
+{% elif faena.cancelada %}
+    <div class="alert alert-danger small" role="alert">
+        <i class="bi bi-x-circle-fill me-1" aria-hidden="true"></i>{{ faena.motivo_bloqueo }}
+    </div>
+{% elif faena.bloqueada %}
+    <div class="alert alert-info small" role="alert">
+        {{ faena.motivo_bloqueo }}
+    </div>
+{% endif %}
+<script src="{% static 'js/faena_store.js' %}"></script>

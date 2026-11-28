@@ -133,6 +133,18 @@ class EvidenciaFotografica(models.Model):
     peso_kb = models.PositiveIntegerField(null=True, blank=True)
     fecha_captura = models.DateTimeField(auto_now_add=True)
 
+    # Qué muestra la foto y la observación del técnico (los envía la PWA)
+    TIPO_ANTES = "antes"
+    TIPO_DESPUES = "despues"
+    TIPO_FALLA = "falla"
+    TIPO_CHOICES = [
+        (TIPO_ANTES, "Antes"),
+        (TIPO_DESPUES, "Después"),
+        (TIPO_FALLA, "Falla (solicitud de insumos)"),
+    ]
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, blank=True, default="")
+    descripcion = models.TextField(blank=True, default="")
+
     class Meta:
         db_table = "EvidenciaFotografica"
 

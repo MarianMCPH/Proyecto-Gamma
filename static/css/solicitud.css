@@ -1,49 +1,42 @@
 /* =================================================
-   CSS Específico - Pantalla 3: Solicitud de Insumos
+   CSS Específico - Solicitud de Presupuesto / Piezas
    ================================================= */
 
+.supplies-main { background-color: #F3F4F6; }
+
+/* Cabecera: flecha de volver + título (el h1 viene de base_pwa con 25px inline) */
+.technical-form-header h1 { font-size: 19px !important; line-height: 1.25; }
+.volver-header { color: #fff; text-decoration: none; font-size: 26px; vertical-align: middle; margin-right: 6px; }
+
 .card-insumo {
-    background-color: #FFFFFF;
-    border: 1px solid #D1D5DB;
-    border-radius: 10px;
+    background-color: #F3F4F6;
+    border: 2px solid #D1D5DB;
+    border-radius: 14px;
     padding: 16px;
     margin-bottom: 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .card-header-insumo h3 {
     margin: 0 0 12px 0;
     padding-bottom: 8px;
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
     color: #1F2937;
     border-bottom: 1px solid #C7C9D9;
     letter-spacing: 0.3px;
 }
+.texto-centrado { text-align: center; }
 
-.texto-centrado {
-    text-align: center;
-}
-
-.grupo-input {
-    margin-bottom: 14px;
-}
-
-.label-campo {
-    display: block;
-    font-size: 14px;
-    font-weight: 600;
-    color: #1F2937;
-    margin-bottom: 8px;
-}
+.grupo-input { margin-bottom: 14px; }
+.label-campo { display: block; font-size: 14px; font-weight: 600; color: #1F2937; margin-bottom: 8px; }
 
 .select-tactil {
     width: 100%;
     min-height: 48px;
     padding: 10px 12px;
     font-size: 14px;
-    color: #6B7280;
-    background-color: #F9FAFB;
+    color: #374151;
+    background-color: #FFFFFF;
     border: 1px solid #D1D5DB;
     border-radius: 6px;
     appearance: none;
@@ -52,132 +45,119 @@
     background-position: right 10px center;
     background-size: 20px;
 }
+.select-tactil:invalid { color: #6B7280; }
 
 .textarea-autoajustable {
     width: 100%;
-    min-height: 80px;
+    min-height: 90px;
     padding: 12px;
     font-size: 14px;
     font-family: inherit;
     color: #1F2937;
-    background-color: #F9FAFB;
+    background-color: #FFFFFF;
     border: 1px solid #D1D5DB;
     border-radius: 6px;
     resize: none;
     overflow: hidden;
     box-sizing: border-box;
 }
+.select-tactil:focus, .textarea-autoajustable:focus { outline: 2px solid #3b3f68; outline-offset: 1px; }
+.campo-invalido { border-color: #DC3545 !important; }
+.error-campo { display: none; color: #DC3545; font-size: 12px; margin-top: 4px; }
+.error-campo.visible { display: block; }
 
 /* Zona de subida de fotografía */
 .zona-subida-foto {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 110px;
-    background-color: #E5E7EB;
-    border: 2px dashed #9CA3AF;
-    border-radius: 8px;
-    cursor: pointer;
-    padding: 12px;
-    text-align: center;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 70%; margin: 0 auto 14px auto; min-height: 90px;
+    background-color: #E5E7EB; border: 2px dashed #9CA3AF; border-radius: 10px;
+    cursor: pointer; padding: 10px; text-align: center;
 }
+.zona-subida-foto:focus-within { outline: 2px solid #3b3f68; outline-offset: 2px; }
+.icono-camara { font-size: 34px; color: #9CA3AF; line-height: 1; }
+.texto-subida { font-size: 13px; font-weight: 600; color: #111827; margin-top: 6px; }
 
-.icono-camara {
-    font-size: 36px;
-    color: #9CA3AF;
+/* Miniaturas (se llenan con la vista previa de cada foto) */
+.miniaturas { display: flex; justify-content: center; gap: 28px; }
+.miniatura {
+    width: 100px; height: 80px; padding: 0; overflow: hidden;
+    background: transparent; border: 0; border-radius: 10px; position: relative;
+    font-size: 54px; color: #111827; display: flex; align-items: center; justify-content: center;
 }
-
-.texto-subida {
-    font-size: 12px;
-    color: #6B7280;
-    margin-top: 6px;
+.miniatura img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+.miniatura.llena::after {
+    content: "\00d7"; position: absolute; top: 3px; right: 3px; width: 22px; height: 22px;
+    background: rgba(0,0,0,.65); color: #fff; border-radius: 50%; font-size: 16px; line-height: 22px;
 }
-
-#preview-imagen {
-    max-width: 100%;
-    max-height: 160px;
-    border-radius: 6px;
-    object-fit: cover;
-}
+.nota-fotos { text-align: center; font-size: 11px; color: #6B7280; margin: 8px 0 0 0; }
 
 /* Botón de envío */
-.contenedor-submit {
-    margin-top: 16px;
-}
-
+.contenedor-submit { display: flex; justify-content: center; margin-top: 8px; }
 .btn-enviar-solicitud {
-    width: 100%;
-    min-height: 48px;
-    background-color: #2e3252; /* Vinculado a tu paleta base */
-    color: #FFFFFF;
-    border: none;
-    border-radius: 6px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
+    min-width: 200px; min-height: 48px; padding: 0 28px;
+    background-color: #4b4f76; color: #FFFFFF; border: none; border-radius: 8px;
+    font-size: 15px; font-weight: 600; cursor: pointer;
 }
+.btn-enviar-solicitud:disabled { opacity: .6; }
 
-/* Modal de Confirmación */
+/* Modal de confirmación */
 .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    padding: 16px;
-    box-sizing: border-box;
+    position: fixed; inset: 0; background-color: rgba(60, 60, 130, 0.65);
+    display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px;
 }
-
 .modal-contenido {
-    background-color: #FFFFFF;
-    border-radius: 12px;
-    padding: 24px 20px;
-    width: 100%;
-    max-width: 340px;
-    text-align: center;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    background-color: #F3F4F6; border-radius: 22px; padding: 28px 20px;
+    width: 100%; max-width: 340px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
 }
-
-.modal-icono-exito {
-    width: 56px;
-    height: 56px;
-    background-color: #DCFCE7;
-    color: #16A34A;
-    border-radius: 50%;
-    font-size: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 14px auto;
-}
-
-.modal-contenido h4 {
-    margin: 0 0 8px 0;
-    font-size: 18px;
-    color: #1F2937;
-}
-
-.modal-contenido p {
-    margin: 0 0 20px 0;
-    font-size: 14px;
-    color: #6B7280;
-}
-
+.modal-check { display: block; font-size: 72px; line-height: 1; color: #62B467; }
+.modal-contenido h4 { margin: 6px 0 8px 0; font-size: 22px; font-weight: 600; color: #111827; }
+.modal-contenido p { margin: 0 0 18px 0; font-size: 13px; color: #6B7280; }
 .btn-volver-insumos {
-    display: block;
-    width: 100%;
-    min-height: 46px;
-    line-height: 46px;
-    background-color: #2e3252;
-    color: #FFFFFF;
-    text-decoration: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
+    display: inline-block; min-width: 160px; min-height: 46px; line-height: 46px; padding: 0 24px;
+    background-color: #4b4f76; color: #FFFFFF; text-decoration: none;
+    border-radius: 8px; font-size: 16px; font-weight: 600;
 }
+
+/* Separación entre botones del pie (base_pwa los deja pegados) */
+.supplies-navigation { gap: 8px; }
+
+/* Campo numérico de cantidad (sin la flecha del select) */
+.select-tactil.input-numero { background-image: none; appearance: auto; }
+.modal-check.error { color: #DC3545; }
+
+/* Botón cancelar (formulario) */
+.contenedor-submit { gap: 10px; }
+.btn-cancelar-solicitud {
+    min-height: 48px; padding: 0 22px; background: #FFFFFF; color: #3b3f68;
+    border: 2px solid #3b3f68; border-radius: 8px; font-size: 15px; font-weight: 600;
+}
+.btn-ver-solicitudes { background: none; border: 0; color: #3b3f68; font-weight: 600; text-decoration: underline; min-height: 40px; }
+
+/* Lista "Mis solicitudes" */
+.lista-solicitudes { list-style: none; margin: 0; padding: 0; }
+.fila-solicitud {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    padding: 10px 0; border-bottom: 1px dashed #D1D5DB;
+}
+.fila-solicitud:last-child { border-bottom: 0; }
+.info-solicitud { display: flex; flex-direction: column; min-width: 0; }
+.info-solicitud .codigo { font-size: 11px; color: #6B7280; font-weight: 700; }
+.info-solicitud .articulo { font-size: 13px; color: #111827; font-weight: 600; overflow-wrap: anywhere; }
+.info-solicitud .cantidad { font-size: 12px; color: #374151; }
+.acciones-solicitud { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+.pill-estado { border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.pill-estado.pendiente { background: #FFF3CD; color: #7A5B00; }
+.pill-estado.aprobada { background: #D1E7DD; color: #0F5132; }
+.pill-estado.rechazada { background: #F8D7DA; color: #842029; }
+.pill-estado.sin-enviar { background: #E2E3F5; color: #3b3f68; }
+.btn-cancelar-fila {
+    background: none; border: 1px solid #DC3545; color: #DC3545; border-radius: 6px;
+    font-size: 12px; padding: 4px 10px; min-height: 32px;
+}
+
+/* Resalta la solicitud recién enviada al ir a "Mis solicitudes" */
+.fila-solicitud.nueva { animation: resaltar 2s ease-out; }
+@keyframes resaltar { from { background: #FFF3CD; } to { background: transparent; } }
+
+/* Kit del servicio */
+.nota-kit { font-size: 12px; color: #374151; background: #E2E3F5; border-radius: 8px; padding: 8px 10px; margin: 0 0 12px 0; }

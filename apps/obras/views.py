@@ -23,7 +23,7 @@ from apps.inventario.models import (
     Material,
     MovimientoInventario,
 )
-from .models import Cliente, OrdenTrabajo, ReporteGenerado
+from .models import Cliente, EvidenciaFotografica, FirmaDigital, OrdenTrabajo, ReporteGenerado
 
 Usuario = get_user_model()
 CLAVE_SESION_AUDITORIA = "ordenes_ocultas_auditoria"
@@ -581,6 +581,25 @@ class AuditarObraEspecifica(TemplateView):
             return get_object_or_404(qs, pk=orden_id)
         return qs.order_by("-id").first()
 
+    def _foto_de_tipo(self, orden, tipo):
+        """URL de la primera foto 'antes' o 'despues' que guardó la PWA en EvidenciaFotografica."""
+        evidencias = orden.evidencias.order_by("fecha_captura", "id")
+        # Se usa el campo `tipo`; las fotos subidas antes de que existiera se reconocen
+        # por el nombre del archivo que les puso la PWA (antes_OT-5_b1.jpg)
+        evidencia = next(
+            (e for e in evidencias
+             if (getattr(e, "tipo", "") or "") == tipo
+             or (not getattr(e, "tipo", "") and e.url_imagen
+                 and e.url_imagen.name.rsplit("/", 1)[-1].startswith(f"{tipo}_"))),
+            None,
+        )
+        if evidencia and evidencia.url_imagen:
+            try:
+                return evidencia.url_imagen.url
+            except ValueError:
+                return ""
+        return ""
+
     def _obtener_campo_archivo(self, obj, nombres):
         if not obj:
             return ""
@@ -663,24 +682,23 @@ class AuditarObraEspecifica(TemplateView):
                 "cantidad": f"{cant} {unidad}",
             })
 
-        evidencia_1 = self._obtener_campo_archivo(
-            orden, ("foto_antes", "imagen_antes", "evidencia_1", "foto_1", "imagen_1")
-        )
-        evidencia_2 = self._obtener_campo_archivo(
-            orden, ("foto_despues", "imagen_despues", "evidencia_2", "foto_2", "imagen_2")
-        )
-        firma_url = self._obtener_campo_archivo(
-            orden, ("firma_cliente", "firma_mandante", "firma", "firma_digital")
-        )
+        # Evidencia multimedia y firma digital: las guarda la PWA en EvidenciaFotografica y FirmaDigital
+        evidencia_1 = self._foto_de_tipo(orden, "antes")
+        evidencia_2 = self._foto_de_tipo(orden, "despues")
 
-        firmante_nombre = getattr(orden, "firmado_por", None) or contacto_nombre
-        firmante_rut = getattr(orden, "rut_firmante", None) or rut_cliente
-        firmante_cargo = getattr(orden, "cargo_firmante", None) or "Responsable en Planta"
-        firmante_fecha = (
-            fecha_cierre_dt.strftime("%d/%m/%Y %H:%M:%S hrs")
-            if (fecha_cierre_dt and hasattr(fecha_cierre_dt, "strftime"))
-            else fecha_cierre
-        )
+        firma = FirmaDigital.objects.filter(orden=orden).first()
+        firma_url = firma.imagen_base64_url if firma else ""   # data:image/png;base64,... sirve directo en <img src>
+
+        firmante_nombre = (firma.nombre_firmante if firma else None) or contacto_nombre
+        firmante_rut = (firma.rut_firmante if firma else None) or rut_cliente
+        firmante_cargo = (firma.cargo_firmante if firma else None) or "Responsable en Planta"
+        fecha_firma = firma.fecha if firma else fecha_cierre_dt
+        if fecha_firma and hasattr(fecha_firma, "strftime"):
+            if timezone.is_aware(fecha_firma):
+                fecha_firma = timezone.localtime(fecha_firma)
+            firmante_fecha = fecha_firma.strftime("%d/%m/%Y %H:%M:%S hrs")
+        else:
+            firmante_fecha = fecha_cierre
 
         context["orden_auditoria"] = {
             "id": orden.id,

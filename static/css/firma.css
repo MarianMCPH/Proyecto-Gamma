@@ -2,108 +2,59 @@
    CSS Exclusivo - Pantalla 4: Firma del Mandante
    ================================================= */
 
+.supplies-main { background-color: #F3F4F6; }
+.technical-form-header h1 { font-size: 19px !important; line-height: 1.25; }
+.volver-header { color: #fff; text-decoration: none; font-size: 26px; vertical-align: middle; margin-right: 6px; }
+
 .card-insumo {
-    background-color: #FFFFFF;
-    border: 1.5px solid #D1D5DB;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    background-color: #F3F4F6; border: 2px solid #D1D5DB; border-radius: 14px;
+    padding: 16px; margin-bottom: 16px;
 }
-
 .card-header-insumo h3 {
-    margin: 0 0 12px 0;
-    padding-bottom: 8px;
-    font-size: 13px;
-    font-weight: 700;
-    color: #1F2937;
-    border-bottom: 1px solid #C7C9D9;
-    letter-spacing: 0.3px;
+    margin: 0 0 12px 0; padding-bottom: 8px; font-size: 13px; font-weight: 600;
+    color: #1F2937; border-bottom: 1px solid #C7C9D9; letter-spacing: 0.3px;
 }
+.texto-centrado { text-align: center; }
 
-.texto-centrado {
-    text-align: center;
-}
+.detalle-resumen p { font-size: 13px; color: #1F2937; margin: 8px 0; }
 
-.grupo-input {
-    margin-bottom: 12px;
-}
-
-.label-campo {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    color: #1F2937;
-    margin-bottom: 6px;
-}
-
+.grupo-input { margin-bottom: 12px; }
+.label-campo { display: block; font-size: 13px; font-weight: 700; color: #1F2937; margin-bottom: 6px; }
 .input-tactil {
-    width: 100%;
-    min-height: 44px;
-    padding: 8px 12px;
-    font-size: 14px;
-    color: #1F2937;
-    background-color: #F9FAFB;
-    border: 1px solid #D1D5DB;
-    border-radius: 6px;
-    box-sizing: border-box;
+    width: 100%; min-height: 46px; padding: 8px 12px; font-size: 14px; color: #1F2937;
+    background-color: #FFFFFF; border: 1px solid #D1D5DB; border-radius: 6px; box-sizing: border-box;
 }
+.input-tactil:focus { outline: 2px solid #3b3f68; outline-offset: 1px; }
+.campo-invalido { border-color: #DC3545 !important; }
+.error-campo { display: none; color: #DC3545; font-size: 12px; margin-top: 4px; }
+.error-campo.visible { display: block; }
 
-.input-tactil:focus {
-    outline: none;
-    border-color: #3b3f68;
-}
-
-/* Lienzo de Firma */
+/* Lienzo de firma */
+.titulo-lienzo { text-align: center; font-size: 13px; font-weight: 600; color: #1F2937; margin: 8px 0 10px 0; letter-spacing: .3px; }
 .contenedor-lienzo {
-    background-color: #F9FAFB;
-    border: 1.5px solid #D1D5DB;
-    border-radius: 8px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 4px;
-    margin-bottom: 10px;
-    touch-action: none; /* Crucial para evitar scroll en móviles al firmar */
+    background-color: #FFFFFF; border: 2px solid #D1D5DB; border-radius: 12px;
+    padding: 4px; margin-bottom: 10px; touch-action: none; /* evita el scroll al firmar */
 }
+.contenedor-lienzo.falta { border-color: #DC3545; }
+#lienzo-firma { display: block; width: 100%; height: 170px; cursor: crosshair; touch-action: none; }
 
-#lienzo-firma {
-    width: 100%;
-    max-width: 330px;
-    height: 150px;
-    background-color: #FFFFFF;
-    cursor: crosshair;
-    border-radius: 4px;
-}
-
-.acciones-firma {
-    display: flex;
-    justify-content: center;
-}
-
+.acciones-firma { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 12px; }
 .btn-limpiar-trazo {
-    background-color: #FFFFFF;
-    color: #3b3f68;
-    border: 1.5px solid #3b3f68;
-    border-radius: 6px;
-    padding: 8px 16px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
+    background-color: #FFFFFF; color: #3b3f68; border: 2px solid #3b3f68; border-radius: 8px;
+    min-height: 44px; padding: 0 22px; font-size: 13px; font-weight: 600; cursor: pointer;
 }
+.btn-finalizar {
+    background-color: #4b4f76; color: #FFFFFF; border: none; border-radius: 8px;
+    min-height: 48px; padding: 0 22px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.btn-finalizar:disabled { opacity: .6; }
 
-.contenedor-submit {
-    margin-top: 16px;
-}
+/* Aviso sin conexión */
+.modal-overlay { position: fixed; inset: 0; background-color: rgba(60, 60, 130, 0.65); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+.modal-contenido { background-color: #F3F4F6; border-radius: 22px; padding: 28px 20px; width: 100%; max-width: 340px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+.modal-icono { display: block; font-size: 56px; line-height: 1; color: #E0A800; }
+.modal-contenido h4 { margin: 8px 0; font-size: 22px; font-weight: 600; color: #111827; }
+.modal-contenido p { margin: 0; font-size: 13px; color: #6B7280; }
 
-.btn-enviar-solicitud {
-    width: 100%;
-    min-height: 48px;
-    background-color: #3b3f68;
-    color: #FFFFFF;
-    border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-}
+/* Separación entre botones del pie (base_pwa los deja pegados) */
+.supplies-navigation { gap: 8px; }
