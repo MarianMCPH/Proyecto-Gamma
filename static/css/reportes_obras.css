@@ -93,3 +93,28 @@
         max-width: 100%;
     }
 }
+
+/* =================================================
+   HISTORIAL DE REPORTES EN MODO OSCURO
+   ================================================= */
+
+html.modo-oscuro .item-historial-reporte,
+html.modo-oscuro .list-group-item.item-historial-reporte {
+    background-color: #161b26 !important;
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
+}
+
+html.modo-oscuro .item-historial-reporte:hover,
+html.modo-oscuro .list-group-item-action.item-historial-reporte:hover {
+    background-color: #1e2433 !important;
+    color: #f8fafc !important;
+}
+
+html.modo-oscuro .item-historial-reporte .titulo-historial-reporte {
+    color: #f8fafc !important;
+}
+
+html.modo-oscuro .item-historial-reporte .subtitulo-historial-reporte {
+    color: #94a3b8 !important;
+}

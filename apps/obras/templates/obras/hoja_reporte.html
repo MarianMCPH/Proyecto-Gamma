@@ -38,6 +38,15 @@
         color: #373b6e;
         margin-bottom: 10px;
     }
+    .rep-caja-ganancias {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        padding: 14px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
     .rep-caja-graficos {
         background: #f8fafc;
         border: 1px solid #e2e8f0;
@@ -110,6 +119,18 @@
     </div>
     {% endif %}
 
+    {% if inc_ganancias %}
+    <div class="rep-seccion">
+        <h5 class="rep-titulo-sec">Ganancias totales (Obras finalizadas en el período)</h5>
+        <div class="rep-caja-ganancias">
+            <span style="font-size: 13px; color: #166534;">
+                Total generado por <strong>{{ finalizadas|length }}</strong> obra(s) finalizada(s) en el rango seleccionado:
+            </span>
+            <strong style="font-size: 18px; color: #15803d;">{{ total_ganancias_formateado }}</strong>
+        </div>
+    </div>
+    {% endif %}
+
     {% if inc_graficos %}
     <div class="rep-seccion">
         <h5 class="rep-titulo-sec">Gráficos de resultados</h5>
@@ -145,6 +166,7 @@
                     <th>Tipo de servicio</th>
                     <th>Técnico</th>
                     <th>Fecha</th>
+                    {% if inc_ganancias %}<th>Presupuesto</th>{% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -154,6 +176,7 @@
                     <td>{{ item.servicio }}</td>
                     <td>{{ item.tecnico }}</td>
                     <td>{{ item.fecha }}</td>
+                    {% if inc_ganancias %}<td><strong>{{ item.presupuesto }}</strong></td>{% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
@@ -175,6 +198,7 @@
                     <th>Tipo de servicio</th>
                     <th>Técnico</th>
                     <th>Fecha</th>
+                    {% if inc_ganancias %}<th>Presupuesto</th>{% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -184,6 +208,7 @@
                     <td>{{ item.servicio }}</td>
                     <td>{{ item.tecnico }}</td>
                     <td>{{ item.fecha }}</td>
+                    {% if inc_ganancias %}<td>{{ item.presupuesto }}</td>{% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
@@ -204,6 +229,7 @@
                     <th>Cliente</th>
                     <th>Servicio</th>
                     <th>Fecha</th>
+                    {% if inc_ganancias %}<th>Presupuesto</th>{% endif %}
                     <th>Motivo</th>
                 </tr>
             </thead>
@@ -213,6 +239,7 @@
                     <td>{{ item.cliente }}</td>
                     <td>{{ item.servicio }}</td>
                     <td>{{ item.fecha }}</td>
+                    {% if inc_ganancias %}<td>{{ item.presupuesto }}</td>{% endif %}
                     <td>{{ item.motivo }}</td>
                 </tr>
                 {% endfor %}

@@ -24,3 +24,4 @@ urlpatterns = [
     path("canceladas/<int:pk>/detalle/", views.DetalleObraCanceladaView.as_view(), name="detalle_obra_cancelada"),
     path("canceladas/<int:pk>/restaurar-materiales/", views.RestaurarMaterialesObraView.as_view(), name="restaurar_materiales_obra"),
 ]
+

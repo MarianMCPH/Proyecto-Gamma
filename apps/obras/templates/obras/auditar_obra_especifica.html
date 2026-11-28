@@ -19,7 +19,38 @@
 
         {% csrf_token %}
 
-        <!-- Resumen Operativo (Sin presupuesto) -->
+        <!-- Estado de Avance del Proyecto -->
+        <div class="card-custom p-4 mb-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
+                <h6 class="fw-bold text-uppercase text-secondary mb-0 small">Estado de Avance de la Obra</h6>
+                <span class="badge bg-primary-subtle text-primary px-3 py-1">{{ orden_auditoria.porcentaje_avance }}% completado</span>
+            </div>
+
+            <div class="progress avance-barra-track mb-4">
+                <div class="progress-bar avance-barra-fill"
+                     role="progressbar"
+                     data-avance="{{ orden_auditoria.porcentaje_avance }}"
+                     aria-valuenow="{{ orden_auditoria.porcentaje_avance }}"
+                     aria-valuemin="0"
+                     aria-valuemax="100"></div>
+            </div>
+
+            <div class="row g-3 text-center">
+                {% for etapa in orden_auditoria.etapas_avance %}
+                <div class="col-6 col-md-3">
+                    <div class="etapa-avance-item etapa-{{ etapa.estado }} p-3 rounded-3 h-100">
+                        <div class="etapa-icono mx-auto mb-2">
+                            <i class="bi {{ etapa.icono }}"></i>
+                        </div>
+                        <div class="fw-semibold small etapa-titulo">{{ etapa.titulo }}</div>
+                        <div class="text-muted mt-1" style="font-size: 0.75rem;">{{ etapa.detalle }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Resumen Operativo -->
         <div class="card-custom p-4 mb-4">
             <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">Resumen Operativo</h6>
             <div class="row g-3 small text-secondary">
@@ -36,6 +67,12 @@
                 <div class="col-md-6"><strong>Técnico Responsable:</strong> {{ orden_auditoria.tecnico }}</div>
                 <div class="col-md-6"><strong>Fecha/Hora de Cierre:</strong> {{ orden_auditoria.fecha_cierre }}</div>
                 <div class="col-md-6"><strong>GPS Faena:</strong> {{ orden_auditoria.gps_faena }}</div>
+                <div class="col-md-6">
+                    <strong>Presupuesto Final de la Obra:</strong>
+                    <span class="badge bg-success-subtle text-success fs-6 fw-bold ms-1">
+                        {{ orden_auditoria.presupuesto_formateado }}
+                    </span>
+                </div>
             </div>
         </div>
 
@@ -87,7 +124,6 @@
 
         <!-- Evidencia Multimedia y Conformidad del Mandante -->
         <div class="row g-4 mb-4">
-            <!-- Evidencia Multimedia con zoom al hacer clic -->
             <div class="col-lg-6">
                 <div class="card-custom p-4 h-100">
                     <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">Evidencia Multimedia</h6>
@@ -114,7 +150,6 @@
                 </div>
             </div>
 
-            <!-- Conformidad del Mandante (Con datos y firma al lado) -->
             <div class="col-lg-6">
                 <div class="card-custom p-4 h-100">
                     <h6 class="fw-bold text-uppercase text-secondary mb-3 pb-2 border-bottom small">Conformidad del Mandante</h6>
@@ -158,6 +193,5 @@
     </div>
     {% endif %}
 
-    <!-- Script para el Zoom de imágenes y el Modal de Éxito -->
     <script src="{% static 'js/auditoria_detalle.js' %}"></script>
 {% endblock %}
