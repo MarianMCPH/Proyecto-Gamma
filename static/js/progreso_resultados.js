@@ -1,5 +1,5 @@
 /* =================================================
-   Gráficos (Chart.js) y Filtros Dinámicos - Progreso, Resultados y Ganancias
+   Gráficos (Chart.js) y Filtros Dinámicos - Progreso y Resultados de Obras
    ================================================= */
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // --- 2. Gráfico de Barras (Ganancias por periodo de obras finalizadas) ---
+    // --- 2. Gráfico de Barras (Obras por periodo) ---
     const canvasBarras = document.getElementById("graficoBarrasPeriodo");
     if (canvasBarras && typeof Chart !== "undefined") {
         let labelsBarras = [];
@@ -97,9 +97,9 @@ document.addEventListener("DOMContentLoaded", function () {
             data: {
                 labels: labelsBarras,
                 datasets: [{
-                    label: "Ganancias ($)",
+                    label: "Obras",
                     data: valoresBarras,
-                    backgroundColor: "#16a34a",
+                    backgroundColor: "#2563eb",
                     borderRadius: 6,
                     maxBarThickness: 36,
                 }],
@@ -109,14 +109,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function (ctx) {
-                                const val = ctx.parsed.y || 0;
-                                return " Ganancias: $" + Math.round(val).toLocaleString("es-CL");
-                            },
-                        },
-                    },
                 },
                 scales: {
                     x: {
@@ -126,11 +118,9 @@ document.addEventListener("DOMContentLoaded", function () {
                     y: {
                         beginAtZero: true,
                         ticks: {
+                            precision: 0,
                             color: "#64748b",
                             font: { size: 11 },
-                            callback: function (value) {
-                                return "$" + Math.round(value).toLocaleString("es-CL");
-                            },
                         },
                         grid: { color: "#f1f5f9" },
                     },

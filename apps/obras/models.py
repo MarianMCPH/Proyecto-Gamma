@@ -5,6 +5,7 @@ from django.db import models
 class Cliente(models.Model):
     """Mandante o empresa cliente que solicita obras y recibe servicios."""
 
+    # Datos del diagrama relacional para la entidad Cliente
     razon_social = models.CharField(max_length=200)
     rut = models.CharField(max_length=20, unique=True)
     direccion = models.CharField(max_length=255)
@@ -27,8 +28,10 @@ class OrdenTrabajo(models.Model):
         ("aprobada", "Aprobada"),
         ("observada", "Observada"),
         ("facturada", "Facturada"),
+        ("cancelada", "Cancelada"),
     ]
 
+    # Relaciones principales del diagrama (solicita -> Cliente, asignado a -> técnico/usuario)
     cliente = models.ForeignKey(
         Cliente, on_delete=models.PROTECT, related_name="ordenes_trabajo"
     )
@@ -38,21 +41,18 @@ class OrdenTrabajo(models.Model):
         related_name="ordenes_asignadas",
     )
 
+    # Campos base de OrdenTrabajo en el diagrama
     tipo_servicio = models.CharField(max_length=100)
     fecha_programada = models.DateField()
     direccion = models.CharField(max_length=255)
     estado = models.CharField(max_length=30, choices=ESTADOS, default="programada")
-    presupuesto_total = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
-    )
-    kit = models.ForeignKey(
-        "inventario.KitHerramientas",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="ordenes_trabajo",
-    )
+    
+    # Campos agregados por Luciano para el módulo de Obras Canceladas
+    fecha_cancelacion = models.DateTimeField(null=True, blank=True)
+    razon_cancelacion = models.CharField(max_length=150, blank=True, null=True)
+    materiales_restaurados = models.BooleanField(default=False)
 
+    # Respaldo para inicio de faena con GPS en PWA y control de auditoría/cierre
     latitud_inicio = models.DecimalField(
         max_digits=9, decimal_places=6, null=True, blank=True
     )
@@ -62,6 +62,7 @@ class OrdenTrabajo(models.Model):
     fecha_inicio_faena = models.DateTimeField(null=True, blank=True)
     fecha_cierre = models.DateTimeField(null=True, blank=True)
 
+    # Trazabilidad de auditoría administrativa y bloqueo de inmutabilidad tras cierre/aprobación
     auditor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -84,12 +85,15 @@ class OrdenTrabajo(models.Model):
 class Checklist(models.Model):
     """Protocolo de revisión técnica asociado a una orden de trabajo en la PWA."""
 
+    # Campos del diagrama para Checklist y sincronización offline/online
     orden = models.ForeignKey(
         OrdenTrabajo, on_delete=models.CASCADE, related_name="checklists"
     )
     uuid_sync = models.CharField(max_length=64, unique=True, null=True, blank=True)
     categoria_faena = models.CharField(max_length=120)
     fecha_ejecucion = models.DateTimeField(null=True, blank=True)
+
+    # Observaciones generales registradas por el técnico en terreno
     observaciones = models.TextField(blank=True, null=True)
 
     class Meta:
@@ -102,6 +106,7 @@ class Checklist(models.Model):
 class DetalleChecklist(models.Model):
     """Ítems individuales del checklist técnico y su validación obligatoria."""
 
+    # Campos del diagrama para DetalleChecklist
     checklist = models.ForeignKey(
         Checklist, on_delete=models.CASCADE, related_name="detalles"
     )
@@ -119,6 +124,7 @@ class DetalleChecklist(models.Model):
 class EvidenciaFotografica(models.Model):
     """Respaldo fotográfico capturado en la PWA con compresión (< 500 KB) y tolerancia a red."""
 
+    # Campos del diagrama para EvidenciaFotografica y sincronización
     orden = models.ForeignKey(
         OrdenTrabajo, on_delete=models.CASCADE, related_name="evidencias"
     )
@@ -149,6 +155,7 @@ class EvidenciaFotografica(models.Model):
 class FirmaDigital(models.Model):
     """Conformidad del mandante en la PWA mediante lienzo táctil Canvas e inmutabilidad."""
 
+    # Vinculación con la orden y sincronización
     orden = models.OneToOneField(
         OrdenTrabajo, on_delete=models.CASCADE, related_name="firma_digital"
     )
@@ -157,6 +164,7 @@ class FirmaDigital(models.Model):
     nombre_firmante = models.CharField(max_length=150)
     fecha = models.DateTimeField(auto_now_add=True)
 
+    # Datos de respaldo para auditoría y validez de conformidad
     rut_firmante = models.CharField(max_length=20, blank=True, null=True)
     cargo_firmante = models.CharField(max_length=120, blank=True, null=True)
     hash_integridad = models.CharField(max_length=128, blank=True, null=True)
@@ -168,9 +176,11 @@ class FirmaDigital(models.Model):
         return f"Firma OT #{self.orden.pk} - {self.nombre_firmante}"
 
 
+#Todavia no se hace uso de esta tabla (implementarla si hace fatla en el html)
 class Presupuesto(models.Model):
     """Presupuestos o hallazgos/requerimientos adicionales asociados a una orden de trabajo."""
 
+    # Campos del diagrama para Presupuesto
     orden = models.ForeignKey(
         OrdenTrabajo, on_delete=models.CASCADE, related_name="presupuestos"
     )
@@ -184,7 +194,6 @@ class Presupuesto(models.Model):
 
     def __str__(self):
         return f"Presupuesto #{self.pk} - OT #{self.orden.pk}"
-
 
 class ReporteGenerado(models.Model):
     """Historial de reportes generados desde el Panel Administrativo."""

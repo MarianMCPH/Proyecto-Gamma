@@ -37,8 +37,8 @@
                     <th>Material</th>
                     <th>Unidad</th>
                     <th class="text-end">Cantidad</th>
-                    <th class="text-end">Precio Unitario</th>
-                    <th class="text-end">Subtotal</th>
+                    <th class="text-end">Precio Unitario (CLP)</th>
+                    <th class="text-end">Subtotal (CLP)</th>
                 </tr>
             </thead>
             <tbody>
@@ -48,8 +48,8 @@
                     <td class="fw-semibold text-dark">{{ item.nombre }}</td>
                     <td>{{ item.unidad }}</td>
                     <td class="text-end">{{ item.cantidad|floatformat:2 }}</td>
-                    <td class="text-end">${{ item.precio_unitario|floatformat:2 }}</td>
-                    <td class="text-end fw-semibold">${{ item.subtotal|floatformat:2 }}</td>
+                    <td class="text-end">{{ item.precio_unitario_clp }}</td>
+                    <td class="text-end fw-semibold">{{ item.subtotal_clp }}</td>
                 </tr>
                 {% empty %}
                 <tr>
@@ -64,7 +64,7 @@
 
     <div class="d-flex justify-content-end align-items-center bg-light p-3 rounded">
         <span class="fw-semibold text-dark me-3">Total Presupuesto del Kit:</span>
-        <span class="fs-4 fw-bold text-success">${{ total_presupuesto|floatformat:2 }}</span>
+        <span class="fs-4 fw-bold text-success">{{ total_presupuesto_clp }}</span>
     </div>
 </div>
 
