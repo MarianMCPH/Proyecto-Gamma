@@ -1,19 +1,28 @@
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import json
 
+from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.templatetags.static import static
 from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 
-from apps.inventario.models import KitHerramientas, MovimientoInventario
+from apps.inventario.models import (
+    DetalleKitHerramienta,
+    KitHerramientas,
+    Material,
+    MovimientoInventario,
+)
 from .models import Cliente, OrdenTrabajo, ReporteGenerado
 
 Usuario = get_user_model()
@@ -47,6 +56,21 @@ def calcular_presupuesto_orden(orden):
         return Decimal(kit.total_presupuesto) + MONTO_EXTRA_OBRA
     return Decimal("0.00")
 
+RAZONES_CANCELACION_DEFAULT = [
+    "Problemas de terreno",
+    "Falta de presupuesto",
+    "Cliente desistió",
+    "Solicitud del cliente",
+    "Falta de insumos",
+    "Otro",
+]
+
+ESTADOS_EN_REVISION_CANCELACION = {
+    "en_revision_cancelacion",
+    "revision_cancelacion",
+    "pendiente_cancelacion",
+}
+
 
 def obtener_tecnicos_activos():
     """Retorna únicamente usuarios activos con rol Técnico asignado en su perfil."""
@@ -57,6 +81,28 @@ def obtener_tecnicos_activos():
             is_active=True,
         )
         .order_by("first_name", "last_name", "username")
+    )
+
+
+def _es_admin_o_staff(user):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser or user.is_staff:
+        return True
+    rol = getattr(getattr(user, "perfil", None), "rol", None)
+    return bool(rol and (rol.nombre or "").strip().lower() in {"administrador", "admin"})
+
+
+def _obtener_kit_de_orden(orden):
+    kit_directo = getattr(orden, "kit", None)
+    if kit_directo:
+        return kit_directo
+    if not orden.tipo_servicio:
+        return None
+    return (
+        KitHerramientas.objects.filter(activo=True, tipo_servicio__iexact=orden.tipo_servicio.strip())
+        .order_by("-id")
+        .first()
     )
 
 
@@ -1058,3 +1104,299 @@ class VerReporteHTMLView(View):
     def get(self, request, pk, *args, **kwargs):
         rep = get_object_or_404(ReporteGenerado, pk=pk)
         return JsonResponse({"ok": True, "titulo": rep.titulo, "html": rep.contenido_html})
+
+
+# ==============================================================================
+# MÓDULO DE OBRAS CANCELADAS Y EN REVISIÓN DE CANCELACIÓN
+# ==============================================================================
+
+class ObrasCanceladasListView(LoginRequiredMixin, TemplateView):
+    """Listado de obras canceladas y en revisión de cancelación con búsqueda, filtro por razón y paginación."""
+
+    template_name = "obras/obras_canceladas.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        qs = (
+            OrdenTrabajo.objects.filter(
+                Q(estado__iexact="cancelada") | Q(estado__in=ESTADOS_EN_REVISION_CANCELACION)
+            )
+            .select_related("cliente", "tecnico")
+            .order_by("-fecha_cancelacion", "-id")
+        )
+
+        razones_bd = list(
+            OrdenTrabajo.objects.filter(
+                Q(estado__iexact="cancelada") | Q(estado__in=ESTADOS_EN_REVISION_CANCELACION)
+            )
+            .exclude(razon_cancelacion__isnull=True)
+            .exclude(razon_cancelacion="")
+            .values_list("razon_cancelacion", flat=True)
+            .distinct()
+        )
+        razones_opciones = list(dict.fromkeys(RAZONES_CANCELACION_DEFAULT + razones_bd))
+
+        paginator = Paginator(qs, 10)
+        page_number = self.request.GET.get("page", 1)
+        page_obj = paginator.get_page(page_number)
+
+        filas = []
+        for obra in page_obj:
+            tecnico_nombre = "Sin asignar"
+            if obra.tecnico:
+                tecnico_nombre = obra.tecnico.get_full_name().strip() or obra.tecnico.username
+
+            estado_raw = (obra.estado or "").strip().lower()
+            es_revision = estado_raw in ESTADOS_EN_REVISION_CANCELACION
+            estado_badge = "En revisión" if es_revision else "Cancelada"
+
+            fecha_cancel = (
+                timezone.localtime(obra.fecha_cancelacion).strftime("%d/%m/%Y %H:%M")
+                if obra.fecha_cancelacion
+                else (obra.fecha_programada.strftime("%d/%m/%Y") if obra.fecha_programada else "--")
+            )
+
+            filas.append({
+                "id": obra.id,
+                "nombre_obra": obra.tipo_servicio or "Sin nombre",
+                "fecha_cancelacion": fecha_cancel,
+                "tecnico": tecnico_nombre,
+                "razon": (obra.razon_cancelacion or "").strip() or "Sin especificar",
+                "estado_badge": estado_badge,
+                "es_revision": es_revision,
+            })
+
+        context.update({
+            "page_obj": page_obj,
+            "obras_canceladas": filas,
+            "razones_opciones": razones_opciones,
+        })
+        return context
+
+
+class DetalleObraCanceladaView(LoginRequiredMixin, TemplateView):
+    """Detalle de obra para cancelar (admin) o revisar cancelación reportada por técnico."""
+
+    template_name = "obras/detalle_obra_cancelada.html"
+
+    def _obtener_orden_y_permiso(self, pk):
+        orden = get_object_or_404(OrdenTrabajo.objects.select_related("cliente", "tecnico"), pk=pk)
+        es_admin = _es_admin_o_staff(self.request.user)
+        es_tecnico_asignado = orden.tecnico_id == self.request.user.id
+        if not (es_admin or es_tecnico_asignado):
+            raise PermissionDenied("No tienes permisos para acceder a esta obra.")
+        return orden, es_admin
+
+    def _obtener_materiales_kit(self, orden):
+        kit = _obtener_kit_de_orden(orden)
+        if not kit:
+            return [], None
+
+        detalles = DetalleKitHerramienta.objects.select_related("material").filter(kit=kit).order_by("id")
+        reversas_existentes = set(
+            MovimientoInventario.objects.filter(
+                orden=orden,
+                tipo_mov="reversa",
+                estado_validacion="aprobado",
+            ).values_list("material_id", flat=True)
+        )
+
+        items = []
+        for det in detalles:
+            mat = det.material
+            cant_str = f"{det.cantidad:g}" if det.cantidad is not None else "0"
+            items.append({
+                "material_id": mat.id,
+                "codigo": mat.codigo,
+                "nombre": mat.nombre,
+                "unidad": mat.unidad_medida,
+                "cantidad": str(det.cantidad),
+                "cantidad_display": f"{cant_str} {mat.unidad_medida}",
+                "stock_actual": f"{mat.stock_actual:g}",
+                "ya_devuelto": (mat.id in reversas_existentes) or bool(orden.materiales_restaurados),
+            })
+        return items, kit
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        orden, es_admin = self._obtener_orden_y_permiso(self.kwargs["pk"])
+
+        cliente = orden.cliente
+        contacto_display = (cliente.contacto if cliente and cliente.contacto else "").strip() or "Sin contacto registrado"
+        rut_display = cliente.rut if cliente and cliente.rut else "Sin RUT"
+        mandante_display = cliente.razon_social if cliente else "Sin mandante"
+
+        tecnico_nombre = "Sin asignar"
+        if orden.tecnico:
+            tecnico_nombre = orden.tecnico.get_full_name().strip() or orden.tecnico.username
+
+        if orden.fecha_cancelacion:
+            fecha_cancelada_display = timezone.localtime(orden.fecha_cancelacion).strftime("%d/%m/%Y - %H:%M hrs")
+        elif orden.fecha_programada:
+            fecha_cancelada_display = f"{orden.fecha_programada.strftime('%d/%m/%Y')} (Programada)"
+        else:
+            fecha_cancelada_display = "Pendiente de registro"
+
+        gps_display = orden.direccion or (cliente.direccion if cliente and cliente.direccion else "Sin ubicación")
+
+        estado_raw = (orden.estado or "").strip().lower()
+        ya_cancelada = estado_raw == "cancelada"
+        en_revision = estado_raw in ESTADOS_EN_REVISION_CANCELACION or (
+            not ya_cancelada and bool((orden.razon_cancelacion or "").strip())
+        )
+
+        puede_confirmar_cancelacion = es_admin and not ya_cancelada
+        puede_elegir_motivo = puede_confirmar_cancelacion and not en_revision
+        puede_editar_descripcion = puede_confirmar_cancelacion
+
+        if ya_cancelada:
+            estado_label = "Cancelada"
+        elif en_revision:
+            estado_label = "En revisión"
+        else:
+            estado_label = orden.get_estado_display()
+
+        materiales_kit, kit = self._obtener_materiales_kit(orden)
+        razones_opciones = list(dict.fromkeys(
+            RAZONES_CANCELACION_DEFAULT + ([orden.razon_cancelacion] if orden.razon_cancelacion else [])
+        ))
+
+        context.update({
+            "orden": orden,
+            "codigo_ot": f"#OT-{orden.id}",
+            "mandante": mandante_display,
+            "rut_cliente": rut_display,
+            "contacto": contacto_display,
+            "tipo_servicio": orden.tipo_servicio or "-",
+            "estado_label": estado_label,
+            "tecnico_nombre": tecnico_nombre,
+            "fecha_cancelada_display": fecha_cancelada_display,
+            "gps_faena": gps_display,
+            "ya_cancelada": ya_cancelada,
+            "en_revision": en_revision,
+            "puede_confirmar_cancelacion": puede_confirmar_cancelacion,
+            "puede_elegir_motivo": puede_elegir_motivo,
+            "puede_editar_descripcion": puede_editar_descripcion,
+            "razones_opciones": razones_opciones,
+            "razon_actual": (orden.razon_cancelacion or "").strip(),
+            "descripcion_actual": (orden.observacion_auditoria or "").strip(),
+            "materiales_kit": materiales_kit,
+            "kit_asignado": kit,
+        })
+        return context
+
+    def post(self, request, pk, *args, **kwargs):
+        orden, es_admin = self._obtener_orden_y_permiso(pk)
+        if not es_admin:
+            raise PermissionDenied("Solo el administrador puede aprobar o registrar la cancelación.")
+
+        estado_raw = (orden.estado or "").strip().lower()
+        ya_cancelada = estado_raw == "cancelada"
+        en_revision = estado_raw in ESTADOS_EN_REVISION_CANCELACION or (
+            not ya_cancelada and bool((orden.razon_cancelacion or "").strip())
+        )
+
+        if ya_cancelada:
+            messages.info(request, f"La obra #OT-{orden.pk} ya se encuentra marcada como cancelada.")
+            return redirect("obras:detalle_obra_cancelada", pk=orden.pk)
+
+        if en_revision:
+            razon = (orden.razon_cancelacion or "").strip()
+        else:
+            razon = (request.POST.get("razon_cancelacion") or "").strip()
+
+        descripcion = (request.POST.get("descripcion_cancelacion") or "").strip()
+
+        if not razon:
+            messages.error(request, "Debes seleccionar un motivo de cancelación.")
+            return redirect("obras:detalle_obra_cancelada", pk=orden.pk)
+
+        with transaction.atomic():
+            orden.estado = "cancelada"
+            orden.razon_cancelacion = razon
+            orden.observacion_auditoria = descripcion
+            if not orden.fecha_cancelacion:
+                orden.fecha_cancelacion = timezone.now()
+            orden.save(update_fields=["estado", "razon_cancelacion", "observacion_auditoria", "fecha_cancelacion"])
+
+        messages.success(request, f"La obra #OT-{orden.pk} fue marcada definitivamente como cancelada.")
+        return redirect("obras:detalle_obra_cancelada", pk=orden.pk)
+
+
+class RestaurarMaterialesObraView(LoginRequiredMixin, View):
+    """Devuelve al stock de inventario uno o todos los materiales del kit de una obra."""
+
+    def post(self, request, pk, *args, **kwargs):
+        orden = get_object_or_404(OrdenTrabajo, pk=pk)
+        if not _es_admin_o_staff(request.user) and orden.tecnico_id != request.user.id:
+            raise PermissionDenied("No tienes permisos para devolver materiales de esta obra.")
+
+        material_id_raw = (request.POST.get("material_id") or "").strip()
+        cantidad_raw = (request.POST.get("cantidad") or "").strip()
+
+        kit = _obtener_kit_de_orden(orden)
+        if not kit:
+            messages.warning(request, f"La obra #OT-{orden.pk} no tiene un kit de materiales asignado.")
+            return redirect("obras:detalle_obra_cancelada", pk=orden.pk)
+
+        detalles_qs = DetalleKitHerramienta.objects.select_related("material").filter(kit=kit)
+        if material_id_raw.isdigit():
+            detalles_qs = detalles_qs.filter(material_id=int(material_id_raw))
+
+        if not detalles_qs.exists():
+            messages.warning(request, "No se encontraron materiales válidos del kit para devolver.")
+            return redirect("obras:detalle_obra_cancelada", pk=orden.pk)
+
+        devueltos = 0
+        with transaction.atomic():
+            for det in detalles_qs:
+                ya_devuelto = MovimientoInventario.objects.filter(
+                    orden=orden,
+                    material=det.material,
+                    tipo_mov="reversa",
+                    estado_validacion="aprobado",
+                ).exists()
+                if ya_devuelto:
+                    continue
+
+                cantidad_a_devolver = det.cantidad
+                if material_id_raw.isdigit() and cantidad_raw:
+                    try:
+                        parsed = Decimal(cantidad_raw.replace(",", "."))
+                        if parsed > 0:
+                            cantidad_a_devolver = parsed
+                    except InvalidOperation:
+                        pass
+
+                material = Material.objects.select_for_update().get(pk=det.material_id)
+                material.stock_actual = (material.stock_actual or Decimal("0")) + cantidad_a_devolver
+                material.save(update_fields=["stock_actual"])
+
+                MovimientoInventario.objects.create(
+                    material=material,
+                    orden=orden,
+                    usuario=request.user,
+                    tipo_mov="reversa",
+                    cantidad=cantidad_a_devolver,
+                    motivo=f"Devolución de material por cancelación de #OT-{orden.pk}",
+                    estado_validacion="aprobado",
+                )
+                devueltos += 1
+
+            if devueltos > 0:
+                restantes = DetalleKitHerramienta.objects.filter(kit=kit).exclude(
+                    material_id__in=MovimientoInventario.objects.filter(
+                        orden=orden, tipo_mov="reversa", estado_validacion="aprobado"
+                    ).values_list("material_id", flat=True)
+                ).count()
+                if restantes == 0:
+                    orden.materiales_restaurados = True
+                    orden.save(update_fields=["materiales_restaurados"])
+
+        if devueltos > 0:
+            messages.success(request, f"Se devolvieron {devueltos} material(es) al inventario.")
+        else:
+            messages.info(request, "Los materiales seleccionados ya habían sido devueltos al inventario.")
+
+        return redirect("obras:detalle_obra_cancelada", pk=orden.pk)

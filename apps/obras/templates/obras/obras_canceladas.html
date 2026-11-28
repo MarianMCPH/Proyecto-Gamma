@@ -1,0 +1,144 @@
+{% extends 'base_admin.html' %}
+{% load static %}
+
+{% block title %}Obras Canceladas - Frío y Agroindustria SpA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/obras_canceladas.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 px-4 canceladas-wrapper">
+    <!-- Encabezado -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="icono-canceladas-header">
+                <i class="bi bi-x-circle"></i>
+            </div>
+            <div>
+                <h2 class="fw-bold mb-0 titulo-canceladas">Obras Canceladas</h2>
+                <p class="text-muted mb-0 subtitulo-canceladas">Historial de obras canceladas y gestión de materiales</p>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Tarjeta principal con filtros y tabla -->
+    <div class="card border-0 shadow-sm card-canceladas-main">
+        <div class="card-body p-4">
+            <!-- Barra de búsqueda y filtro -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-5 col-lg-4">
+                    <div class="input-group input-buscar-fyag">
+                        <span class="input-group-text border-end-0 text-muted">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="buscarObraCancelada" class="form-control border-start-0 ps-0" placeholder="Buscar por nombre o técnico...">
+                    </div>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <select id="filtroRazon" class="form-select select-razon-fyag">
+                        <option value="">Todas las razones</option>
+                        {% for razon in razones_opciones %}
+                        <option value="{{ razon }}">{{ razon }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tabla de Obras Canceladas (sin columna ID Obra) -->
+            <div class="table-responsive">
+                <table class="table align-middle mb-0 tabla-canceladas-fyag" id="tablaObrasCanceladas">
+                    <thead>
+                        <tr>
+                            <th>Nombre de la Obra</th>
+                            <th>Fecha de<br>Cancelación</th>
+                            <th>Técnico</th>
+                            <th>Razón</th>
+                            <th>Estado</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for obra in obras_canceladas %}
+                        <tr class="fila-obra" data-razon="{{ obra.razon }}">
+                            <td class="fw-semibold">{{ obra.nombre_obra }}</td>
+                            <td>{{ obra.fecha_cancelacion }}</td>
+                            <td>{{ obra.tecnico }}</td>
+                            <td>{{ obra.razon }}</td>
+                            <td>
+                                <span class="badge {% if obra.es_revision %}bg-warning text-dark{% else %}bg-danger text-white{% endif %}">
+                                    {{ obra.estado_badge }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <a href="{% url 'obras:detalle_obra_cancelada' obra.id %}" class="btn btn-sm btn-outline-primary px-3">
+                                    Ver
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr id="filaVaciaInicial">
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                No hay obras canceladas registradas.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        <tr id="filaSinResultadosFiltro" class="d-none">
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                No se encontraron obras canceladas con ese filtro.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pie de tabla y paginación funcional -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center mt-4 pt-2 border-top">
+                <span class="text-muted small" id="contadorRegistros" data-total-pagina="{{ obras_canceladas|length }}">
+                    Mostrando {% if obras_canceladas %}{{ page_obj.start_index }}{% else %}0{% endif %} - {% if obras_canceladas %}{{ page_obj.end_index }}{% else %}0{% endif %} de {{ page_obj.paginator.count }} registros
+                </span>
+                <nav aria-label="Paginación obras canceladas">
+                    <ul class="pagination pagination-sm mb-0 paginacion-fyag">
+                        <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                            {% if page_obj.has_previous %}
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Anterior">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            {% else %}
+                                <span class="page-link"><i class="bi bi-chevron-left"></i></span>
+                            {% endif %}
+                        </li>
+
+                        {% for num in page_obj.paginator.page_range %}
+                        <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                        </li>
+                        {% endfor %}
+
+                        <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                            {% if page_obj.has_next %}
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Siguiente">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            {% else %}
+                                <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+                            {% endif %}
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/obras_canceladas.js' %}"></script>
+{% endblock %}
