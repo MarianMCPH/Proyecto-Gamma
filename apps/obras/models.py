@@ -27,6 +27,7 @@ class OrdenTrabajo(models.Model):
         ("aprobada", "Aprobada"),
         ("observada", "Observada"),
         ("facturada", "Facturada"),
+        ("cancelada", "Cancelada"),
     ]
 
     cliente = models.ForeignKey(
@@ -42,6 +43,13 @@ class OrdenTrabajo(models.Model):
     fecha_programada = models.DateField()
     direccion = models.CharField(max_length=255)
     estado = models.CharField(max_length=30, choices=ESTADOS, default="programada")
+    
+    # Campos agregados por Luciano para el módulo de Obras Canceladas
+    fecha_cancelacion = models.DateTimeField(null=True, blank=True)
+    razon_cancelacion = models.CharField(max_length=150, blank=True, null=True)
+    materiales_restaurados = models.BooleanField(default=False)
+
+    # Respaldo para inicio de faena con GPS en PWA y control de auditoría/cierre
     presupuesto_total = models.DecimalField(
         max_digits=12, decimal_places=2, default=0
     )
@@ -52,10 +60,7 @@ class OrdenTrabajo(models.Model):
         blank=True,
         related_name="ordenes_trabajo",
     )
-
-    latitud_inicio = models.DecimalField(
-        max_digits=9, decimal_places=6, null=True, blank=True
-    )
+    
     longitud_inicio = models.DecimalField(
         max_digits=9, decimal_places=6, null=True, blank=True
     )
