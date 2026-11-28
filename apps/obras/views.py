@@ -1,51 +1,48 @@
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import json
 
+from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.templatetags.static import static
 from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 
-from apps.inventario.models import KitHerramientas, MovimientoInventario
+from apps.inventario.models import (
+    DetalleKitHerramienta,
+    KitHerramientas,
+    Material,
+    MovimientoInventario,
+)
 from .models import Cliente, OrdenTrabajo, ReporteGenerado
 
 Usuario = get_user_model()
 CLAVE_SESION_AUDITORIA = "ordenes_ocultas_auditoria"
 CLAVE_SESION_GESTION_OCULTAS = "ordenes_ocultas_gestion"
-MONTO_EXTRA_OBRA = Decimal("500000.00")
 
+RAZONES_CANCELACION_DEFAULT = [
+    "Problemas de terreno",
+    "Falta de presupuesto",
+    "Cliente desistió",
+    "Solicitud del cliente",
+    "Falta de insumos",
+    "Otro",
+]
 
-def formatear_clp(monto):
-    valor = int(round(Decimal(monto or 0)))
-    return f"${valor:,}".replace(",", ".")
-
-
-def obtener_kit_por_servicio(tipo_servicio: str):
-    if not tipo_servicio:
-        return None
-    return (
-        KitHerramientas.objects.filter(
-            activo=True, tipo_servicio__iexact=tipo_servicio.strip()
-        )
-        .order_by("-id")
-        .first()
-    )
-
-
-def calcular_presupuesto_orden(orden):
-    if getattr(orden, "presupuesto_total", None) and orden.presupuesto_total > 0:
-        return Decimal(orden.presupuesto_total)
-    kit = getattr(orden, "kit", None) or obtener_kit_por_servicio(orden.tipo_servicio)
-    if kit:
-        return Decimal(kit.total_presupuesto) + MONTO_EXTRA_OBRA
-    return Decimal("0.00")
+ESTADOS_EN_REVISION_CANCELACION = {
+    "en_revision_cancelacion",
+    "revision_cancelacion",
+    "pendiente_cancelacion",
+}
 
 
 def obtener_tecnicos_activos():
@@ -57,6 +54,28 @@ def obtener_tecnicos_activos():
             is_active=True,
         )
         .order_by("first_name", "last_name", "username")
+    )
+
+
+def _es_admin_o_staff(user):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser or user.is_staff:
+        return True
+    rol = getattr(getattr(user, "perfil", None), "rol", None)
+    return bool(rol and (rol.nombre or "").strip().lower() in {"administrador", "admin"})
+
+
+def _obtener_kit_de_orden(orden):
+    kit_directo = getattr(orden, "kit", None)
+    if kit_directo:
+        return kit_directo
+    if not orden.tipo_servicio:
+        return None
+    return (
+        KitHerramientas.objects.filter(activo=True, tipo_servicio__iexact=orden.tipo_servicio.strip())
+        .order_by("-id")
+        .first()
     )
 
 
@@ -89,18 +108,6 @@ class ObraCreateView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["tecnicos"] = obtener_tecnicos_activos()
-
-        kits_activos = KitHerramientas.objects.filter(activo=True).order_by("id")
-        kits_map = {}
-        for k in kits_activos:
-            clave = (k.tipo_servicio or "").strip().lower()
-            if clave:
-                kits_map[clave] = {
-                    "id": k.id,
-                    "nombre": k.nombre,
-                    "total_kit": float(k.total_presupuesto),
-                }
-        context["kits_por_servicio_json"] = kits_map
         return context
 
     def post(self, request, *args, **kwargs):
@@ -126,16 +133,6 @@ class ObraCreateView(TemplateView):
         ]):
             return JsonResponse(
                 {"ok": False, "error": "Complete todos los campos obligatorios antes de guardar."},
-                status=400,
-            )
-
-        kit_servicio = obtener_kit_por_servicio(tipo_servicio)
-        if kit_servicio is None:
-            return JsonResponse(
-                {
-                    "ok": False,
-                    "error": "No hay kits disponibles para el tipo de servicio seleccionado. Cree un kit activo antes de registrar la obra.",
-                },
                 status=400,
             )
 
@@ -167,8 +164,6 @@ class ObraCreateView(TemplateView):
                         cliente.direccion = direccion_faena
                     cliente.save()
 
-                presupuesto_final = Decimal(kit_servicio.total_presupuesto) + MONTO_EXTRA_OBRA
-
                 detalle_instrucciones = (
                     f"[{urgencia}] Contacto en planta: {contacto_planta} | Tel: {telefono_contacto}\n"
                     f"{instrucciones}"
@@ -181,8 +176,6 @@ class ObraCreateView(TemplateView):
                     fecha_programada=dt_programada.date(),
                     direccion=direccion_faena,
                     estado="programada",
-                    kit=kit_servicio,
-                    presupuesto_total=presupuesto_final,
                     observacion_auditoria=detalle_instrucciones,
                 )
 
@@ -488,7 +481,7 @@ class AuditarObraEspecifica(TemplateView):
             or self.request.GET.get("id")
             or self.request.POST.get("orden_id")
         )
-        qs = OrdenTrabajo.objects.select_related("cliente", "tecnico", "kit")
+        qs = OrdenTrabajo.objects.select_related("cliente", "tecnico")
         if orden_id:
             return get_object_or_404(qs, pk=orden_id)
         return qs.order_by("-id").first()
@@ -517,22 +510,15 @@ class AuditarObraEspecifica(TemplateView):
             return context
 
         estado_raw = (orden.estado or "").strip().lower()
-        if estado_raw in {"aprobada", "aprobadas", "validada", "validadas", "auditada", "auditadas", "facturada", "finalizada", "finalizadas"}:
+        if estado_raw in {"aprobada", "aprobadas", "validada", "validadas", "auditada", "auditadas"}:
             estado_label = "Aprobada"
             es_aprobada = True
-            paso_actual = 4
-        elif estado_raw in {"en_proceso", "en proceso", "en_curso", "en curso", "ejecucion", "en_ejecucion"}:
+        elif estado_raw in {"en_proceso", "en proceso", "en_curso", "en curso"}:
             estado_label = "En proceso"
             es_aprobada = False
-            paso_actual = 2
-        elif estado_raw in {"pendiente_auditoria", "pendiente de auditoria", "pendiente de auditoría", "en_revision", "en revision", "revision", "revisión"}:
-            estado_label = "En revisión"
-            es_aprobada = False
-            paso_actual = 3
         else:
             estado_label = "Pendiente de Aprobación"
             es_aprobada = False
-            paso_actual = 3
 
         cliente = getattr(orden, "cliente", None)
         mandante = cliente.razon_social if cliente else "Sin mandante"
@@ -552,8 +538,8 @@ class AuditarObraEspecifica(TemplateView):
         else:
             fecha_cierre = "Pendiente de cierre"
 
-        lat = getattr(orden, "latitud_inicio", None) or getattr(orden, "latitud", None) or getattr(orden, "gps_lat", None)
-        lng = getattr(orden, "longitud_inicio", None) or getattr(orden, "longitud", None) or getattr(orden, "gps_lng", None)
+        lat = getattr(orden, "latitud", None) or getattr(orden, "gps_lat", None)
+        lng = getattr(orden, "longitud", None) or getattr(orden, "gps_lng", None)
         if lat and lng:
             gps_faena = f"{lat}, {lng}"
         else:
@@ -601,51 +587,6 @@ class AuditarObraEspecifica(TemplateView):
             else fecha_cierre
         )
 
-        fecha_prog_str = orden.fecha_programada.strftime("%d/%m/%Y") if orden.fecha_programada else "Sin fecha"
-        fecha_inicio_dt = getattr(orden, "fecha_inicio_faena", None)
-        fecha_inicio_str = (
-            fecha_inicio_dt.strftime("%d/%m/%Y %H:%M")
-            if (fecha_inicio_dt and hasattr(fecha_inicio_dt, "strftime"))
-            else ("En curso" if paso_actual >= 2 else "Pendiente")
-        )
-        fecha_revision_str = (
-            fecha_cierre_dt.strftime("%d/%m/%Y %H:%M")
-            if (fecha_cierre_dt and hasattr(fecha_cierre_dt, "strftime"))
-            else ("En auditoría" if paso_actual >= 3 else "Pendiente")
-        )
-        fecha_auditoria_dt = getattr(orden, "fecha_auditoria", None)
-        fecha_final_str = (
-            fecha_auditoria_dt.strftime("%d/%m/%Y %H:%M")
-            if (fecha_auditoria_dt and hasattr(fecha_auditoria_dt, "strftime"))
-            else ("Aprobada" if paso_actual >= 4 else "Pendiente")
-        )
-
-        etapas_definidas = [
-            (1, "Programada", "bi-calendar-check", fecha_prog_str),
-            (2, "En proceso", "bi-tools", fecha_inicio_str),
-            (3, "En revisión", "bi-clipboard-check", fecha_revision_str),
-            (4, "Finalizada", "bi-patch-check-fill", fecha_final_str),
-        ]
-
-        etapas_avance = []
-        for num, titulo, icono, detalle in etapas_definidas:
-            if num < paso_actual:
-                estado_etapa = "completada"
-            elif num == paso_actual:
-                estado_etapa = "actual"
-            else:
-                estado_etapa = "pendiente"
-            etapas_avance.append({
-                "numero": num,
-                "titulo": titulo,
-                "icono": icono,
-                "detalle": detalle,
-                "estado": estado_etapa,
-            })
-
-        porcentaje_avance = int(((paso_actual - 1) / 3) * 100)
-        presupuesto_valor = calcular_presupuesto_orden(orden)
-
         context["orden_auditoria"] = {
             "id": orden.id,
             "codigo_ot": f"#OT-{orden.id}",
@@ -658,7 +599,6 @@ class AuditarObraEspecifica(TemplateView):
             "tecnico": tecnico_nombre,
             "fecha_cierre": fecha_cierre,
             "gps_faena": gps_faena,
-            "presupuesto_formateado": formatear_clp(presupuesto_valor),
             "checklist_items": checklist_items,
             "materiales_consumidos": materiales_consumidos,
             "evidencia_1": evidencia_1,
@@ -668,8 +608,6 @@ class AuditarObraEspecifica(TemplateView):
             "firmante_cargo": firmante_cargo,
             "firmante_fecha": firmante_fecha,
             "firma_url": firma_url,
-            "etapas_avance": etapas_avance,
-            "porcentaje_avance": porcentaje_avance,
         }
         return context
 
@@ -700,7 +638,7 @@ class AuditarObraEspecifica(TemplateView):
 
 
 class ProgresoResultadosObrasView(TemplateView):
-    """Vista ejecutiva de progreso, distribución por estado y evolución de ganancias de obras."""
+    """Vista ejecutiva de progreso, distribución por estado y evolución temporal de obras."""
 
     template_name = "obras/progreso_resultados.html"
 
@@ -751,21 +689,21 @@ class ProgresoResultadosObrasView(TemplateView):
         if periodo == "semana":
             fecha_inicio = hoy - timedelta(days=6)
             periodo_label = "Última semana"
-            titulo_barras = "Ganancias por día (últimos 7 días)"
+            titulo_barras = "Obras por día (últimos 7 días)"
         elif periodo == "mes":
             fecha_inicio = hoy - timedelta(days=29)
             periodo_label = "Último mes"
-            titulo_barras = "Ganancias por semana (último mes)"
+            titulo_barras = "Obras por semana (último mes)"
         elif periodo == "anio":
             fecha_inicio = hoy.replace(month=1, day=1)
             periodo_label = f"Año {hoy.year}"
-            titulo_barras = "Ganancias por mes"
+            titulo_barras = "Obras por mes"
         else:
             fecha_inicio = None
             periodo_label = "Historial completo"
-            titulo_barras = "Ganancias por mes (histórico completo)"
+            titulo_barras = "Obras por mes (histórico completo)"
 
-        qs = OrdenTrabajo.objects.select_related("cliente", "tecnico", "kit").order_by("-fecha_programada", "-id")
+        qs = OrdenTrabajo.objects.select_related("cliente", "tecnico").order_by("-fecha_programada", "-id")
         todas_ordenes = list(qs)
         total_historico = len(todas_ordenes)
 
@@ -785,17 +723,9 @@ class ProgresoResultadosObrasView(TemplateView):
         }
 
         lista_obras = []
-        ordenes_ganancias = []
-        total_ganancias_decimal = Decimal("0.00")
-
         for orden, fecha_ref in ordenes_filtradas:
             cat, label, badge_clase, icono = self._clasificar_estado(orden.estado)
             conteos[cat] += 1
-            presupuesto_orden = calcular_presupuesto_orden(orden)
-
-            if cat == "finalizadas":
-                total_ganancias_decimal += presupuesto_orden
-                ordenes_ganancias.append((fecha_ref, float(presupuesto_orden)))
 
             cliente_nombre = orden.cliente.razon_social if orden.cliente else "Sin cliente"
             tecnico_nombre = "Sin asignar"
@@ -813,7 +743,6 @@ class ProgresoResultadosObrasView(TemplateView):
                 "tipo_servicio": orden.tipo_servicio or "-",
                 "tecnico": tecnico_nombre,
                 "fecha": fecha_texto,
-                "presupuesto": formatear_clp(presupuesto_orden),
                 "categoria": cat,
                 "estado_label": label,
                 "badge_clase": badge_clase,
@@ -836,19 +765,14 @@ class ProgresoResultadosObrasView(TemplateView):
             for i in range(6, -1, -1):
                 dia = hoy - timedelta(days=i)
                 barras_labels.append(f"{self.DIAS_SEMANA_ES[dia.weekday()]} {dia.day}")
-                barras_valores.append(
-                    round(sum(monto for f, monto in ordenes_ganancias if f == dia), 2)
-                )
+                barras_valores.append(sum(1 for _, f in ordenes_filtradas if f == dia))
         elif periodo == "mes":
             for bloque in range(4):
                 inicio_b = hoy - timedelta(days=27 - bloque * 7)
                 fin_b = inicio_b + timedelta(days=6)
                 barras_labels.append(f"Sem {bloque + 1}")
                 barras_valores.append(
-                    round(
-                        sum(monto for f, monto in ordenes_ganancias if f and inicio_b <= f <= fin_b),
-                        2,
-                    )
+                    sum(1 for _, f in ordenes_filtradas if f and inicio_b <= f <= fin_b)
                 )
         else:
             meses_indices = list(range(1, hoy.month + 1)) if periodo == "anio" else list(range(1, 13))
@@ -857,13 +781,10 @@ class ProgresoResultadosObrasView(TemplateView):
             for m in meses_indices:
                 barras_labels.append(self.MESES_ES[m])
                 barras_valores.append(
-                    round(
-                        sum(
-                            monto
-                            for f, monto in ordenes_ganancias
-                            if f and f.month == m and (periodo != "anio" or f.year == hoy.year)
-                        ),
-                        2,
+                    sum(
+                        1
+                        for _, f in ordenes_filtradas
+                        if f and f.month == m and (periodo != "anio" or f.year == hoy.year)
                     )
                 )
 
@@ -871,7 +792,6 @@ class ProgresoResultadosObrasView(TemplateView):
             "periodo_actual": periodo,
             "periodo_label": periodo_label,
             "titulo_barras": titulo_barras,
-            "total_ganancias_periodo": formatear_clp(total_ganancias_decimal),
             "mostrando_historial": mostrando_historial,
             "total_historico": total_historico,
             "total_obras": total_obras,
@@ -928,7 +848,7 @@ class ReportesObrasView(TemplateView):
 
 
 class GenerarReportePDFView(View):
-    """Genera un reporte según fechas y checkboxes, y lo guarda en el historial."""
+    """Genera un reporte sencillo según fechas y checkboxes, y lo guarda en el historial."""
 
     def _clasificar(self, estado_raw: str):
         estado = (estado_raw or "").strip().lower()
@@ -967,32 +887,23 @@ class GenerarReportePDFView(View):
         inc_ejecucion = bool(opciones.get("en_ejecucion", True))
         inc_canceladas = bool(opciones.get("canceladas", True))
         inc_graficos = bool(opciones.get("graficos", True))
-        inc_ganancias = bool(opciones.get("ganancias", True))
 
-        if not any([inc_total, inc_finalizadas, inc_ejecucion, inc_canceladas, inc_graficos, inc_ganancias]):
+        if not any([inc_total, inc_finalizadas, inc_ejecucion, inc_canceladas, inc_graficos]):
             return JsonResponse({"ok": False, "error": "Marque al menos una opción en 'Información incluida'."}, status=400)
 
         ordenes = list(
-            OrdenTrabajo.objects.select_related("cliente", "tecnico", "kit")
+            OrdenTrabajo.objects.select_related("cliente", "tecnico")
             .filter(fecha_programada__range=(fecha_desde, fecha_hasta))
             .order_by("fecha_programada", "id")
         )
 
         grupos = {"finalizadas": [], "en_ejecucion": [], "pendientes": [], "canceladas": []}
-        total_ganancias = Decimal("0.00")
-
         for o in ordenes:
-            cat = self._clasificar(o.estado)
-            presupuesto_o = calcular_presupuesto_orden(o)
-            if cat == "finalizadas":
-                total_ganancias += presupuesto_o
-
-            grupos[cat].append({
+            grupos[self._clasificar(o.estado)].append({
                 "cliente": o.cliente.razon_social if o.cliente else "Sin cliente",
                 "servicio": o.tipo_servicio or "-",
                 "tecnico": (o.tecnico.get_full_name().strip() or o.tecnico.username) if o.tecnico else "Sin asignar",
                 "fecha": o.fecha_programada.strftime("%d/%m/%Y") if o.fecha_programada else "-",
-                "presupuesto": formatear_clp(presupuesto_o),
                 "motivo": (o.observacion_auditoria or "Sin motivo registrado.").strip(),
             })
 
@@ -1002,8 +913,6 @@ class GenerarReportePDFView(View):
         secciones = []
         if inc_total:
             secciones.append("Total de obras")
-        if inc_ganancias:
-            secciones.append("Ganancias totales y presupuesto por obra")
         if inc_finalizadas:
             secciones.append("Obras finalizadas")
         if inc_ejecucion:
@@ -1023,14 +932,12 @@ class GenerarReportePDFView(View):
                 "fecha_desde": fecha_desde.strftime("%d/%m/%Y"),
                 "fecha_hasta": fecha_hasta.strftime("%d/%m/%Y"),
                 "inc_total": inc_total,
-                "inc_ganancias": inc_ganancias,
                 "inc_finalizadas": inc_finalizadas,
                 "inc_ejecucion": inc_ejecucion,
                 "inc_canceladas": inc_canceladas,
                 "inc_graficos": inc_graficos,
                 "total_obras": total,
                 "pct_finalizadas": pct_fin,
-                "total_ganancias_formateado": formatear_clp(total_ganancias),
                 "finalizadas": grupos["finalizadas"],
                 "en_ejecucion": grupos["en_ejecucion"],
                 "pendientes": grupos["pendientes"],
@@ -1058,3 +965,299 @@ class VerReporteHTMLView(View):
     def get(self, request, pk, *args, **kwargs):
         rep = get_object_or_404(ReporteGenerado, pk=pk)
         return JsonResponse({"ok": True, "titulo": rep.titulo, "html": rep.contenido_html})
+
+
+# ==============================================================================
+# MÓDULO DE OBRAS CANCELADAS Y EN REVISIÓN DE CANCELACIÓN
+# ==============================================================================
+
+class ObrasCanceladasListView(LoginRequiredMixin, TemplateView):
+    """Listado de obras canceladas y en revisión de cancelación con búsqueda, filtro por razón y paginación."""
+
+    template_name = "obras/obras_canceladas.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        qs = (
+            OrdenTrabajo.objects.filter(
+                Q(estado__iexact="cancelada") | Q(estado__in=ESTADOS_EN_REVISION_CANCELACION)
+            )
+            .select_related("cliente", "tecnico")
+            .order_by("-fecha_cancelacion", "-id")
+        )
+
+        razones_bd = list(
+            OrdenTrabajo.objects.filter(
+                Q(estado__iexact="cancelada") | Q(estado__in=ESTADOS_EN_REVISION_CANCELACION)
+            )
+            .exclude(razon_cancelacion__isnull=True)
+            .exclude(razon_cancelacion="")
+            .values_list("razon_cancelacion", flat=True)
+            .distinct()
+        )
+        razones_opciones = list(dict.fromkeys(RAZONES_CANCELACION_DEFAULT + razones_bd))
+
+        paginator = Paginator(qs, 10)
+        page_number = self.request.GET.get("page", 1)
+        page_obj = paginator.get_page(page_number)
+
+        filas = []
+        for obra in page_obj:
+            tecnico_nombre = "Sin asignar"
+            if obra.tecnico:
+                tecnico_nombre = obra.tecnico.get_full_name().strip() or obra.tecnico.username
+
+            estado_raw = (obra.estado or "").strip().lower()
+            es_revision = estado_raw in ESTADOS_EN_REVISION_CANCELACION
+            estado_badge = "En revisión" if es_revision else "Cancelada"
+
+            fecha_cancel = (
+                timezone.localtime(obra.fecha_cancelacion).strftime("%d/%m/%Y %H:%M")
+                if obra.fecha_cancelacion
+                else (obra.fecha_programada.strftime("%d/%m/%Y") if obra.fecha_programada else "--")
+            )
+
+            filas.append({
+                "id": obra.id,
+                "nombre_obra": obra.tipo_servicio or "Sin nombre",
+                "fecha_cancelacion": fecha_cancel,
+                "tecnico": tecnico_nombre,
+                "razon": (obra.razon_cancelacion or "").strip() or "Sin especificar",
+                "estado_badge": estado_badge,
+                "es_revision": es_revision,
+            })
+
+        context.update({
+            "page_obj": page_obj,
+            "obras_canceladas": filas,
+            "razones_opciones": razones_opciones,
+        })
+        return context
+
+
+class DetalleObraCanceladaView(LoginRequiredMixin, TemplateView):
+    """Detalle de obra para cancelar (admin) o revisar cancelación reportada por técnico."""
+
+    template_name = "obras/detalle_obra_cancelada.html"
+
+    def _obtener_orden_y_permiso(self, pk):
+        orden = get_object_or_404(OrdenTrabajo.objects.select_related("cliente", "tecnico"), pk=pk)
+        es_admin = _es_admin_o_staff(self.request.user)
+        es_tecnico_asignado = orden.tecnico_id == self.request.user.id
+        if not (es_admin or es_tecnico_asignado):
+            raise PermissionDenied("No tienes permisos para acceder a esta obra.")
+        return orden, es_admin
+
+    def _obtener_materiales_kit(self, orden):
+        kit = _obtener_kit_de_orden(orden)
+        if not kit:
+            return [], None
+
+        detalles = DetalleKitHerramienta.objects.select_related("material").filter(kit=kit).order_by("id")
+        reversas_existentes = set(
+            MovimientoInventario.objects.filter(
+                orden=orden,
+                tipo_mov="reversa",
+                estado_validacion="aprobado",
+            ).values_list("material_id", flat=True)
+        )
+
+        items = []
+        for det in detalles:
+            mat = det.material
+            cant_str = f"{det.cantidad:g}" if det.cantidad is not None else "0"
+            items.append({
+                "material_id": mat.id,
+                "codigo": mat.codigo,
+                "nombre": mat.nombre,
+                "unidad": mat.unidad_medida,
+                "cantidad": str(det.cantidad),
+                "cantidad_display": f"{cant_str} {mat.unidad_medida}",
+                "stock_actual": f"{mat.stock_actual:g}",
+                "ya_devuelto": (mat.id in reversas_existentes) or bool(orden.materiales_restaurados),
+            })
+        return items, kit
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        orden, es_admin = self._obtener_orden_y_permiso(self.kwargs["pk"])
+
+        cliente = orden.cliente
+        contacto_display = (cliente.contacto if cliente and cliente.contacto else "").strip() or "Sin contacto registrado"
+        rut_display = cliente.rut if cliente and cliente.rut else "Sin RUT"
+        mandante_display = cliente.razon_social if cliente else "Sin mandante"
+
+        tecnico_nombre = "Sin asignar"
+        if orden.tecnico:
+            tecnico_nombre = orden.tecnico.get_full_name().strip() or orden.tecnico.username
+
+        if orden.fecha_cancelacion:
+            fecha_cancelada_display = timezone.localtime(orden.fecha_cancelacion).strftime("%d/%m/%Y - %H:%M hrs")
+        elif orden.fecha_programada:
+            fecha_cancelada_display = f"{orden.fecha_programada.strftime('%d/%m/%Y')} (Programada)"
+        else:
+            fecha_cancelada_display = "Pendiente de registro"
+
+        gps_display = orden.direccion or (cliente.direccion if cliente and cliente.direccion else "Sin ubicación")
+
+        estado_raw = (orden.estado or "").strip().lower()
+        ya_cancelada = estado_raw == "cancelada"
+        en_revision = estado_raw in ESTADOS_EN_REVISION_CANCELACION or (
+            not ya_cancelada and bool((orden.razon_cancelacion or "").strip())
+        )
+
+        puede_confirmar_cancelacion = es_admin and not ya_cancelada
+        puede_elegir_motivo = puede_confirmar_cancelacion and not en_revision
+        puede_editar_descripcion = puede_confirmar_cancelacion
+
+        if ya_cancelada:
+            estado_label = "Cancelada"
+        elif en_revision:
+            estado_label = "En revisión"
+        else:
+            estado_label = orden.get_estado_display()
+
+        materiales_kit, kit = self._obtener_materiales_kit(orden)
+        razones_opciones = list(dict.fromkeys(
+            RAZONES_CANCELACION_DEFAULT + ([orden.razon_cancelacion] if orden.razon_cancelacion else [])
+        ))
+
+        context.update({
+            "orden": orden,
+            "codigo_ot": f"#OT-{orden.id}",
+            "mandante": mandante_display,
+            "rut_cliente": rut_display,
+            "contacto": contacto_display,
+            "tipo_servicio": orden.tipo_servicio or "-",
+            "estado_label": estado_label,
+            "tecnico_nombre": tecnico_nombre,
+            "fecha_cancelada_display": fecha_cancelada_display,
+            "gps_faena": gps_display,
+            "ya_cancelada": ya_cancelada,
+            "en_revision": en_revision,
+            "puede_confirmar_cancelacion": puede_confirmar_cancelacion,
+            "puede_elegir_motivo": puede_elegir_motivo,
+            "puede_editar_descripcion": puede_editar_descripcion,
+            "razones_opciones": razones_opciones,
+            "razon_actual": (orden.razon_cancelacion or "").strip(),
+            "descripcion_actual": (orden.observacion_auditoria or "").strip(),
+            "materiales_kit": materiales_kit,
+            "kit_asignado": kit,
+        })
+        return context
+
+    def post(self, request, pk, *args, **kwargs):
+        orden, es_admin = self._obtener_orden_y_permiso(pk)
+        if not es_admin:
+            raise PermissionDenied("Solo el administrador puede aprobar o registrar la cancelación.")
+
+        estado_raw = (orden.estado or "").strip().lower()
+        ya_cancelada = estado_raw == "cancelada"
+        en_revision = estado_raw in ESTADOS_EN_REVISION_CANCELACION or (
+            not ya_cancelada and bool((orden.razon_cancelacion or "").strip())
+        )
+
+        if ya_cancelada:
+            messages.info(request, f"La obra #OT-{orden.pk} ya se encuentra marcada como cancelada.")
+            return redirect("obras:detalle_obra_cancelada", pk=orden.pk)
+
+        if en_revision:
+            razon = (orden.razon_cancelacion or "").strip()
+        else:
+            razon = (request.POST.get("razon_cancelacion") or "").strip()
+
+        descripcion = (request.POST.get("descripcion_cancelacion") or "").strip()
+
+        if not razon:
+            messages.error(request, "Debes seleccionar un motivo de cancelación.")
+            return redirect("obras:detalle_obra_cancelada", pk=orden.pk)
+
+        with transaction.atomic():
+            orden.estado = "cancelada"
+            orden.razon_cancelacion = razon
+            orden.observacion_auditoria = descripcion
+            if not orden.fecha_cancelacion:
+                orden.fecha_cancelacion = timezone.now()
+            orden.save(update_fields=["estado", "razon_cancelacion", "observacion_auditoria", "fecha_cancelacion"])
+
+        messages.success(request, f"La obra #OT-{orden.pk} fue marcada definitivamente como cancelada.")
+        return redirect("obras:detalle_obra_cancelada", pk=orden.pk)
+
+
+class RestaurarMaterialesObraView(LoginRequiredMixin, View):
+    """Devuelve al stock de inventario uno o todos los materiales del kit de una obra."""
+
+    def post(self, request, pk, *args, **kwargs):
+        orden = get_object_or_404(OrdenTrabajo, pk=pk)
+        if not _es_admin_o_staff(request.user) and orden.tecnico_id != request.user.id:
+            raise PermissionDenied("No tienes permisos para devolver materiales de esta obra.")
+
+        material_id_raw = (request.POST.get("material_id") or "").strip()
+        cantidad_raw = (request.POST.get("cantidad") or "").strip()
+
+        kit = _obtener_kit_de_orden(orden)
+        if not kit:
+            messages.warning(request, f"La obra #OT-{orden.pk} no tiene un kit de materiales asignado.")
+            return redirect("obras:detalle_obra_cancelada", pk=orden.pk)
+
+        detalles_qs = DetalleKitHerramienta.objects.select_related("material").filter(kit=kit)
+        if material_id_raw.isdigit():
+            detalles_qs = detalles_qs.filter(material_id=int(material_id_raw))
+
+        if not detalles_qs.exists():
+            messages.warning(request, "No se encontraron materiales válidos del kit para devolver.")
+            return redirect("obras:detalle_obra_cancelada", pk=orden.pk)
+
+        devueltos = 0
+        with transaction.atomic():
+            for det in detalles_qs:
+                ya_devuelto = MovimientoInventario.objects.filter(
+                    orden=orden,
+                    material=det.material,
+                    tipo_mov="reversa",
+                    estado_validacion="aprobado",
+                ).exists()
+                if ya_devuelto:
+                    continue
+
+                cantidad_a_devolver = det.cantidad
+                if material_id_raw.isdigit() and cantidad_raw:
+                    try:
+                        parsed = Decimal(cantidad_raw.replace(",", "."))
+                        if parsed > 0:
+                            cantidad_a_devolver = parsed
+                    except InvalidOperation:
+                        pass
+
+                material = Material.objects.select_for_update().get(pk=det.material_id)
+                material.stock_actual = (material.stock_actual or Decimal("0")) + cantidad_a_devolver
+                material.save(update_fields=["stock_actual"])
+
+                MovimientoInventario.objects.create(
+                    material=material,
+                    orden=orden,
+                    usuario=request.user,
+                    tipo_mov="reversa",
+                    cantidad=cantidad_a_devolver,
+                    motivo=f"Devolución de material por cancelación de #OT-{orden.pk}",
+                    estado_validacion="aprobado",
+                )
+                devueltos += 1
+
+            if devueltos > 0:
+                restantes = DetalleKitHerramienta.objects.filter(kit=kit).exclude(
+                    material_id__in=MovimientoInventario.objects.filter(
+                        orden=orden, tipo_mov="reversa", estado_validacion="aprobado"
+                    ).values_list("material_id", flat=True)
+                ).count()
+                if restantes == 0:
+                    orden.materiales_restaurados = True
+                    orden.save(update_fields=["materiales_restaurados"])
+
+        if devueltos > 0:
+            messages.success(request, f"Se devolvieron {devueltos} material(es) al inventario.")
+        else:
+            messages.info(request, "Los materiales seleccionados ya habían sido devueltos al inventario.")
+
+        return redirect("obras:detalle_obra_cancelada", pk=orden.pk)

@@ -1,0 +1,93 @@
+/* =================================================
+   Estilos Página Principal - Frío y Agroindustria SpA
+   ================================================= */
+
+:root {
+    --fyag-navy: #2e3252;
+    --fyag-indigo: #3b3f68;
+    --fyag-accent: #2563eb;
+    --fyag-bg: #f8f9fa;
+}
+
+body.inicio-fyag-body {
+    background-color: var(--fyag-bg);
+    color: #1e293b;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.navbar-fyag {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.marca-fyag,
+.titulo-seccion-fyag,
+.titulo-tarjeta-fyag {
+    color: var(--fyag-navy);
+}
+
+.logo-fyag {
+    height: 42px;
+    width: auto;
+}
+
+.hero-fyag {
+    background: linear-gradient(135deg, var(--fyag-navy) 0%, var(--fyag-indigo) 100%);
+    color: #ffffff;
+    padding: 64px 0;
+}
+
+.hero-subtitulo {
+    color: #e2e8f0;
+    max-width: 650px;
+}
+
+.btn-portada-principal {
+    color: var(--fyag-navy);
+}
+
+.seccion-paneles-fyag {
+    background-color: #ffffff;
+}
+
+.card-fyag {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-fyag:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.09);
+}
+
+.btn-fyag {
+    background-color: var(--fyag-indigo);
+    border-color: var(--fyag-indigo);
+    color: #ffffff;
+    border-radius: 50px;
+}
+
+.btn-fyag:hover {
+    background-color: var(--fyag-navy);
+    border-color: var(--fyag-navy);
+    color: #ffffff;
+}
+
+.icono-panel {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    background-color: #eff6ff;
+    color: var(--fyag-accent);
+}
+
+.footer-fyag {
+    background-color: #f8f9fa;
+}

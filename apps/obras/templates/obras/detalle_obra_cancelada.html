@@ -1,0 +1,178 @@
+{% extends 'base_admin.html' %}
+{% load static %}
+
+{% block title %}Detalle Obra Cancelada {{ codigo_ot }} - Frío y Agroindustria SpA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/obras_canceladas.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 px-4 canceladas-wrapper">
+    <!-- Encabezado superior -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <h2 class="fw-bold mb-0 titulo-canceladas">Detalle de Obra {{ codigo_ot }}</h2>
+    </div>
+
+    <div class="mb-4">
+        <a href="{% url 'obras:obras_canceladas' %}" class="btn btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 38px; height: 38px;" title="Volver al listado">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- RESUMEN OPERATIVO -->
+    <div class="card border-0 shadow-sm card-canceladas-main mb-4">
+        <div class="card-body p-4">
+            <h6 class="text-uppercase fw-bold text-muted mb-3 pb-2 border-bottom">Resumen Operativo</h6>
+            <div class="row g-3 small">
+                <div class="col-md-6">
+                    <div><strong>Mandante:</strong> {{ mandante }}</div>
+                </div>
+                <div class="col-md-6">
+                    <div><strong>RUT:</strong> {{ rut_cliente }}</div>
+                </div>
+                <div class="col-md-6">
+                    <div><strong>Contacto:</strong> {{ contacto }}</div>
+                </div>
+                <div class="col-md-6">
+                    <div><strong>Tipo de Servicio:</strong> {{ tipo_servicio }}</div>
+                </div>
+                <div class="col-md-6">
+                    <div>
+                        <strong>Estado:</strong>
+                        <span class="fw-bold {% if ya_cancelada %}text-danger{% elif en_revision %}text-warning{% else %}text-primary{% endif %}">
+                            {{ estado_label }}
+                        </span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div><strong>Técnico Responsable:</strong> {{ tecnico_nombre }}</div>
+                </div>
+                <div class="col-md-6">
+                    <div><strong>Fecha/Hora Cancelada:</strong> {{ fecha_cancelada_display }}</div>
+                </div>
+                <div class="col-md-6">
+                    <div><strong>GPS Faena:</strong> {{ gps_faena }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario principal de cancelación (Motivo + Descripción + Botón final) -->
+    <form method="post" action="{% url 'obras:detalle_obra_cancelada' orden.pk %}" id="formDetalleCancelacion">
+        {% csrf_token %}
+
+        <div class="row g-4 mb-4">
+            <!-- Panel MOTIVO + Descripción -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm card-canceladas-main h-100">
+                    <div class="card-body p-4">
+                        <h6 class="text-uppercase fw-bold text-muted mb-3 pb-2 border-bottom">Motivo de Cancelación</h6>
+
+                        <div class="mb-3">
+                            <label for="selectRazonCancelacion" class="form-label fw-semibold small">Motivo</label>
+                            {% if puede_elegir_motivo %}
+                                <select id="selectRazonCancelacion" name="razon_cancelacion" class="form-select select-razon-fyag" required>
+                                    <option value="">Seleccione un motivo...</option>
+                                    {% for r in razones_opciones %}
+                                        <option value="{{ r }}" {% if razon_actual == r %}selected{% endif %}>{{ r }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% else %}
+                                <input type="text" id="selectRazonCancelacion" class="form-control" value="{{ razon_actual|default:'Sin motivo registrado' }}" readonly>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="textareaDescripcionCancelacion" class="form-label fw-semibold small">Descripción</label>
+                            {% if puede_editar_descripcion %}
+                                <textarea id="textareaDescripcionCancelacion" name="descripcion_cancelacion" rows="4" class="form-control" placeholder="Detalle del motivo de cancelación...">{{ descripcion_actual }}</textarea>
+                            {% else %}
+                                <textarea id="textareaDescripcionCancelacion" rows="4" class="form-control" readonly>{{ descripcion_actual|default:'Sin descripción registrada.' }}</textarea>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel CONSUMO DE MATERIALES (Kit asignado a la obra) -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm card-canceladas-main h-100">
+                    <div class="card-body p-4">
+                        <h6 class="text-uppercase fw-bold text-muted mb-3 pb-2 border-bottom">
+                            Consumo de Materiales{% if kit_asignado %} · {{ kit_asignado.nombre }}{% endif %}
+                        </h6>
+
+                        {% if materiales_kit %}
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Material del Kit</th>
+                                        <th>Cantidad</th>
+                                        <th class="text-end">Inventario</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in materiales_kit %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">{{ item.nombre }}</div>
+                                            <small class="text-muted">{{ item.codigo }}</small>
+                                        </td>
+                                        <td>{{ item.cantidad_display }}</td>
+                                        <td class="text-end">
+                                            {% if item.ya_devuelto %}
+                                                <span class="badge bg-success-subtle text-success border">Devuelto</span>
+                                            {% else %}
+                                                <button type="submit"
+                                                        class="btn btn-sm btn-restaurar-suave btn-devolver-material"
+                                                        formaction="{% url 'obras:restaurar_materiales_obra' orden.pk %}"
+                                                        name="material_id"
+                                                        value="{{ item.material_id }}"
+                                                        data-cantidad="{{ item.cantidad }}">
+                                                    Devolver material
+                                                </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4 text-muted small">
+                            Sin materiales de kit asignados a esta obra.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botón final: Obra cancelada -->
+        <div class="d-flex justify-content-end pt-2">
+            {% if puede_confirmar_cancelacion %}
+                <button type="submit" class="btn btn-naranja-fyag px-4 py-2 fw-semibold" id="btnConfirmarObraCancelada">
+                    Obra cancelada
+                </button>
+            {% else %}
+                <button type="button" class="btn btn-naranja-fyag px-4 py-2 fw-semibold" disabled>
+                    Obra cancelada
+                </button>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<script src="{% static 'js/obras_canceladas.js' %}"></script>
+{% endblock %}
