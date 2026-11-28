@@ -4,18 +4,50 @@ document.addEventListener('DOMContentLoaded', function () {
     const plantillaFila = document.getElementById('plantillaFilaKit');
     const totalEl = document.getElementById('totalPresupuestoKit');
 
-    function aNumero(valor) {
+    function aNumeroDecimal(valor) {
         if (valor === null || valor === undefined) return 0;
-        const limpio = String(valor).trim().replace(/\s+/g, '').replace(',', '.');
-        const num = parseFloat(limpio);
+        let texto = String(valor).trim().replace(/\s+/g, '');
+        if (!texto) return 0;
+
+        if (texto.includes(',') && texto.includes('.')) {
+            texto = texto.replace(/\./g, '').replace(',', '.');
+        } else if (texto.includes(',')) {
+            texto = texto.replace(',', '.');
+        }
+        const num = parseFloat(texto);
         return Number.isNaN(num) ? 0 : num;
+    }
+
+    function aMontoClp(valor) {
+        if (valor === null || valor === undefined) return 0;
+        const limpio = String(valor).replace(/[^\d,.-]/g, '').trim();
+        if (!limpio) return 0;
+
+        if (limpio.includes(',')) {
+            const normalizado = limpio.replace(/\./g, '').replace(',', '.');
+            const num = parseFloat(normalizado);
+            return Number.isNaN(num) ? 0 : Math.round(num);
+        }
+
+        if (/^-?\d{1,3}(?:\.\d{3})+$/.test(limpio)) {
+            const num = parseInt(limpio.replace(/\./g, ''), 10);
+            return Number.isNaN(num) ? 0 : num;
+        }
+
+        const num = parseFloat(limpio);
+        return Number.isNaN(num) ? 0 : Math.round(num);
+    }
+
+    function formatearClp(monto) {
+        const entero = Math.round(aMontoClp(monto));
+        return '$' + entero.toLocaleString('es-CL', { maximumFractionDigits: 0 });
     }
 
     function obtenerFactorUnidad(unidadTexto) {
         const texto = String(unidadTexto || '').trim();
         if (texto === '') return 1;
-        const num = parseFloat(texto.replace(',', '.'));
-        return Number.isNaN(num) ? 1 : num;
+        const num = aNumeroDecimal(texto);
+        return num > 0 ? num : 1;
     }
 
     function obtenerCsrfToken() {
@@ -34,9 +66,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const factorUnidad = obtenerFactorUnidad(unidadEl ? unidadEl.textContent : 1);
         const precioRaw = precioEl ? (precioEl.getAttribute('data-precio') || precioEl.textContent) : 0;
-        const precio = aNumero(precioRaw);
-        const total = factorUnidad * precio;
-        montoCell.textContent = '$' + total.toFixed(2);
+        const precio = aMontoClp(precioRaw);
+        const total = Math.round(factorUnidad * precio);
+        montoCell.textContent = formatearClp(total);
     }
 
     function inicializarMontosInventario() {
@@ -52,37 +84,72 @@ document.addEventListener('DOMContentLoaded', function () {
             const precioInput = fila.querySelector('.input-precio-kit');
             const subtotalCell = fila.querySelector('.subtotal-kit');
 
-            const cant = aNumero(cantInput ? cantInput.value : 0);
-            const precio = aNumero(precioInput ? precioInput.value : 0);
-            const subtotal = cant * precio;
+            const cant = aNumeroDecimal(cantInput ? cantInput.value : 0);
+            const precio = aMontoClp(precioInput ? precioInput.value : 0);
+            const subtotal = Math.round(cant * precio);
             totalGeneral += subtotal;
 
             if (subtotalCell) {
-                subtotalCell.textContent = '$' + subtotal.toFixed(2);
+                subtotalCell.textContent = formatearClp(subtotal);
             }
         });
 
         if (totalEl) {
-            totalEl.textContent = '$' + totalGeneral.toFixed(2);
+            totalEl.textContent = formatearClp(totalGeneral);
         }
     }
 
-    function normalizarFormDataDecimales(formData) {
-        const camposNumericos = ['cantidad[]', 'precio_unitario[]', 'precio_unitario', 'stock_actual', 'stock_minimo'];
-        camposNumericos.forEach(campo => {
+    function normalizarFormData(formData) {
+        const camposDecimales = ['cantidad[]', 'stock_actual', 'stock_minimo'];
+        camposDecimales.forEach(campo => {
             const valores = formData.getAll(campo);
             if (valores.length > 0) {
                 formData.delete(campo);
                 valores.forEach(v => {
-                    const num = aNumero(v);
+                    const num = aNumeroDecimal(v);
                     formData.append(campo, num.toFixed(2));
+                });
+            }
+        });
+
+        const camposClp = ['precio_unitario[]', 'precio_unitario'];
+        camposClp.forEach(campo => {
+            const valores = formData.getAll(campo);
+            if (valores.length > 0) {
+                formData.delete(campo);
+                valores.forEach(v => {
+                    const monto = aMontoClp(v);
+                    formData.append(campo, String(monto));
                 });
             }
         });
     }
 
+    // Mientras escribes: solo quita caracteres inválidos sin pisar lo que vas tecleando
+    document.addEventListener('input', function (e) {
+        if (e.target.classList && e.target.classList.contains('input-clp')) {
+            const limpio = String(e.target.value || '').replace(/[^\d.,-]/g, '');
+            if (e.target.value !== limpio) {
+                e.target.value = limpio;
+            }
+        }
+    });
+
+    // Al salir del input: aplica formato CLP ($1.000.000)
+    document.addEventListener('blur', function (e) {
+        if (e.target.classList && e.target.classList.contains('input-clp')) {
+            const raw = String(e.target.value || '').trim();
+            e.target.value = raw === '' ? '' : formatearClp(raw);
+        }
+    }, true);
+
     const formNuevoMaterial = document.getElementById('formNuevoMaterial');
     if (formNuevoMaterial) {
+        const inputPrecioNuevo = document.getElementById('inputPrecioMaterial');
+        if (inputPrecioNuevo && aMontoClp(inputPrecioNuevo.value) > 0) {
+            inputPrecioNuevo.value = formatearClp(inputPrecioNuevo.value);
+        }
+
         formNuevoMaterial.addEventListener('submit', function (e) {
             e.preventDefault();
             const msgEl = document.getElementById('mensajeNuevoMaterial');
@@ -92,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const formData = new FormData(formNuevoMaterial);
-            normalizarFormDataDecimales(formData);
+            normalizarFormData(formData);
 
             fetch(window.location.href, {
                 method: 'POST',
@@ -133,18 +200,18 @@ document.addEventListener('DOMContentLoaded', function () {
     const modalVerMatEl = document.getElementById('modalVerMaterial');
     document.querySelectorAll('.btn-ver-material').forEach(btn => {
         btn.addEventListener('click', function () {
-            const stock = aNumero(this.getAttribute('data-stock') || 0);
-            const precio = aNumero(this.getAttribute('data-precio') || 0);
+            const stock = aNumeroDecimal(this.getAttribute('data-stock') || 0);
+            const precio = aMontoClp(this.getAttribute('data-precio') || 0);
             const factorUnidad = obtenerFactorUnidad(this.getAttribute('data-unidad') || 1);
-            const total = factorUnidad * precio;
+            const total = Math.round(factorUnidad * precio);
 
             document.getElementById('verMatCodigo').textContent = this.getAttribute('data-codigo') || '-';
             document.getElementById('verMatNombre').textContent = this.getAttribute('data-nombre') || '-';
             document.getElementById('verMatUnidad').textContent = this.getAttribute('data-unidad') || '-';
             document.getElementById('verMatStock').textContent = stock.toFixed(2);
-            document.getElementById('verMatStockMinimo').textContent = aNumero(this.getAttribute('data-stock-minimo') || 0).toFixed(2);
-            document.getElementById('verMatPrecio').textContent = '$' + precio.toFixed(2);
-            document.getElementById('verMatMonto').textContent = '$' + total.toFixed(2);
+            document.getElementById('verMatStockMinimo').textContent = aNumeroDecimal(this.getAttribute('data-stock-minimo') || 0).toFixed(2);
+            document.getElementById('verMatPrecio').textContent = formatearClp(precio);
+            document.getElementById('verMatMonto').textContent = formatearClp(total);
 
             if (modalVerMatEl && window.bootstrap) {
                 bootstrap.Modal.getOrCreateInstance(modalVerMatEl).show();
@@ -163,9 +230,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function recalcularTotalModalEditar() {
         if (!editMatMontoInput) return;
         const factorUnidad = obtenerFactorUnidad(editMatUnidadInput ? editMatUnidadInput.value : 1);
-        const precio = aNumero(editMatPrecioInput ? editMatPrecioInput.value : 0);
-        const total = factorUnidad * precio;
-        editMatMontoInput.value = '$' + total.toFixed(2);
+        const precio = aMontoClp(editMatPrecioInput ? editMatPrecioInput.value : 0);
+        const total = Math.round(factorUnidad * precio);
+        editMatMontoInput.value = formatearClp(total);
     }
 
     if (editMatUnidadInput) {
@@ -182,15 +249,15 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.addEventListener('click', function () {
             filaMaterialEnEdicion = this.closest('tr');
             const unidadInicialTexto = (this.getAttribute('data-unidad') || 'un').trim();
-            const precioInicial = aNumero(this.getAttribute('data-precio') || 0);
+            const precioInicial = aMontoClp(this.getAttribute('data-precio') || 0);
 
             document.getElementById('editMatId').value = this.getAttribute('data-id') || '';
             document.getElementById('editMatCodigo').value = this.getAttribute('data-codigo') || '';
             document.getElementById('editMatNombre').value = this.getAttribute('data-nombre') || '';
             if (editMatUnidadInput) editMatUnidadInput.value = unidadInicialTexto || 'un';
-            if (editMatStockInput) editMatStockInput.value = aNumero(this.getAttribute('data-stock') || 0).toFixed(2);
-            document.getElementById('editMatStockMinimo').value = aNumero(this.getAttribute('data-stock-minimo') || 0).toFixed(2);
-            if (editMatPrecioInput) editMatPrecioInput.value = precioInicial.toFixed(2);
+            if (editMatStockInput) editMatStockInput.value = aNumeroDecimal(this.getAttribute('data-stock') || 0).toFixed(2);
+            document.getElementById('editMatStockMinimo').value = aNumeroDecimal(this.getAttribute('data-stock-minimo') || 0).toFixed(2);
+            if (editMatPrecioInput) editMatPrecioInput.value = formatearClp(precioInicial);
 
             recalcularTotalModalEditar();
 
@@ -204,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function () {
         formEditarMat.addEventListener('submit', function (e) {
             e.preventDefault();
             const formData = new FormData(formEditarMat);
-            normalizarFormDataDecimales(formData);
+            normalizarFormData(formData);
 
             fetch(window.location.href, {
                 method: 'POST',
@@ -222,6 +289,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 const mat = data.material;
+                const precioClpTexto = mat.precio_unitario_clp || formatearClp(mat.precio_unitario);
+                const precioRawTexto = mat.precio_unitario || String(aMontoClp(precioClpTexto));
+
                 if (filaMaterialEnEdicion) {
                     const nombreEl = filaMaterialEnEdicion.querySelector('.mat-nombre-texto');
                     const subEl = filaMaterialEnEdicion.querySelector('.mat-sub-texto');
@@ -234,8 +304,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (unidadEl) unidadEl.textContent = mat.unidad_medida;
                     if (stockEl) stockEl.textContent = mat.stock_actual;
                     if (precioEl) {
-                        precioEl.setAttribute('data-precio', mat.precio_unitario);
-                        precioEl.textContent = '$' + aNumero(mat.precio_unitario).toFixed(2);
+                        precioEl.setAttribute('data-precio', precioRawTexto);
+                        precioEl.textContent = precioClpTexto;
                     }
 
                     filaMaterialEnEdicion.querySelectorAll('.btn-ver-material, .btn-editar-material').forEach(b => {
@@ -244,7 +314,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         b.setAttribute('data-unidad', mat.unidad_medida);
                         b.setAttribute('data-stock', mat.stock_actual);
                         b.setAttribute('data-stock-minimo', mat.stock_minimo);
-                        b.setAttribute('data-precio', mat.precio_unitario);
+                        b.setAttribute('data-precio', precioRawTexto);
                     });
 
                     const btnEliminar = filaMaterialEnEdicion.querySelector('.btn-eliminar-material');
@@ -320,7 +390,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const fila = e.target.closest('tr.fila-item-kit');
                 const precioInput = fila ? fila.querySelector('.input-precio-kit') : null;
                 if (precioInput && precioDefecto !== null) {
-                    precioInput.value = aNumero(precioDefecto).toFixed(2);
+                    precioInput.value = formatearClp(precioDefecto);
                 }
             }
             recalcularTotales();
@@ -349,7 +419,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const precio = fila.querySelector('.input-precio-kit');
                 if (select) select.value = '';
                 if (cant) cant.value = '1.00';
-                if (precio) precio.value = '0.00';
+                if (precio) precio.value = '$0';
             }
             recalcularTotales();
         });
@@ -364,7 +434,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function enviarFormularioCrearKit() {
         if (!formCrearKit) return;
         const formData = new FormData(formCrearKit);
-        normalizarFormDataDecimales(formData);
+        normalizarFormData(formData);
 
         if (btnConfirmarGuardarKit) btnConfirmarGuardarKit.disabled = true;
 
@@ -390,6 +460,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (instConfirmar) instConfirmar.hide();
             }
 
+            const totalFormateado = data.total_presupuesto
+                ? (String(data.total_presupuesto).startsWith('$') ? data.total_presupuesto : formatearClp(data.total_presupuesto))
+                : '$0';
+
             if (modalExitoEl && window.bootstrap) {
                 const exitoNombre = document.getElementById('exitoNombreKit');
                 const exitoTotal = document.getElementById('exitoTotalKit');
@@ -397,7 +471,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const btnIrListado = document.getElementById('btnIrListadoKitsExito');
 
                 if (exitoNombre) exitoNombre.textContent = data.kit_nombre || '';
-                if (exitoTotal) exitoTotal.textContent = '$' + (data.total_presupuesto || '0.00');
+                if (exitoTotal) exitoTotal.textContent = totalFormateado;
                 if (btnVerDetalle && data.detalle_url) btnVerDetalle.href = data.detalle_url;
                 if (btnIrListado && data.listado_url) btnIrListado.href = data.listado_url;
 
@@ -419,7 +493,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const nombreVal = (document.getElementById('nombreKitInput')?.value || '').trim();
             const tipoVal = (document.getElementById('tipoServicioKitInput')?.value || '').trim();
-            const totalTexto = totalEl ? totalEl.textContent : '$0.00';
+            const totalTexto = totalEl ? totalEl.textContent : '$0';
 
             const resumenNombre = document.getElementById('resumenNombreKit');
             const resumenTipo = document.getElementById('resumenTipoServicioKit');
@@ -446,7 +520,7 @@ document.addEventListener('DOMContentLoaded', function () {
         formEditarKit.addEventListener('submit', function (e) {
             e.preventDefault();
             const formData = new FormData(formEditarKit);
-            normalizarFormDataDecimales(formData);
+            normalizarFormData(formData);
 
             fetch(window.location.href, {
                 method: 'POST',
@@ -472,31 +546,42 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // CAMBIADO: al eliminar un kit, elimina la fila o recarga la vista actual evitando rutas de detalle inexistentes
     document.querySelectorAll('.form-eliminar-kit').forEach(form => {
         form.addEventListener('submit', function (e) {
             e.preventDefault();
             if (!confirm('¿Deseas eliminar este kit?')) return;
 
             const fila = this.closest('tr');
+            const formData = new FormData(form);
 
             fetch(form.action, {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': obtenerCsrfToken(),
                     'X-Requested-With': 'XMLHttpRequest'
-                }
+                },
+                body: formData
             })
             .then(async res => {
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok || (data && data.ok === false)) {
-                    alert((data && data.error) || 'No se pudo eliminar el kit.');
+                const contentType = res.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || data.ok === false) {
+                        alert(data.error || 'No se pudo eliminar el kit.');
+                        return;
+                    }
+                    if (fila) {
+                        fila.remove();
+                    } else {
+                        window.location.href = '/inventario/kits/';
+                    }
                     return;
                 }
-                if (fila) {
-                    fila.remove();
+
+                if (res.ok) {
+                    window.location.href = res.url || '/inventario/kits/';
                 } else {
-                    window.location.reload();
+                    alert('No se pudo eliminar el kit.');
                 }
             })
             .catch(() => alert('Error de conexión al eliminar el kit.'));

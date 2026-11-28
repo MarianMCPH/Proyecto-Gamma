@@ -19,13 +19,14 @@
                             <th>Material</th>
                             <th>Unidad</th>
                             <th>Stock</th>
-                            <th>Precio Unit. ($)</th>
-                            <th>Total ($)</th>
+                            <th>Precio Unit. (CLP)</th>
+                            <th>Total (CLP)</th>
                             <th class="text-end" style="width: 120px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="cuerpoMiniInventario">
-                        {% for m in materiales %}
+                        {% for item in materiales_data %}
+                        {% with m=item.obj %}
                         <tr data-fila-material-id="{{ m.id }}">
                             <td>
                                 <div class="fw-semibold text-dark mat-nombre-texto">{{ m.nombre }}</div>
@@ -33,11 +34,10 @@
                             </td>
                             <td class="mat-unidad-texto">{{ m.unidad_medida }}</td>
                             <td class="mat-stock-texto">{{ m.stock_actual|floatformat:2 }}</td>
-                            <!-- CAMBIADO: precio como texto (sin input number ni flechitas inline); se edita solo en el modal Editar -->
-                            <td class="fw-semibold text-dark mat-precio-texto" data-precio="{{ m.precio_unitario|stringformat:'.2f' }}">
-                                ${{ m.precio_unitario|floatformat:2 }}
+                            <td class="fw-semibold text-dark mat-precio-texto" data-precio="{{ item.precio_raw }}">
+                                {{ item.precio_clp }}
                             </td>
-                            <td class="fw-semibold text-success mat-monto-texto">$0.00</td>
+                            <td class="fw-semibold text-success mat-monto-texto">$0</td>
                             <td class="text-end">
                                 <div class="d-inline-flex gap-1">
                                     <button type="button"
@@ -48,7 +48,7 @@
                                             data-unidad="{{ m.unidad_medida }}"
                                             data-stock="{{ m.stock_actual|stringformat:'.2f' }}"
                                             data-stock-minimo="{{ m.stock_minimo|stringformat:'.2f' }}"
-                                            data-precio="{{ m.precio_unitario|stringformat:'.2f' }}"
+                                            data-precio="{{ item.precio_raw }}"
                                             title="Ver material">
                                         <i class="bi bi-eye"></i>
                                     </button>
@@ -60,7 +60,7 @@
                                             data-unidad="{{ m.unidad_medida }}"
                                             data-stock="{{ m.stock_actual|stringformat:'.2f' }}"
                                             data-stock-minimo="{{ m.stock_minimo|stringformat:'.2f' }}"
-                                            data-precio="{{ m.precio_unitario|stringformat:'.2f' }}"
+                                            data-precio="{{ item.precio_raw }}"
                                             title="Editar material">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
@@ -74,6 +74,7 @@
                                 </div>
                             </td>
                         </tr>
+                        {% endwith %}
                         {% empty %}
                         <tr id="filaSinMateriales">
                             <td colspan="6" class="text-center py-4 text-muted">
@@ -96,7 +97,7 @@
         </div>
     </div>
 
-    <!-- AGREGADO: Listado de kits agregados debajo del mini inventario -->
+    <!-- Listado de kits agregados debajo del mini inventario -->
     <div class="col-12">
         <div class="card-custom p-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -113,7 +114,7 @@
                             <th>Kit</th>
                             <th>Tipo de Servicio</th>
                             <th>Materiales</th>
-                            <th>Presupuesto Total ($)</th>
+                            <th>Presupuesto Total (CLP)</th>
                             <th class="text-end" style="width: 140px;">Acciones</th>
                         </tr>
                     </thead>
@@ -128,7 +129,7 @@
                             </td>
                             <td>{{ kit.tipo_servicio }}</td>
                             <td>{{ kit.cantidad_items }} ítem{{ kit.cantidad_items|pluralize:"s" }}</td>
-                            <td class="fw-semibold text-success">${{ kit.total_presupuesto|floatformat:2 }}</td>
+                            <td class="fw-semibold text-success">{{ kit.total_presupuesto_clp }}</td>
                             <td class="text-end">
                                 <div class="d-inline-flex gap-1">
                                     <a href="{% url 'inventario:detalle_kit' kit.id %}"
@@ -185,8 +186,8 @@
                     <div class="mb-1"><strong>Unidad:</strong> <span id="verMatUnidad">-</span></div>
                     <div class="mb-1"><strong>Stock actual:</strong> <span id="verMatStock">-</span></div>
                     <div class="mb-1"><strong>Stock mínimo:</strong> <span id="verMatStockMinimo">-</span></div>
-                    <div class="mb-1"><strong>Precio unitario:</strong> <span id="verMatPrecio" class="fw-bold">$0.00</span></div>
-                    <div><strong>Total:</strong> <span id="verMatMonto" class="text-success fw-bold">$0.00</span></div>
+                    <div class="mb-1"><strong>Precio unitario:</strong> <span id="verMatPrecio" class="fw-bold">$0</span></div>
+                    <div><strong>Total:</strong> <span id="verMatMonto" class="text-success fw-bold">$0</span></div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -233,12 +234,12 @@
                             <input type="number" id="editMatStockMinimo" name="stock_minimo" class="form-control form-control-sm" step="0.01" min="0" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Precio unitario ($) *</label>
-                            <input type="number" id="editMatPrecio" name="precio_unitario" class="form-control form-control-sm" step="0.01" min="0" required>
+                            <label class="form-label fw-semibold">Precio unitario (CLP) *</label>
+                            <input type="text" inputmode="numeric" id="editMatPrecio" name="precio_unitario" class="form-control form-control-sm input-clp" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Total ($)</label>
-                            <input type="text" id="editMatMontoCalculado" class="form-control form-control-sm bg-light fw-bold text-success" value="$0.00" readonly>
+                            <label class="form-label fw-semibold">Total (CLP)</label>
+                            <input type="text" id="editMatMontoCalculado" class="form-control form-control-sm bg-light fw-bold text-success" value="$0" readonly>
                         </div>
                     </div>
                 </div>

@@ -44,6 +44,8 @@ ESTADOS_EN_REVISION_CANCELACION = {
     "pendiente_cancelacion",
 }
 
+MONTO_EXTRA_OBRA = Decimal("500000")
+
 
 def obtener_tecnicos_activos():
     """Retorna únicamente usuarios activos con rol Técnico asignado en su perfil."""
@@ -74,6 +76,18 @@ def _obtener_kit_de_orden(orden):
         return None
     return (
         KitHerramientas.objects.filter(activo=True, tipo_servicio__iexact=orden.tipo_servicio.strip())
+        .order_by("-id")
+        .first()
+    )
+
+def _obtener_kit_para_servicio(tipo_servicio: str):
+    """Obtiene el kit asociado al tipo de servicio (insensible a mayúsculas/espacios)."""
+    limpio = (tipo_servicio or "").strip()
+    if not limpio:
+        return None
+    return (
+        KitHerramientas.objects.prefetch_related("detalles__material")
+        .filter(tipo_servicio__iexact=limpio)
         .order_by("-id")
         .first()
     )
@@ -120,6 +134,7 @@ class ObraCreateView(TemplateView):
         direccion_faena = request.POST.get("direccion_faena", "").strip()
         instrucciones = request.POST.get("instrucciones", "").strip()
         urgencia = request.POST.get("urgencia", "Normal").strip()
+        kit_id_post = (request.POST.get("kit_id") or "").strip()
 
         if not all([
             cliente_nombre,
@@ -147,6 +162,57 @@ class ObraCreateView(TemplateView):
         try:
             with transaction.atomic():
                 tecnico = obtener_tecnicos_activos().get(pk=tecnico_id)
+
+                # Resolver kit: prioriza kit_id enviado si existe, o busca por tipo_servicio
+                kit_asignado = None
+                if kit_id_post.isdigit():
+                    kit_asignado = (
+                        KitHerramientas.objects.prefetch_related("detalles__material")
+                        .filter(pk=int(kit_id_post))
+                        .first()
+                    )
+                if kit_asignado is None:
+                    kit_asignado = _obtener_kit_para_servicio(tipo_servicio)
+
+                if kit_asignado is None:
+                    raise ValueError(
+                        f"No hay kits disponibles para el tipo de servicio '{tipo_servicio}'."
+                    )
+
+                # Validar y descontar stock de todos los materiales del kit antes de guardar la obra
+                usuario_mov = (
+                    request.user
+                    if getattr(request, "user", None) and request.user.is_authenticated
+                    else tecnico
+                )
+
+                total_kit = Decimal("0")
+                consumos_a_registrar = []
+
+                for det in kit_asignado.detalles.all():
+                    cantidad_requerida = det.cantidad or Decimal("0")
+                    if cantidad_requerida <= 0:
+                        continue
+
+                    material_lock = Material.objects.select_for_update().get(pk=det.material_id)
+                    stock_disponible = material_lock.stock_actual or Decimal("0")
+
+                    if stock_disponible < cantidad_requerida:
+                        raise ValueError(
+                            f"Stock insuficiente para '{material_lock.nombre}' "
+                            f"(disponible: {stock_disponible:g}, requerido: {cantidad_requerida:g})."
+                        )
+
+                    precio_unit = det.precio_unitario or material_lock.precio_unitario or Decimal("0")
+                    total_kit += cantidad_requerida * precio_unit
+
+                    material_lock.stock_actual = stock_disponible - cantidad_requerida
+                    material_lock.save(update_fields=["stock_actual"])
+
+                    consumos_a_registrar.append((material_lock, cantidad_requerida))
+
+                presupuesto_final = total_kit + MONTO_EXTRA_OBRA
+
                 contacto_formateado = f"{contacto_planta} ({telefono_contacto})"
 
                 cliente = Cliente.objects.filter(razon_social__iexact=cliente_nombre).first()
@@ -169,18 +235,47 @@ class ObraCreateView(TemplateView):
                     f"{instrucciones}"
                 )
 
-                OrdenTrabajo.objects.create(
-                    cliente=cliente,
-                    tecnico=tecnico,
-                    tipo_servicio=tipo_servicio,
-                    fecha_programada=dt_programada.date(),
-                    direccion=direccion_faena,
-                    estado="programada",
-                    observacion_auditoria=detalle_instrucciones,
-                )
+                orden_kwargs = {
+                    "cliente": cliente,
+                    "tecnico": tecnico,
+                    "tipo_servicio": tipo_servicio,
+                    "fecha_programada": dt_programada.date(),
+                    "direccion": direccion_faena,
+                    "estado": "programada",
+                    "observacion_auditoria": detalle_instrucciones,
+                }
 
-            return JsonResponse({"ok": True})
+                # Guarda presupuesto_total y kit si existen en OrdenTrabajo
+                campos_orden = {f.name for f in OrdenTrabajo._meta.get_fields()}
+                if "presupuesto_total" in campos_orden:
+                    orden_kwargs["presupuesto_total"] = presupuesto_final
+                if "kit" in campos_orden:
+                    orden_kwargs["kit"] = kit_asignado
 
+                orden = OrdenTrabajo.objects.create(**orden_kwargs)
+
+                for material_lock, cantidad_requerida in consumos_a_registrar:
+                    MovimientoInventario.objects.create(
+                        material=material_lock,
+                        orden=orden,
+                        usuario=usuario_mov,
+                        tipo_mov="consumo",
+                        cantidad=cantidad_requerida,
+                        estado_validacion="aprobado",
+                        motivo=f"Descuento automático por kit '{kit_asignado.nombre}' en obra #OT-{orden.pk}",
+                    )
+
+            return JsonResponse({
+                "ok": True,
+                "orden_id": orden.pk,
+                "presupuesto_total": str(presupuesto_final),
+            })
+
+        except ValueError as e:
+            return JsonResponse(
+                {"ok": False, "error": str(e)},
+                status=400,
+            )
         except Usuario.DoesNotExist:
             return JsonResponse(
                 {"ok": False, "error": "El técnico seleccionado no es válido o no tiene rol de Técnico activo."},

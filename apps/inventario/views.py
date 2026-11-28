@@ -1,5 +1,6 @@
 from decimal import Decimal, InvalidOperation
 import json
+import re
 
 from django.db import transaction
 from django.http import JsonResponse
@@ -10,6 +11,52 @@ from django.views.generic import TemplateView
 
 from apps.obras.models import OrdenTrabajo
 from .models import DetalleKitHerramienta, KitHerramientas, Material, MovimientoInventario
+
+
+def _formatear_clp(monto) -> str:
+    """Formatea un monto numérico como peso chileno: $125.990 (sin decimales)."""
+    if monto is None:
+        return "$0"
+    try:
+        dec = monto if isinstance(monto, Decimal) else Decimal(str(monto))
+        entero = int(round(dec))
+    except (InvalidOperation, ValueError, TypeError):
+        entero = 0
+    return f"${entero:,}".replace(",", ".")
+
+
+def _parsear_decimal_general(valor, default="0") -> Decimal:
+    """Convierte cantidades o stock (ej. '1.5', '1,5', '10') a Decimal."""
+    if valor is None:
+        return Decimal(default)
+    texto = str(valor).strip().replace(" ", "")
+    if not texto:
+        return Decimal(default)
+    if "," in texto and "." in texto:
+        texto = texto.replace(".", "").replace(",", ".")
+    elif "," in texto:
+        texto = texto.replace(",", ".")
+    return Decimal(texto)
+
+
+def _parsear_clp_decimal(valor, default="0") -> Decimal:
+    """Convierte precios/montos en formato CLP (ej. '$125.990', '125.990', '125990') a Decimal."""
+    if valor is None:
+        return Decimal(default)
+    limpio = re.sub(r"[^\d,.-]", "", str(valor)).strip()
+    if not limpio:
+        return Decimal(default)
+
+    # Si tiene coma decimal (ej. 125.990,50 o 125,5)
+    if "," in limpio:
+        limpio = limpio.replace(".", "").replace(",", ".")
+        return Decimal(limpio)
+
+    # Si tiene puntos, verificar si son separadores de miles (ej. 125.990 o 1.250.000)
+    if re.fullmatch(r"-?\d{1,3}(?:\.\d{3})+", limpio):
+        return Decimal(limpio.replace(".", ""))
+
+    return Decimal(limpio)
 
 
 def _obtener_tipos_servicio():
@@ -35,6 +82,7 @@ def _obtener_tipos_servicio():
             vistos.add(clave)
             combinados.append(limpio)
     return combinados
+
 
 CLAVE_SESION_SOLICITUDES_OCULTAS = "solicitudes_insumos_ocultas"
 
@@ -360,7 +408,7 @@ class DetalleSolicitudView(TemplateView):
                     cant_raw = payload.get("cantidad_aprobar")
                     if cant_raw is not None and str(cant_raw).strip() != "":
                         try:
-                            cant_aprobar = Decimal(str(cant_raw))
+                            cant_aprobar = _parsear_decimal_general(cant_raw)
                         except InvalidOperation:
                             return JsonResponse(
                                 {"ok": False, "error": "La cantidad a aprobar no es válida."},
@@ -444,10 +492,20 @@ class KitHerramientasView(TemplateView):
                 "descripcion": kit.descripcion or "",
                 "cantidad_items": kit.detalles.count(),
                 "total_presupuesto": kit.total_presupuesto,
+                "total_presupuesto_clp": _formatear_clp(kit.total_presupuesto),
+            })
+
+        materiales_data = []
+        for m in materiales:
+            materiales_data.append({
+                "obj": m,
+                "precio_clp": _formatear_clp(m.precio_unitario),
+                "precio_raw": str(int(round(Decimal(m.precio_unitario or 0)))),
             })
 
         context["kits"] = kits_data
         context["materiales"] = materiales
+        context["materiales_data"] = materiales_data
         return context
 
     def post(self, request, *args, **kwargs):
@@ -461,9 +519,9 @@ class KitHerramientasView(TemplateView):
             nombre = (request.POST.get("nombre") or "").strip()
             unidad = (request.POST.get("unidad_medida") or "un").strip()
             try:
-                stock_actual = Decimal(str(request.POST.get("stock_actual") or "0").replace(",", "."))
-                stock_minimo = Decimal(str(request.POST.get("stock_minimo") or "0").replace(",", "."))
-                precio_unitario = Decimal(str(request.POST.get("precio_unitario") or "0").replace(",", "."))
+                stock_actual = _parsear_decimal_general(request.POST.get("stock_actual") or "0")
+                stock_minimo = _parsear_decimal_general(request.POST.get("stock_minimo") or "0")
+                precio_unitario = _parsear_clp_decimal(request.POST.get("precio_unitario") or "0")
             except InvalidOperation:
                 return JsonResponse({"ok": False, "error": "Valores numéricos inválidos."}, status=400)
 
@@ -500,14 +558,15 @@ class KitHerramientasView(TemplateView):
                     "unidad_medida": mat.unidad_medida,
                     "stock_actual": f"{mat.stock_actual:.2f}",
                     "stock_minimo": f"{mat.stock_minimo:.2f}",
-                    "precio_unitario": f"{mat.precio_unitario:.2f}",
+                    "precio_unitario": str(int(round(Decimal(mat.precio_unitario or 0)))),
+                    "precio_unitario_clp": _formatear_clp(mat.precio_unitario),
                 },
             })
 
         if accion == "actualizar_precio_material":
             mat_id = request.POST.get("material_id")
             try:
-                nuevo_precio = Decimal(str(request.POST.get("precio_unitario") or "0").replace(",", "."))
+                nuevo_precio = _parsear_clp_decimal(request.POST.get("precio_unitario") or "0")
                 if nuevo_precio < 0:
                     raise InvalidOperation
             except InvalidOperation:
@@ -516,9 +575,12 @@ class KitHerramientasView(TemplateView):
             mat = get_object_or_404(Material, pk=mat_id)
             mat.precio_unitario = nuevo_precio
             mat.save(update_fields=["precio_unitario"])
-            return JsonResponse({"ok": True, "precio_unitario": f"{mat.precio_unitario:.2f}"})
+            return JsonResponse({
+                "ok": True,
+                "precio_unitario": str(int(round(Decimal(mat.precio_unitario or 0)))),
+                "precio_unitario_clp": _formatear_clp(mat.precio_unitario),
+            })
 
-        # CAMBIADO: permite eliminar el material en pruebas eliminando primero sus movimientos asociados
         if accion == "eliminar_material":
             mat_id = request.POST.get("material_id")
             mat = get_object_or_404(Material, pk=mat_id)
@@ -551,9 +613,9 @@ class NuevoMaterialView(TemplateView):
         nombre = (request.POST.get("nombre") or "").strip()
         unidad = (request.POST.get("unidad_medida") or "un").strip()
         try:
-            stock_actual = Decimal(str(request.POST.get("stock_actual") or "0").replace(",", "."))
-            stock_minimo = Decimal(str(request.POST.get("stock_minimo") or "0").replace(",", "."))
-            precio_unitario = Decimal(str(request.POST.get("precio_unitario") or "0").replace(",", "."))
+            stock_actual = _parsear_decimal_general(request.POST.get("stock_actual") or "0")
+            stock_minimo = _parsear_decimal_general(request.POST.get("stock_minimo") or "0")
+            precio_unitario = _parsear_clp_decimal(request.POST.get("precio_unitario") or "0")
         except InvalidOperation:
             return JsonResponse({"ok": False, "error": "Valores numéricos inválidos."}, status=400)
 
@@ -582,7 +644,8 @@ class NuevoMaterialView(TemplateView):
                 "nombre": mat.nombre,
                 "unidad_medida": mat.unidad_medida,
                 "stock_actual": f"{mat.stock_actual:.2f}",
-                "precio_unitario": f"{mat.precio_unitario:.2f}",
+                "precio_unitario": str(int(round(Decimal(mat.precio_unitario or 0)))),
+                "precio_unitario_clp": _formatear_clp(mat.precio_unitario),
             },
             "redirect_url": reverse("inventario:kits_herramientas"),
         })
@@ -595,7 +658,11 @@ class CrearKitView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["materiales"] = Material.objects.order_by("nombre")
+        materiales = list(Material.objects.order_by("nombre"))
+        for m in materiales:
+            m.precio_clp = _formatear_clp(m.precio_unitario)
+            m.precio_raw = str(int(round(Decimal(m.precio_unitario or 0))))
+        context["materiales"] = materiales
         context["tipos_servicio"] = _obtener_tipos_servicio()
         return context
 
@@ -629,12 +696,11 @@ class CrearKitView(TemplateView):
                     if not mat:
                         continue
 
-                    cant_raw = str(cantidades[idx] if idx < len(cantidades) else "1").replace(",", ".").strip()
-                    cant = Decimal(cant_raw or "1")
+                    cant_raw = cantidades[idx] if idx < len(cantidades) else "1"
+                    cant = _parsear_decimal_general(cant_raw or "1")
                     if cant <= 0:
                         continue
 
-                    # CAMBIADO: usa siempre el precio unitario registrado en el material
                     precio = mat.precio_unitario or Decimal("0")
                     items_validos.append((mat, cant, precio))
 
@@ -657,11 +723,12 @@ class CrearKitView(TemplateView):
                         defaults={"cantidad": cant, "precio_unitario": precio},
                     )
 
+            total_clp = _formatear_clp(kit.total_presupuesto)
             return JsonResponse({
                 "ok": True,
                 "kit_id": kit.id,
                 "kit_nombre": kit.nombre,
-                "total_presupuesto": f"{kit.total_presupuesto:.2f}",
+                "total_presupuesto": total_clp,
                 "detalle_url": reverse("inventario:detalle_kit", args=[kit.id]),
                 "listado_url": reverse("inventario:kits_herramientas"),
             })
@@ -691,12 +758,15 @@ class DetalleKitView(TemplateView):
                 "unidad": det.material.unidad_medida,
                 "cantidad": det.cantidad,
                 "precio_unitario": det.precio_unitario,
+                "precio_unitario_clp": _formatear_clp(det.precio_unitario),
                 "subtotal": det.subtotal,
+                "subtotal_clp": _formatear_clp(det.subtotal),
             })
 
         context["kit"] = kit
         context["items"] = items
         context["total_presupuesto"] = kit.total_presupuesto
+        context["total_presupuesto_clp"] = _formatear_clp(kit.total_presupuesto)
         return context
 
 
@@ -711,10 +781,22 @@ class EditarKitView(TemplateView):
             KitHerramientas.objects.prefetch_related("detalles__material"),
             pk=kwargs.get("pk"),
         )
+        materiales = list(Material.objects.order_by("nombre"))
+        for m in materiales:
+            m.precio_clp = _formatear_clp(m.precio_unitario)
+            m.precio_raw = str(int(round(Decimal(m.precio_unitario or 0))))
+
+        detalles = list(kit.detalles.select_related("material").all())
+        for det in detalles:
+            det.precio_clp = _formatear_clp(det.precio_unitario)
+            det.precio_raw = str(int(round(Decimal(det.precio_unitario or 0))))
+            det.subtotal_clp = _formatear_clp(det.subtotal)
+
         context["kit"] = kit
-        context["detalles"] = list(kit.detalles.select_related("material").all())
-        context["materiales"] = Material.objects.order_by("nombre")
+        context["detalles"] = detalles
+        context["materiales"] = materiales
         context["tipos_servicio"] = _obtener_tipos_servicio()
+        context["total_presupuesto_clp"] = _formatear_clp(kit.total_presupuesto)
         return context
 
     def post(self, request, *args, **kwargs):
@@ -744,13 +826,14 @@ class EditarKitView(TemplateView):
                     mat = Material.objects.filter(pk=int(mat_id)).first()
                     if not mat:
                         continue
-                    cant = Decimal(str(cantidades[idx] if idx < len(cantidades) else "1").replace(",", "."))
+                    cant_raw = cantidades[idx] if idx < len(cantidades) else "1"
+                    cant = _parsear_decimal_general(cant_raw or "1")
                     if cant <= 0:
                         continue
-                    precio_raw = str(precios[idx] if idx < len(precios) else "").replace(",", ".").strip()
+                    precio_raw = precios[idx] if idx < len(precios) else ""
                     precio = (
-                        Decimal(precio_raw)
-                        if precio_raw != ""
+                        _parsear_clp_decimal(precio_raw)
+                        if str(precio_raw).strip() != ""
                         else (mat.precio_unitario or Decimal("0"))
                     )
                     DetalleKitHerramienta.objects.create(
@@ -765,7 +848,6 @@ class EditarKitView(TemplateView):
             return JsonResponse({"ok": False, "error": "No se pudo actualizar el kit."}, status=500)
 
 
-# CAMBIADO: evita el 404 si el kit ya no existe en la base de datos
 class EliminarKitView(View):
     """Elimina un kit de herramientas."""
 
