@@ -19,8 +19,8 @@ urlpatterns = [
     path("reportes/generar/", views.GenerarReportePDFView.as_view(), name="generar_reporte_pdf"),
     path("reportes/<int:pk>/ver/", views.VerReporteHTMLView.as_view(), name="ver_reporte_html"),
 
-    # Módulo Obras Canceladas (Luciano)
+    # Módulo Obras Canceladas
     path("canceladas/", views.ObrasCanceladasListView.as_view(), name="obras_canceladas"),
+    path("canceladas/<int:pk>/detalle/", views.DetalleObraCanceladaView.as_view(), name="detalle_obra_cancelada"),
     path("canceladas/<int:pk>/restaurar-materiales/", views.RestaurarMaterialesObraView.as_view(), name="restaurar_materiales_obra"),
-    path("canceladas/exportar-reporte/", views.ExportarObrasCanceladasCSVView.as_view(), name="exportar_obras_canceladas"),
 ]

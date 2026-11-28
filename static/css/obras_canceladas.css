@@ -34,7 +34,7 @@
     transition: background-color 0.15s ease;
 }
 
-.btn-naranja-fyag:hover {
+.btn-naranja-fyag:hover:not(:disabled) {
     background-color: #c7411c;
     border-color: #c7411c;
     color: #ffffff;
@@ -110,4 +110,39 @@
     border-color: #e04f26;
     color: #ffffff;
     font-weight: 600;
+}
+
+/* Modo oscuro */
+html.modo-oscuro .canceladas-wrapper {
+    background-color: #111622;
+}
+
+html.modo-oscuro .titulo-canceladas {
+    color: #f8fafc;
+}
+
+html.modo-oscuro .card-canceladas-main {
+    background-color: #1e2433 !important;
+    color: #e2e8f0 !important;
+}
+
+html.modo-oscuro .tabla-canceladas-fyag thead th {
+    background-color: #252d3f !important;
+    color: #e2e8f0 !important;
+    border-bottom-color: #334155 !important;
+}
+
+html.modo-oscuro .tabla-canceladas-fyag tbody td {
+    border-bottom-color: #2c3548 !important;
+    color: #e2e8f0 !important;
+}
+
+html.modo-oscuro .input-buscar-fyag .input-group-text,
+html.modo-oscuro .input-buscar-fyag .form-control,
+html.modo-oscuro .select-razon-fyag,
+html.modo-oscuro .form-control[readonly],
+html.modo-oscuro textarea.form-control {
+    background-color: #161b26 !important;
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
 }
